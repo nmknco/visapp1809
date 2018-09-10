@@ -1,0 +1,52 @@
+body {
+  margin: 0;
+  padding: 0;
+  font-family: sans-serif;
+}
+
+.chart-bg {
+  fill: #eeeeee;
+  opacity: 0.2;
+}
+
+.selection {
+  fill: #cccccc;
+  opacity: 0.2;
+}
+
+.dot :hover {
+  cursor: pointer;
+}
+
+.circle-ring {
+  fill: none;
+  stroke-width: 3px;
+  opacity: 0.5
+}
+
+.circle-bg {
+  fill: white;
+  stroke-width: 0;
+  opacity: 0;
+}
+
+.unselected .circle-ring {
+  stroke: #999999
+}
+
+/* .selected .circle-ring {
+  stroke: #cc0000
+} */
+
+.label {
+  fill: #000000
+}
+
+.x-axis .tick text {
+  transform: rotate(-90deg) translate(-1em, -1.2em);
+  text-anchor: end;
+}
+
+.color-picker {
+  position: absolute;
+}
