@@ -1,16 +1,26 @@
 import * as d3 from 'd3';
 
 const DEFAULTSIZE = 7;
-const DEFAULTCOLOR = '#B80000';
+// const DEFAULTCOLOR = '#000000'
 
 class MainPlotter {
-  constructor(data, container, chartConfig, updateColorPicker) {
+  constructor(data, 
+    container, 
+    chartConfig, 
+    updateColorPicker,
+    updateRecommendation,
+    onDataPointHover,
+  ){
     this.data = data;
     this.chartConfig = chartConfig;
     this.container = container;
     this.updateColorPicker = updateColorPicker;
+    this.updateRecommendation = updateRecommendation;
+    this.onDataPointHover = onDataPointHover;
 
-    this.scales = {x:{}, y:{}};
+    this.colorSource = 'selection'; // 'selection | 'encoding' | 'recommendation'
+
+    this.scales = {x:{}, y:{}, color:{}};
 
     this.init();
   }
@@ -33,7 +43,7 @@ class MainPlotter {
       .attr('width', c.svgW - c.pad.l - c.pad.r)
       .attr('height', c.svgH - c.pad.t - c.pad.b)
       .on('click', () => {
-        this.updateColorPicker({visibility: 'hidden'})
+        this.updateColorPicker({display: 'none'})
       });
     this.chart = chart;
 
@@ -42,10 +52,9 @@ class MainPlotter {
       chartBg.node(),
       () => this.selectedSize,
       () => this.selectedColor,
+      this.updateRecommendation,
+      this.getColorSource,
     );
-
-    this.setSelectedColor = this.selector.setSelectedColor;
-    this.setSelectedSize = this.selector.setSelectedSize
     
     this.resizer = new Resizer(
       chartBg.node(),
@@ -69,11 +78,14 @@ class MainPlotter {
   };
   
   update = (plotConfig) => {
+    console.log('update called')
     const c = this.chartConfig;
     const data = this.data;
 
-    this.plotConfig = plotConfig; // for dynamic click handlers
-    const { x_attr, y_attr } = plotConfig;
+    this.plotConfig = plotConfig; // for dynamic click handlers (colorpicker hover overlay)
+    let { x_attr, y_attr, color_attr } = plotConfig;
+    x_attr = x_attr.name;
+    y_attr = y_attr.name;
   
     const _expand = (extent) => {
       const [lo, hi] = extent;
@@ -83,18 +95,20 @@ class MainPlotter {
 
     this.xScale = this.scales.x[x_attr] || (
       (typeof data[0][x_attr] === 'number') ?
-      d3.scaleLinear()
-        .domain(_expand(d3.extent(data, d => d[x_attr]))) :
-      d3.scaleBand()
-        .domain(data.map(d => d[x_attr]))
+        d3.scaleLinear()
+          .domain(_expand(d3.extent(data, d => d[x_attr]))) :
+        d3.scaleBand()
+          .domain(data.map(d => d[x_attr]))
     ).range([0, c.svgW - c.pad.l - c.pad.r]);
+
     this.yScale = this.scales.y[y_attr] || (
       (typeof data[0][y_attr] === 'number') ?
-      d3.scaleLinear()
-        .domain(_expand(d3.extent(data, d => d[y_attr]))) :
-      d3.scaleBand()
-        .domain(data.map(d => d[y_attr]))
+        d3.scaleLinear()
+          .domain(_expand(d3.extent(data, d => d[y_attr]))) :
+        d3.scaleBand()
+          .domain(data.map(d => d[y_attr]))
     ).range([c.svgH - c.pad.t - c.pad.b, 0]);
+
     this.scales.x[x_attr] = this.xScale;
     this.scales.y[y_attr] = this.yScale;
     const xg = this.chart.select('.x-axis');
@@ -103,6 +117,15 @@ class MainPlotter {
     yg.call(d3.axisLeft(this.yScale));
     xg.select('.label').text(x_attr);
     yg.select('.label').text(y_attr);
+
+    if (color_attr) {
+      color_attr = color_attr.name;
+      this.colorScale = this.scales.color[color_attr] ||
+        (typeof data[0][color_attr] === 'number') ?
+          d3.scaleSequential(t => d3.interpolateInferno(d3.scaleLinear().domain([0,1]).range([0.9,0.1])(t))).domain(d3.extent(data, d => d[color_attr])) :
+          d3.scaleOrdinal(d3.schemeCategory10).domain(d3.map(data, d => d[color_attr]).keys());
+      this.scales.color[color_attr] = this.colorScale
+    }
 
     const dots = this.chart
       .selectAll('.dot')
@@ -119,16 +142,24 @@ class MainPlotter {
           } else {
             this.selector.selectToggle(id);
           }
+          this.updateRecommendation();
         }
       })
       .on('contextmenu', d => {
         d3.event.preventDefault();
         if (this.selector.isSelected(d.__id_extra__)) {
           const { x_attr, y_attr } = this.plotConfig;
-          const left = 300 + c.pad.l + this.xScale(d[x_attr]) - 20;
-          const top = c.pad.t + this.yScale(d[y_attr]) + 20;
-          this.updateColorPicker({left, top, visibility: 'visible'});
+          const left = c.pad.l + this.xScale(d[x_attr.name]) - 18;
+          const top = c.pad.t + this.yScale(d[y_attr.name]) + 20;
+          
+          this.updateColorPicker({left, top, display: undefined});
         }
+      })
+      
+    newDots.on('mouseover', d => {
+        this.onDataPointHover(d);
+      }).on('mouseout', d => {
+        this.onDataPointHover({});
       });
     
     newDots.append('circle')
@@ -141,16 +172,76 @@ class MainPlotter {
       .on('mouseover', d => this.resizer.handleMouseOver(d3.event, d.__id_extra__))
       .on('mouseout', this.resizer.handleMouseOut);
   
-    dots.merge(newDots)
+    const allDots = dots.merge(newDots)
       .transition()
       .duration(1000)
       .attr('transform', d => `translate(${this.xScale(d[x_attr])}, ${this.yScale(d[y_attr])})`)
       .attr('data-x', d => this.xScale(d[x_attr]))
       .attr('data-y', d => this.yScale(d[y_attr]));
-  
+    
+    if (color_attr) {
+      this.colorSource = 'encoding';
+      this.updateColorWithScale(color_attr, this.colorScale);
+    }
+
     dots.exit()
       .each(d => this.selector.unselectOne(d.__id_extra__))
       .remove();
+  };
+
+  updateColorWithScale = (color_attr, colorScale) => {
+    this.chart.selectAll('.circle-ring')
+      .style('stroke', d => { return colorScale(d[color_attr]) });
+  };
+
+  updateColorWithUserColor = (color_attr, pivot_value, pivot_color_hsl_obj) => {
+    const colorScale = this._getColorScale(color_attr, pivot_value, pivot_color_hsl_obj);
+    this.updateColorWithScale(color_attr, colorScale);
+  };
+
+  _getColorScale = (color_attr, pivot_value, pivot_color_hsl_obj) => {
+    const [min, max] = d3.extent(this.data, d => d[color_attr]);
+    console.log(pivot_color_hsl_obj)
+    const [min_l, max_l] = [0.7, 0.1]
+    const colorScale = (val) => {
+      const hsl = { ...pivot_color_hsl_obj };
+      if (min !== max) {
+        if (val <= pivot_value) {
+          hsl.l = min_l + (val - min) / (pivot_value - min) * (hsl.l - min_l);
+        } else {
+          hsl.l = max_l - (max - val) / (max - pivot_value) * (max_l - hsl.l);
+        }
+      }
+      // console.log(val)
+      // console.log(`hsl(${hsl.h},${hsl.s*100}%,${hsl.l*100}%)`)
+      return `hsl(${hsl.h},${hsl.s*100}%,${hsl.l*100}%)`;
+    };
+    return colorScale;
+  };
+
+  getColorSource = () => {
+    return this.colorSource;
+  }
+
+  setColorSource = (source) => {
+    this.colorSource = source;
+  }
+
+  getSelectedIds = () => {
+    return this.selector.selectedIds;
+  };
+
+  setUserSelectedColor = (colorObj) => {
+    this.colorSource = 'selection';
+    this.selector.setSelectedColor(colorObj.hex);
+  };
+
+  resetAllColor = () => {
+    this.setUserSelectedColor({hex: undefined});
+  };
+
+  setSelectedSize = (size) => { 
+    this.selector.setSelectedSize(size)
   };
   
 }
@@ -226,7 +317,10 @@ class Resizer {
 }
 
 class Selector {
-  constructor(chartNode, chartBgNode, getSize, getColor) {
+
+  // TODO: refactor and limit its responsibility to update selection
+
+  constructor(chartNode, chartBgNode, getSize, getColor, updateRecommendation, getColorSource) {
     this.chartNode = chartNode;
     this.chartBgNode = chartBgNode;
 
@@ -238,7 +332,11 @@ class Selector {
     this.pendingIds = new Set();
 
     this.selectedSize = DEFAULTSIZE;
-    this.selectedColor = DEFAULTCOLOR
+    // this.selectedColor = DEFAULTCOLOR;
+    this.selectedColor = undefined;
+
+    this.updateRecommendation = updateRecommendation;
+    this.getColorSource = getColorSource;
 
     this.init();
   }
@@ -256,18 +354,26 @@ class Selector {
 
   _updateRectNode = () => {
     this.selRect.updateToNode(this.selNode);
-  }
+  };
+
+  _shouldResetColorWithNewSelection = () => {
+    return this.getColorSource() === 'selection';
+  };
 
   _highlightSelected = () => {
     const { selectedIds, pendingIds } = this;
     const isSelectedOrPending = d => 
       selectedIds.has(d.__id_extra__) || pendingIds.has(d.__id_extra__);
-    d3.selectAll('.dot')
+
+    const selectedDots = d3.selectAll('.dot')
       .classed('selected', d => isSelectedOrPending(d))
-      .selectAll('.circle')
-      .attr('r', d => isSelectedOrPending(d) ? this.selectedSize : DEFAULTSIZE)
-      .style('stroke', d => isSelectedOrPending(d) ? this.selectedColor : undefined);
-  }
+      .classed('unselected', d => !isSelectedOrPending(d));
+    const circles = selectedDots.selectAll('.circle');
+    circles.attr('r', d => isSelectedOrPending(d) ? this.selectedSize : DEFAULTSIZE);
+    if (this._shouldResetColorWithNewSelection()) {
+      circles.style('stroke', d => isSelectedOrPending(d) ? this.selectedColor : undefined);
+    }
+  };
 
   init = () => {
     this.chartBgNode.addEventListener('mousedown', (e) => {
@@ -314,6 +420,7 @@ class Selector {
         this.pendingIds = new Set();
         this.isSelecting = false;
         this.selNode.outerHTML = '';
+        this.updateRecommendation();
       }
     });
   };

@@ -3,16 +3,18 @@ import { DragDropContext } from 'react-dnd';
 import HTML5Backend from 'react-dnd-html5-backend';
 
 import { Attributes } from './Attributes';
-import { Encodings } from './Encodings'
-import { MainPlot } from './MainPlot'
+import { MainPlot } from './MainPlot';
+import { FileSelector } from './FileSelector';
 
 class App extends Component {
   constructor(props) {
     super(props);
     this.state = {
       data: null,
-      plotConfig: {},
+      activeEntry: {},
     }
+    
+    this.attributes = [];
   }
 
   componentWillMount() {
@@ -20,8 +22,11 @@ class App extends Component {
     .then(res => res.json())
     .then(data => {
       data = this._preProcess(data);
+      this._updateAttributesInfo(data);
+      
       data = data.filter((d, i) => i % 10 === 0);
-      console.table(data);
+      // console.table(data);
+      
       this.setState({data});
     });
   }
@@ -33,25 +38,42 @@ class App extends Component {
     }).map((d, i) => {
       return { ...d, __id_extra__: i };
     });
+  };
+
+  _updateAttributesInfo = (data) => {
+    if (data && data.length > 0) {
+      const d0 = data[0];
+      for (const attr of Object.keys(d0)) {
+        if (attr !== '__id_extra__') {
+          this.attributes.push({
+            name: attr,
+            type: (typeof d0[attr] === 'number') ? 'number' : 'other',
+          });
+        }
+      }
+    }
   }
 
-  setPlotConfig = (key, value) => {
-    const plotConfig = { ...this.state.plotConfig };
-    plotConfig[key] = value;
-    this.setState({plotConfig});
-  }
+  setActiveEntry = (entry) => {
+    this.setState((prevState) => ({ activeEntry: entry, }));
+  };
 
   render() {
-    const attributes = this.state.data && this.state.data.length > 0 ? 
-      Object.keys(this.state.data[0]).filter(d => d !== '__id_extra__') : [];
     return (
-      <div className="App" style={{display:'flex'}}>
-        <div style={{width: '300px'}}>
-          <div className="my-2 mx-2">-</div>
-          <Attributes attributes={attributes} />
-          <Encodings setPlotConfig={this.setPlotConfig} />
+      <div className="app d-flex m-2">
+        <div className="left_panel">
+          <FileSelector />
+          <Attributes 
+            attributes={this.attributes}  
+            activeEntry={this.state.activeEntry}
+          /> 
         </div>
-        <MainPlot { ...this.state } />
+        <div className="">
+          <MainPlot
+            data={this.state.data}
+            onDataPointHover={this.setActiveEntry}
+          />
+        </div>
       </div>
     );
   }
