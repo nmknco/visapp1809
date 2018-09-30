@@ -2,4 +2,4 @@ To run:
 
 `npm install` and then `npm start`
 
-or simply serve the `/build` subdirectory
+or run `npm run build` and serve the static `/build` subdirectory
