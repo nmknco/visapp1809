@@ -63,7 +63,7 @@ class ColorUtil {
 
   static interpolateColorScale = (idsByHSL, data, color_attr) => {
     // Use two colors at most
-    console.log(idsByHSL);
+    // console.log(idsByHSL);
     const [e1, e2] = Object.entries(idsByHSL);
     const [hslStr1, group1] = e1;
     if (!e2) {
