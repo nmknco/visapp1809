@@ -5,6 +5,7 @@ import { ColorPicker } from './ColorPicker';
 import { RecommendPanel } from './RecommendPanel';
 import { Classifier } from './Classifier';
 import { Encodings } from './Encodings'
+import { ColorUtil } from './util';
 
 export class MainPlot extends Component {
   constructor(props) {
@@ -12,9 +13,9 @@ export class MainPlot extends Component {
     this.d3ContainerRef = React.createRef();
     this.state = {
       colorPickerStyle: {left: 0, top: 0, display: 'none'},
-      suggestedAttr: undefined,
-      userColor: undefined,
-      plotConfig: {},
+      suggestedAttrList: [],
+      // plotConfig: {},
+      plotConfig: {x_attr: {name: 'Horsepower', type: 'number'}, y_attr: {name: 'Miles_per_Gallon', type: 'number'}}
     }
 
     this.chartConfig = {
@@ -30,10 +31,10 @@ export class MainPlot extends Component {
       this.d3ContainerRef.current,
       this.chartConfig,
       this.updateColorPicker,
-      this.updateRecommendation,
       this.props.onDataPointHover,
     );
     this.classifier = new Classifier(this.props.data);
+    this.mp.update(this.state.plotConfig); // REMOVE THIS LATER
   }
 
   componentDidMount() {
@@ -54,13 +55,15 @@ export class MainPlot extends Component {
 
   setPlotConfig = (key, attribute) => {
     const plotConfig = { ...this.state.plotConfig }
-    plotConfig[key] = attribute;
 
-    this.setState((prevState) => ({plotConfig}));
+    if (plotConfig[key] !== attribute) {
+      plotConfig[key] = attribute;
+      this.setState((prevState) => ({plotConfig}));
 
-    const { x_attr, y_attr } = plotConfig;
-    if (x_attr && y_attr) {
-      this.mp.update(plotConfig)
+      const { x_attr, y_attr } = plotConfig;
+      if (x_attr && y_attr) {
+        this.mp.update(plotConfig)
+      }
     }
   };
 
@@ -74,56 +77,74 @@ export class MainPlot extends Component {
     this.updateColorPicker({display: 'none'});
   };
 
+  handleChangeColorOnPicker = (colorObj) => {
+    this.mp.assignColor(colorObj);
+    this.updateRecommendation();
+    this.setPlotConfig('color_attr', undefined);
+  };
+
+  handleClickResetAllColor = () => {
+    this.mp.resetAllColor();
+    this.setPlotConfig(
+      'color_attr', undefined,
+    );
+    this.updateRecommendation();
+  };
+
+
   updateRecommendation = () => {
     this.setState((prevState) => (
-      { suggestedAttr: this.classifier.getMostSimilarAttr(this.mp.getSelectedIds()) }
+      { 
+        suggestedAttrList: this.classifier.getMostSimilarAttr(
+            this.mp.getActiveSelections().getAllColorGroups(),
+            2,
+          ),
+      }
     ));
   };
 
-  handleChangeColorOnPicker = (colorObj) => {
-    this.mp.setUserSelectedColor(colorObj);
-    this.setState((prevState) => ({userColor: colorObj}));
-    this.setPlotConfig('color_attr', undefined);
+  clearRecommendation = () => {
+    this.setState((prevState) => ({suggestedAttrList: []}));
+  }
+
+  // shouldDisableRecommendation = () => {
+  //   return !this.state.suggestedAttr;
+  // }
+
+  updateColorByRecommendation = (color_attr) => {
+    const colorScale = ColorUtil.interpolateColorScale(
+      this.mp.getActiveSelections().getAllColorGroupsWithColor(),
+      this.props.data,
+      color_attr,
+    );
+    this.mp.updateColorWithScale(color_attr, colorScale)
   };
 
-  updateColorByRecommendation = () => {
-    const pivot_value = this.classifier.getSelectedMedian(this.mp.getSelectedIds(), this.state.suggestedAttr);
-    this.mp.updateColorWithUserColor(this.state.suggestedAttr, pivot_value, this.state.userColor.hsl);
-  };
-
-  handleClickAccept = () => {
-    this.mp.setColorSource('recommendation');
-    this.updateColorByRecommendation();
+  handleClickAccept = (color_attr) => {
+    this.updateColorByRecommendation(color_attr);
     // this.setPlotConfig('color_attr', undefined);
+    this.clearRecommendation();
   }
 
-  handleClickResetAllColor = () => {
-    this.setState((prevState) => ({ userColor: undefined }));
-    this.mp.resetAllColor();
-    this.setPlotConfig('color_attr', undefined);
-  }
 
-  shouldDisableRecommendation = () => {
-    return !this.state.suggestedAttr || !this.state.userColor 
-  }
-
-  handleHoverRecommendCard = (action) => {
-    if (!this.shouldDisableRecommendation()) {
-      if (action === 'mouseenter') {
-        this.updateColorByRecommendation();
-      } else if (action === 'mouseleave') {
-        if (this.mp.getColorSource() === 'selection') {
-          this.mp.resetAllColor();
-          this.handleChangeColorOnPicker(this.state.userColor);
-        }
+  handleHoverRecommendCard = (color_attr, action) => {
+    if (action === 'mouseenter') {
+      this.updateColorByRecommendation(color_attr);
+    } else if (action === 'mouseleave') {
+      if (this.state.plotConfig.color_attr) {
+        this.mp.update()
+      } else {
+        this.mp.updateColorByUserSelection();
       }
     }
   }
 
+
+
   render() {
     return (
       <div style={{display: 'flex'}}>
-        <div>
+        <div className="mid_panel">
           <Encodings 
             setPlotConfig={this.setPlotConfig}
             plotConfig={this.state.plotConfig}
@@ -139,15 +160,17 @@ export class MainPlot extends Component {
           </div>
         </div>
         
-        <div>
-          <RecommendPanel 
-            disabled={this.shouldDisableRecommendation()}
-            suggestedAttr={this.state.suggestedAttr}
-            onClickAccept={this.handleClickAccept}
-            onHoverRecommendCard={this.handleHoverRecommendCard}
-          />
+        <div className="right_panel">
+          {
+            <RecommendPanel
+              // disabled={this.shouldDisableRecommendation()}
+              suggestedAttrList={this.state.suggestedAttrList}
+              onClickAccept={this.handleClickAccept}
+              onHoverRecommendCard={this.handleHoverRecommendCard}
+            />
+          }
           <button 
-            className="btn btn-sm btn-danger m-1"
+            className="btn btn-sm btn-outline-danger m-1"
             onClick={this.handleClickResetAllColor}
           >
             Reset Color

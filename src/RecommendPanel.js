@@ -1,5 +1,7 @@
 import React, { Component } from 'react';
 
+import { Panel } from './Panel'
+
 class RecommendPanel extends Component {
   constructor(props) {
     super(props);
@@ -7,12 +9,21 @@ class RecommendPanel extends Component {
 
   render() {
     return (
-      <div className="recommendation_panel card border-light m-1" style={{width: 240}}>
-        <div className="card-header"> Do you want to... </div>
-        <div className="card-body p-1">
-          <RecommendCard {...this.props} />
-        </div>
-      </div>
+      <Panel 
+        className="recommendation_panel"
+        heading="Do you want to..."
+      >
+        {
+          this.props.suggestedAttrList.map(suggestedAttr =>
+            (<RecommendCard
+              key={suggestedAttr}
+              suggestedAttr={suggestedAttr}
+              onClickAccept={this.props.onClickAccept}
+              onHoverRecommendCard={this.props.onHoverRecommendCard}
+            />)
+          )
+        }
+      </Panel>
     );
   }
 }
@@ -25,9 +36,9 @@ class RecommendCard extends Component {
   render() {
     return (
       <div 
-        className="card border-light p-1"
-        onMouseEnter={() => {this.props.onHoverRecommendCard('mouseenter')}}
-        onMouseLeave={() => {this.props.onHoverRecommendCard('mouseleave')}}
+        className="card border-light p-1 my-1"
+        onMouseEnter={() => {this.props.onHoverRecommendCard(this.props.suggestedAttr, 'mouseenter')}}
+        onMouseLeave={() => {this.props.onHoverRecommendCard(this.props.suggestedAttr, 'mouseleave')}}
       >
         <div className="card-body text-center">
           {
@@ -38,8 +49,8 @@ class RecommendCard extends Component {
               <button 
                   type="button"
                   className='btn btn-sm btn-success'
-                  onClick={this.props.onClickAccept}
-                  disabled={this.props.disabled}
+                  onClick={() => {this.props.onClickAccept(this.props.suggestedAttr)}}
+                  // disabled={this.props.disabled}
                 >
                   Accept
               </button>

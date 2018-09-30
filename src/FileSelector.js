@@ -1,13 +1,17 @@
 import React, { Component } from 'react';
 
+import { Panel } from './Panel';
+
 class FileSelector extends Component {
   render() {
     return (
-      <div className="file_panel card border-light m-1">
-        <div className="card-header"> Data </div>
+      <Panel 
+        className="file_selector"
+        heading="Data"
+      >
         <div className="card-body p-1"> <div>cars.json</div> </div>
-      </div>
-    )
+      </Panel>
+    );
   }
 }
 

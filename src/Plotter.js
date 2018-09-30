@@ -1,29 +1,74 @@
 import * as d3 from 'd3';
+import { Selector } from './Selector'
+import { Resizer } from './Resizer'
+import { ColorUtil } from './util'
 
 const DEFAULTSIZE = 7;
-// const DEFAULTCOLOR = '#000000'
+const DEFAULTCOLOR = '#999999'
+
+class ActiveSelections {
+  constructor(len) {
+    this.colorByIds = Array(len);
+    this.idsByHSL = {};
+  }
+
+  resetColor = () => {
+    this.colorByIds = Array(this.colorByIds.length);
+    this.idsByHSL = {};
+  };
+
+  getColor = (id) => this.colorByIds[id];
+
+  getAllColorGroups = () => Object.values(this.idsByHSL);
+
+  getAllColorGroupsWithColor = () => this.idsByHSL;
+
+  assignColor = (selectedIds, colorObj) => {
+    for (const id of selectedIds) {
+      this.colorByIds[id] = colorObj;
+    }
+    this._updateIdsByHSL();
+  };
+
+  _updateIdsByHSL = () => {
+    this.idsByHSL = {};
+    for (let i = 0; i < this.colorByIds.length; i++) {
+      const colorObj = this.colorByIds[i];
+      if (colorObj) {
+        const hsl = ColorUtil.hslToString(colorObj.hsl)
+        const group = this.idsByHSL[hsl];
+        if (group) {
+          group.add(i);
+        } else {
+          this.idsByHSL[hsl] = new Set([i]);
+        }
+      }
+    }
+  };
+}
 
 class MainPlotter {
-  constructor(data, 
+  constructor(
+    data, 
     container, 
     chartConfig, 
     updateColorPicker,
-    updateRecommendation,
     onDataPointHover,
   ){
     this.data = data;
     this.chartConfig = chartConfig;
     this.container = container;
     this.updateColorPicker = updateColorPicker;
-    this.updateRecommendation = updateRecommendation;
     this.onDataPointHover = onDataPointHover;
 
-    this.colorSource = 'selection'; // 'selection | 'encoding' | 'recommendation'
+    this.activeSelections = new ActiveSelections(data.length);
 
     this.scales = {x:{}, y:{}, color:{}};
 
     this.init();
   }
+
+  getActiveSelections = () => this.activeSelections;
 
   init = () => {
     const c = this.chartConfig;
@@ -50,15 +95,12 @@ class MainPlotter {
     this.selector = new Selector(
       chart.node(),
       chartBg.node(),
-      () => this.selectedSize,
-      () => this.selectedColor,
-      this.updateRecommendation,
-      this.getColorSource,
+      this.highlightSelected,
     );
     
     this.resizer = new Resizer(
       chartBg.node(),
-      this.selector.isSelected,
+      this.selector.getIsSelected,
       this.setSelectedSize,
     );
 
@@ -119,6 +161,9 @@ class MainPlotter {
     yg.select('.label').text(y_attr);
 
     if (color_attr) {
+
+      this.activeSelections.resetColor();
+
       color_attr = color_attr.name;
       this.colorScale = this.scales.color[color_attr] ||
         (typeof data[0][color_attr] === 'number') ?
@@ -142,12 +187,11 @@ class MainPlotter {
           } else {
             this.selector.selectToggle(id);
           }
-          this.updateRecommendation();
         }
       })
       .on('contextmenu', d => {
         d3.event.preventDefault();
-        if (this.selector.isSelected(d.__id_extra__)) {
+        if (this.selector.getIsSelected(d.__id_extra__)) {
           const { x_attr, y_attr } = this.plotConfig;
           const left = c.pad.l + this.xScale(d[x_attr.name]) - 18;
           const top = c.pad.t + this.yScale(d[y_attr.name]) + 20;
@@ -168,9 +212,10 @@ class MainPlotter {
     newDots.append('circle')
       .classed('circle circle-ring', true)
       .attr('r', DEFAULTSIZE)
-      .on('mousedown', d => this.resizer.handleMouseDown(d3.event, d.__id_extra__))
-      .on('mouseover', d => this.resizer.handleMouseOver(d3.event, d.__id_extra__))
-      .on('mouseout', this.resizer.handleMouseOut);
+      .attr('stroke', DEFAULTCOLOR)
+      // .on('mousedown', d => this.resizer.handleMouseDown(d3.event, d.__id_extra__))
+      // .on('mouseover', d => this.resizer.handleMouseOver(d3.event, d.__id_extra__))
+      // .on('mouseout', this.resizer.handleMouseOut);
   
     const allDots = dots.merge(newDots)
       .transition()
@@ -191,307 +236,43 @@ class MainPlotter {
 
   updateColorWithScale = (color_attr, colorScale) => {
     this.chart.selectAll('.circle-ring')
-      .style('stroke', d => { return colorScale(d[color_attr]) });
+      .attr('stroke', d => { return colorScale(d[color_attr]) });
   };
 
-  updateColorWithUserColor = (color_attr, pivot_value, pivot_color_hsl_obj) => {
+  updateColorByRecommendation = (color_attr, pivot_value, pivot_color_hsl_obj) => {
     const colorScale = this._getColorScale(color_attr, pivot_value, pivot_color_hsl_obj);
     this.updateColorWithScale(color_attr, colorScale);
   };
 
-  _getColorScale = (color_attr, pivot_value, pivot_color_hsl_obj) => {
-    const [min, max] = d3.extent(this.data, d => d[color_attr]);
-    console.log(pivot_color_hsl_obj)
-    const [min_l, max_l] = [0.7, 0.1]
-    const colorScale = (val) => {
-      const hsl = { ...pivot_color_hsl_obj };
-      if (min !== max) {
-        if (val <= pivot_value) {
-          hsl.l = min_l + (val - min) / (pivot_value - min) * (hsl.l - min_l);
-        } else {
-          hsl.l = max_l - (max - val) / (max - pivot_value) * (max_l - hsl.l);
-        }
-      }
-      // console.log(val)
-      // console.log(`hsl(${hsl.h},${hsl.s*100}%,${hsl.l*100}%)`)
-      return `hsl(${hsl.h},${hsl.s*100}%,${hsl.l*100}%)`;
-    };
-    return colorScale;
-  };
 
-  getColorSource = () => {
-    return this.colorSource;
-  }
-
-  setColorSource = (source) => {
-    this.colorSource = source;
-  }
-
-  getSelectedIds = () => {
-    return this.selector.selectedIds;
-  };
-
-  setUserSelectedColor = (colorObj) => {
-    this.colorSource = 'selection';
-    this.selector.setSelectedColor(colorObj.hex);
+  assignColor = (colorObj) => {
+    this.activeSelections.assignColor(this.selector.getSelection(), colorObj);
+    this.updateColorByUserSelection();
   };
 
   resetAllColor = () => {
-    this.setUserSelectedColor({hex: undefined});
+    this.activeSelections.resetColor();
+    this.updateColorByUserSelection();
   };
 
-  setSelectedSize = (size) => { 
-    this.selector.setSelectedSize(size)
-  };
-  
-}
 
-class Resizer {
-  constructor(chartBgNode, isSelected, setSelectedSize) {
-    this.chartBgNode = chartBgNode;
-    this.isSelected = isSelected;
-    this.setSelectedSize = setSelectedSize;
-
-    this.isResizing = false;
-    this.isHovering = false;
-    this.currentDot = null;
-
-    this.init();
+  updateColorByUserSelection = () => {
+    d3.selectAll('.circle-ring')
+      .attr('stroke', d => {
+        const colorObj = this.activeSelections.getColor(d.__id_extra__);
+        return colorObj ? colorObj.hex : DEFAULTCOLOR;
+      });
   }
 
-  getIsHovering = () => this.isHovering;
-
-  init = () => {
-    document.addEventListener('mousemove', this.handleMouseMove);
-    document.addEventListener('mouseup', this.handleMouseUp);
-  }
-
-  handleMouseDown = (e, id) => {
-    if (this.isSelected(id)) {
-      e.preventDefault();
-      this.currentDot = e.target.parentNode;
-      this.isResizing = true;
-    }
-  };
-
-  handleMouseMove = (e) => {
-    if (this.isResizing) {
-      const cPos = new Pos(
-        this.currentDot.getAttribute('data-x'),
-        this.currentDot.getAttribute('data-y')
-      );
-      const r = SelUtil.calcPos(e, this.chartBgNode).distTo(cPos);
-      this.setSelectedSize(r);
-    }
-  };
-
-  _getCursorStyle = (e) => {
-    const {x, y} = SelUtil.calcPos(e, this.chartBgNode);
-    const g = e.target.parentNode;
-    const dx = x - g.getAttribute('data-x');
-    const dy = y - g.getAttribute('data-y');
-    const a = Math.abs(Math.atan(dy / dx));
-    if (a < Math.PI / 8) {
-      return 'ew-resize';
-    } else if (a > Math.PI * 3/8) {
-      return 'ns-resize';
-    } else {
-      return dx * dy < 0 ? 'nesw-resize' : 'nwse-resize';
-    }
-  }
-
-  handleMouseUp = (e) => {
-    this.isResizing = false;
-  };
-
-  handleMouseOver = (e, id) => {
-    if (this.isSelected(id)) {
-      this.isHovering = true;
-      e.target.style.cursor = this._getCursorStyle(e);
-    }
-  }
-
-  handleMouseOut = (e) => {
-    this.isHovering = false;
-  }
-}
-
-class Selector {
-
-  // TODO: refactor and limit its responsibility to update selection
-
-  constructor(chartNode, chartBgNode, getSize, getColor, updateRecommendation, getColorSource) {
-    this.chartNode = chartNode;
-    this.chartBgNode = chartBgNode;
-
-    this.isSelecting = false;
-    this.selNode = null;
-    this.selRect = null;
-    this.origin = null;
-    this.selectedIds = new Set();
-    this.pendingIds = new Set();
-
-    this.selectedSize = DEFAULTSIZE;
-    // this.selectedColor = DEFAULTCOLOR;
-    this.selectedColor = undefined;
-
-    this.updateRecommendation = updateRecommendation;
-    this.getColorSource = getColorSource;
-
-    this.init();
-  }
-
-  setSelectedColor = (color) => {
-    this.selectedColor = color;
-    this._highlightSelected();
-  }
-  setSelectedSize = (size) => {
-    this.selectedSize = size;
-    this._highlightSelected();
-  }
-
-  isSelected = (id) => this.selectedIds.has(id);
-
-  _updateRectNode = () => {
-    this.selRect.updateToNode(this.selNode);
-  };
-
-  _shouldResetColorWithNewSelection = () => {
-    return this.getColorSource() === 'selection';
-  };
-
-  _highlightSelected = () => {
-    const { selectedIds, pendingIds } = this;
+  highlightSelected = () => {
     const isSelectedOrPending = d => 
-      selectedIds.has(d.__id_extra__) || pendingIds.has(d.__id_extra__);
+      this.selector.getIsSelectedOrPending(d.__id_extra__);
 
     const selectedDots = d3.selectAll('.dot')
       .classed('selected', d => isSelectedOrPending(d))
       .classed('unselected', d => !isSelectedOrPending(d));
-    const circles = selectedDots.selectAll('.circle');
-    circles.attr('r', d => isSelectedOrPending(d) ? this.selectedSize : DEFAULTSIZE);
-    if (this._shouldResetColorWithNewSelection()) {
-      circles.style('stroke', d => isSelectedOrPending(d) ? this.selectedColor : undefined);
-    }
   };
-
-  init = () => {
-    this.chartBgNode.addEventListener('mousedown', (e) => {
-      e.preventDefault();
-      this.isSelecting = true;
-      this.origin = SelUtil.calcPos(e, this.chartBgNode);
-
-      this.selNode = document.createElementNS(
-        'http://www.w3.org/2000/svg', 'rect');
-      this.selNode.classList.add('selection');
-      this.selRect = new Rect(this.origin, this.origin);
-      this._updateRectNode();
-      this.chartNode.insertBefore(this.selNode, this.chartNode.firstChild);
-    });
-
-    document.addEventListener('mousemove', (e) => {
-      if (this.isSelecting) {
-        this.selRect = new Rect(this.origin, SelUtil.calcPos(e, this.chartBgNode));
-        this._updateRectNode();
-
-        this.pendingIds = new Set();
-        if (!e.ctrlKey) {
-          this.selectedIds = new Set();
-        }
-
-        const { selRect, pendingIds } = this;
-        d3.selectAll('.dot').each(function(d) {
-          if (selRect.containsCoor(
-            this.getAttribute('data-x'), 
-            this.getAttribute('data-y')
-          )) { 
-            pendingIds.add(d.__id_extra__); 
-          }
-        });
-        this._highlightSelected();
-      }
-    });
-
-    document.addEventListener('mouseup', (e) => {
-      if (this.isSelecting) {
-        for (let id of this.pendingIds) {
-          this.selectedIds.add(id);
-        }
-        this.pendingIds = new Set();
-        this.isSelecting = false;
-        this.selNode.outerHTML = '';
-        this.updateRecommendation();
-      }
-    });
-  };
-
-  selectOnlyOne = (id) => {
-    this.selectedIds = new Set();
-    this.pendingIds = new Set();
-    this.selectedIds.add(id);
-    this._highlightSelected();
-  }
-
-  selectToggle = (id) => {
-    if (this.selectedIds.has(id)) {
-      this.selectedIds.delete(id);
-    } else {
-      this.selectedIds.add(id);
-    }
-    this._highlightSelected();
-  }
-
-  unselectOne = (id) => {
-    this.selectedIds.delete(id);
-  }
 
 }
 
-class Pos {
-  constructor(x, y) {
-    this.x = x;
-    this.y = y;
-  }
-
-  distTo(pos0) {
-    return Math.sqrt((this.x - pos0.x)**2 + (this.y - pos0.y)**2);
-  }
-}
-
-class Rect {
-  constructor(pos0, pos1) {
-    const {x: x0, y: y0} = pos0;
-    const {x: x1, y: y1} = pos1;
-    this.l = Math.min(x0, x1);
-    this.t = Math.min(y0, y1);
-    this.r = Math.max(x0, x1);
-    this.b = Math.max(y0, y1);
-    this.w = this.r - this.l;
-    this.h = this.b - this.t;
-  };
-
-  containsCoor = (x, y) => {
-    return x >= this.l && x < this.r && y > this.t && y < this.b;
-  };
-
-  updateToNode = (rectNode) => {
-    rectNode.setAttribute('x', this.l);
-    rectNode.setAttribute('y', this.t);
-    rectNode.setAttribute('width', this.w);
-    rectNode.setAttribute('height', this.h);
-  };
-}
-
-class SelUtil {
-  static calcPos = (e, relativeBg) => {
-    // Compute mouse position for events - clipped at the edges
-    const rect = relativeBg.getBoundingClientRect();
-    let x = e.clientX - rect.left;
-    let y = e.clientY - rect.top;
-    x = Math.max(Math.min(x, relativeBg.getAttribute('width')), 0);
-    y = Math.max(Math.min(y, relativeBg.getAttribute('height')), 0);
-    return new Pos(x, y);
-  };
-}
-
-export { MainPlotter }
+export { MainPlotter };

@@ -21,6 +21,14 @@
   flex: 0 0 300px;
 }
 
+.mid_panel {
+  flex: 0 0 720px;
+}
+
+.right_panel {
+  flex: 0 0 280px;
+}
+
 .attr_tag {
   cursor: pointer;
   flex: 0 0 120px;
@@ -31,10 +39,12 @@
 .attr_value {
   white-space: nowrap;
   overflow: hidden;
+  color: #666666;
 }
 
-.encoding_panel {
-  width: 720px;
+.description_panel {
+  color: #666666;
+  text-align: justify;
 }
 
 .encode_field {
@@ -55,7 +65,7 @@
 }
 
 .chart-bg {
-  fill: #eeeeee;
+  fill: #ffffff;
   opacity: 0.2;
 }
 
@@ -83,7 +93,6 @@
 }
 
 .circle-ring {
-  stroke: #999999
 }
 
 .selected .circle-bg {

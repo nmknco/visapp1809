@@ -4,38 +4,73 @@ class Classifier {
   constructor(data) {
     this.data = data;
     this.attrList = Object.keys(data[0]).filter(a => ((a !== '__id_extra__') && (typeof data[0][a] === 'number')));
-    this.stds = {};
+    this.vars = {};
     this._init(data)
   }
 
   _init = (data) => {
     for (const attr of this.attrList) {
-      this.stds[attr] = d3.deviation(data, d => d[attr]);
+      this.vars[attr] = d3.variance(data, d => d[attr]);
     }
   };
 
-  getMostSimilarAttr = (selectedIds) => {
-    const selected = this.data.filter(d => (selectedIds.has(d.__id_extra__)));
+  _F = (attr, groups) => {
+    let all = []
+
+    const W = d3.sum(groups,
+      g => {
+        const vals = this.data.filter(d => g.has(d.__id_extra__)).map(d => d[attr]);
+        all = all.concat(vals);
+        const m = d3.mean(vals);
+        return d3.sum(vals, x => Math.pow((x - m), 2));
+      }
+    );
+
+    const tm = d3.mean(all);
+    const T = d3.sum(all, x => Math.pow((x - tm), 2));
+    const B = T - W;
+
+    const N = all.length;
+    const k = groups.length;
+    
+    return (N - k) * B / (W * (k - 1))
+  };
+
+  getMostSimilarAttr = (groups, numberOfResult) => {
+    const k = groups.length;
+    if (k === 0) return [];
+
     const simi = {};
-    let std_sel_ratio_min = Infinity;
-    let mostSimilarAttr
-    for (const attr of this.attrList) {
-      const std_all = this.stds[attr];
-      const std_sel_ratio = std_all ? d3.deviation(selected, d => d[attr]) / std_all : 0;
-      simi[attr] = std_sel_ratio;
-      if (std_sel_ratio < std_sel_ratio_min) {
-        mostSimilarAttr = attr;
-        std_sel_ratio_min = std_sel_ratio;
+
+    if (k === 1) {
+      for (const attr of this.attrList) {
+        const var_all = this.vars[attr];
+        const var_sum = 0;
+
+        for (const group of groups) {
+          const selected = this.data.filter(d => group.has(d.__id_extra__));
+          var_sum += var_all ? d3.variance(selected, d => d[attr]) : 0;
+        }
+        const var_ratio_sum = var_sum / var_all
+        simi[attr] = var_ratio_sum;
+      } 
+    } else {
+      // Two or more groups
+      let fMax = -Infinity;
+      for (const attr of this.attrList) {
+        const f = this._F(attr, groups);
+        simi[attr] = f;
       }
     }
     console.log(simi);
-    return mostSimilarAttr;
+    return Object.entries(simi)
+      .filter(d => typeof d[1] === 'number' && !isNaN(d[1]))
+      .sort((a, b)=> (a[1] - b[1]) * (k>1?-1:1))
+      .map(d => d[0])
+      .slice(0, numberOfResult);
+              
   };
 
-  getSelectedMedian = (selectedIds, attr) => {
-    const selected = this.data.filter(d => (selectedIds.has(d.__id_extra__)));
-    return d3.median(selected, d => d[attr]);
-  }
 }
 
 export { Classifier }

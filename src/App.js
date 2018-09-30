@@ -5,6 +5,7 @@ import HTML5Backend from 'react-dnd-html5-backend';
 import { Attributes } from './Attributes';
 import { MainPlot } from './MainPlot';
 import { FileSelector } from './FileSelector';
+import { Description } from './Description';
 
 class App extends Component {
   constructor(props) {
@@ -24,7 +25,7 @@ class App extends Component {
       data = this._preProcess(data);
       this._updateAttributesInfo(data);
       
-      data = data.filter((d, i) => i % 10 === 0);
+      data = data.filter((d, i) => i % 5 === 0);
       // console.table(data);
       
       this.setState({data});
@@ -67,6 +68,7 @@ class App extends Component {
             attributes={this.attributes}  
             activeEntry={this.state.activeEntry}
           /> 
+          <Description />
         </div>
         <div className="">
           <MainPlot

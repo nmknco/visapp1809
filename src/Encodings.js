@@ -4,20 +4,23 @@ import { DropTarget } from 'react-dnd';
 import { ItemTypes } from './Constants';
 
 import { AttrTag } from './Attributes';
+import { Panel } from './Panel';
 
 export class Encodings extends Component {
   render() {
     const { x_attr, y_attr, color_attr, size_attr } = this.props.plotConfig;
     return (
-      <div className="encoding_panel card border-light m-1">
-        <div className="card-header"> Encodings </div>
+      <Panel 
+        className="encoding_panel"
+        heading="Encodings"
+      >
         <div className="card-body d-flex flex-wrap p-0">
           <EncodingField field="x_attr" attribute={x_attr} setPlotConfig={this.props.setPlotConfig} />
           <EncodingField field="y_attr" attribute={y_attr} setPlotConfig={this.props.setPlotConfig} />
           <EncodingField field="color_attr" attribute={color_attr} setPlotConfig={this.props.setPlotConfig} />
           <EncodingField field="size_attr" attribute={size_attr} setPlotConfig={this.props.setPlotConfig} />
         </div>
-      </div>
+      </Panel>
     );
   }
 }
@@ -60,7 +63,7 @@ class EncodingField extends Component {
           {this.displayName[field]}
         </div>
         <div 
-          className="encode_field_content border border-light rounded-right d-flex align-items-center px-2 text-muted"
+          className="encode_field_content border border-light rounded-right d-flex align-items-center px-1 text-muted"
           style={{backgroundColor: isOver ? '#cccccc' : undefined}}
         >
           {attribute ? <AttrTag { ...attribute } encoding={field} /> : 'Drag an attribute here'}
