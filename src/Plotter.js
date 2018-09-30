@@ -139,8 +139,9 @@ class MainPlotter {
       (typeof data[0][x_attr] === 'number') ?
         d3.scaleLinear()
           .domain(_expand(d3.extent(data, d => d[x_attr]))) :
-        d3.scaleBand()
+        d3.scalePoint()
           .domain(data.map(d => d[x_attr]))
+          .padding(0.1)
     ).range([0, c.svgW - c.pad.l - c.pad.r]);
 
     this.yScale = this.scales.y[y_attr] || (
