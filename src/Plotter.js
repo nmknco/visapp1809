@@ -1,51 +1,11 @@
 import * as d3 from 'd3';
 import { Selector } from './Selector'
 import { Resizer } from './Resizer'
-import { ColorUtil } from './util'
+import { ActiveSelectionsWithRec } from './ActiveSelections'
 
 const DEFAULTSIZE = 7;
 const DEFAULTCOLOR = '#999999'
 
-class ActiveSelections {
-  constructor(len) {
-    this.colorByIds = Array(len);
-    this.idsByHSL = {};
-  }
-
-  resetColor = () => {
-    this.colorByIds = Array(this.colorByIds.length);
-    this.idsByHSL = {};
-  };
-
-  getColor = (id) => this.colorByIds[id];
-
-  getAllColorGroups = () => Object.values(this.idsByHSL);
-
-  getAllColorGroupsWithColor = () => this.idsByHSL;
-
-  assignColor = (selectedIds, colorObj) => {
-    for (const id of selectedIds) {
-      this.colorByIds[id] = colorObj;
-    }
-    this._updateIdsByHSL();
-  };
-
-  _updateIdsByHSL = () => {
-    this.idsByHSL = {};
-    for (let i = 0; i < this.colorByIds.length; i++) {
-      const colorObj = this.colorByIds[i];
-      if (colorObj) {
-        const hsl = ColorUtil.hslToString(colorObj.hsl)
-        const group = this.idsByHSL[hsl];
-        if (group) {
-          group.add(i);
-        } else {
-          this.idsByHSL[hsl] = new Set([i]);
-        }
-      }
-    }
-  };
-}
 
 class MainPlotter {
   constructor(
@@ -54,6 +14,7 @@ class MainPlotter {
     chartConfig, 
     updateColorPicker,
     onDataPointHover,
+    updateRecommendation,
   ){
     this.data = data;
     this.chartConfig = chartConfig;
@@ -61,7 +22,7 @@ class MainPlotter {
     this.updateColorPicker = updateColorPicker;
     this.onDataPointHover = onDataPointHover;
 
-    this.activeSelections = new ActiveSelections(data.length);
+    this.activeSelections = new ActiveSelectionsWithRec(data, updateRecommendation);
 
     this.scales = {x:{}, y:{}, color:{}};
 
@@ -164,8 +125,6 @@ class MainPlotter {
 
     if (color_attr) {
 
-      this.activeSelections.resetColor();
-
       color_attr = color_attr.name;
       this.colorScale = this.scales.color[color_attr] ||
         (typeof data[0][color_attr] === 'number') ?
@@ -228,7 +187,9 @@ class MainPlotter {
       .attr('data-y', d => this.yScale(d[y_attr]));
     
     if (color_attr) {
-      this.colorSource = 'encoding';
+      // Clear both colored groups and selection before applying color
+      this.clearSelection();
+      this.uncolorAll();
       this.updateColorWithScale(color_attr, this.colorScale);
     }
 
@@ -242,36 +203,51 @@ class MainPlotter {
       .attr('stroke', d => { return colorScale(d[color_attr]) });
   };
 
-  updateColorByRecommendation = (color_attr, pivot_value, pivot_color_hsl_obj) => {
-    const colorScale = this._getColorScale(color_attr, pivot_value, pivot_color_hsl_obj);
-    this.updateColorWithScale(color_attr, colorScale);
+  updateColorWithRecommendation = (color_attr) => {
+    this.updateColorWithScale(
+      color_attr, 
+      this.activeSelections.getInterpolatedColorScale(color_attr),
+    );
   };
 
+  updateColorWithRecommendationAndResetColorGroup = (color_attr) => {
+    this.updateColorWithRecommendation(color_attr);
+    this.activeSelections.resetColor();
+  }
 
   assignColor = (colorObj) => {
-    this.activeSelections.assignColor(this.selector.getSelection(), colorObj);
+    this.activeSelections.assignColor(this.selector.getSelectedIds(), colorObj);
     this.updateColorByUserSelection();
   };
 
-  resetAllColor = () => {
+  uncolorAll = () => {
     this.activeSelections.resetColor();
     this.updateColorByUserSelection();
   };
 
+  uncolorSelected = () => {
+    this.activeSelections.resetColor(this.selector.getSelectedIds());
+    this.updateColorByUserSelection();
+  };
 
   updateColorByUserSelection = () => {
+    // Displayed color is sync-ed with active groups
     d3.selectAll('.circle-ring')
       .attr('stroke', d => {
         const colorObj = this.activeSelections.getColor(d.__id_extra__);
         return colorObj ? colorObj.hex : DEFAULTCOLOR;
       });
-  }
+  };
 
   highlightSelected = () => {
     d3.selectAll('.dot')
       .classed('selected', d => 
         this.selector.getIsSelectedOrPending(d.__id_extra__)
       );
+  };
+
+  clearSelection = () => {
+    this.selector.clearSelection();
   };
 
 }

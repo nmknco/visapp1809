@@ -14,17 +14,17 @@ class Selector {
     this.selectedIds = new Set();
     this.pendingIds = new Set();
 
-    this.init();
+    this._addDragListeners();
   }
 
-  getSelection = () => this.selectedIds;
+  getSelectedIds = () => this.selectedIds;
 
   getIsSelected = (id) => this.selectedIds.has(id);
   
   getIsSelectedOrPending = (id) => 
     this.selectedIds.has(id) || this.pendingIds.has(id);
 
-  init = () => {
+  _addDragListeners = () => {
     this.chartBgNode.addEventListener('mousedown', (e) => {
       e.preventDefault();
       this.isSelecting = true;
@@ -43,9 +43,9 @@ class Selector {
         this.selRect = new Rect(this.origin, SelUtil.calcPos(e, this.chartBgNode));
         this._updateRectNode();
 
-        this.pendingIds = new Set();
+        this.pendingIds.clear();
         if (!e.ctrlKey) {
-          this.selectedIds = new Set();
+          this.selectedIds.clear();
         }
 
         const { selRect, pendingIds } = this;
@@ -66,19 +66,21 @@ class Selector {
         for (let id of this.pendingIds) {
           this.selectedIds.add(id);
         }
-        this.pendingIds = new Set();
+        this.pendingIds.clear();
         this.isSelecting = false;
         this.selNode.outerHTML = '';
       }
     });
   };
 
+  // Single-dot handlers are defined here but event listeners are added 
+  //    by the plotter as the dots may not have been created yet
   selectOnlyOne = (id) => {
-    this.selectedIds = new Set();
-    this.pendingIds = new Set();
+    this.selectedIds.clear();
+    this.pendingIds.clear();
     this.selectedIds.add(id);
     this.onSelectionChange();
-  }
+  };
 
   selectToggle = (id) => {
     if (this.selectedIds.has(id)) {
@@ -87,12 +89,18 @@ class Selector {
       this.selectedIds.add(id);
     }
     this.onSelectionChange();
-  }
+  };
 
   unselectOne = (id) => {
     this.selectedIds.delete(id);
     this.onSelectionChange();
-  }
+  };
+
+  // Called then color the whole plot (with encoding or accepted recommendation)
+  clearSelection = () => {
+    this.selectedIds.clear();
+    this.onSelectionChange();
+  };
 
   _updateRectNode = () => {
     this.selRect.updateToNode(this.selNode);

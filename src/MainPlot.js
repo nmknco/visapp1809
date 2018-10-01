@@ -3,7 +3,6 @@ import React, { Component } from 'react';
 import { MainPlotter } from './Plotter'
 import { ColorPicker } from './ColorPicker';
 import { RecommendPanel } from './RecommendPanel';
-import { Classifier } from './Classifier';
 import { Encodings } from './Encodings'
 import { ColorUtil } from './util';
 
@@ -14,6 +13,7 @@ export class MainPlot extends Component {
     this.state = {
       colorPickerStyle: {left: 0, top: 0, display: 'none'},
       suggestedAttrList: [],
+      isShowingUserColor: true,
       // plotConfig: {},
       plotConfig: {x_attr: {name: 'Horsepower', type: 'number'}, y_attr: {name: 'Miles_per_Gallon', type: 'number'}}
     }
@@ -21,23 +21,25 @@ export class MainPlot extends Component {
     this.chartConfig = {
       pad: {t: 40, r: 40, b: 160, l: 160},
       svgW: 720,
-      svgH: 720,
+      svgH: 720
     };
   }
 
   _initializeMainPlotter = () => {
+    // A new plotter is needed for every new dataset
     this.mp = new MainPlotter(
       this.props.data,
       this.d3ContainerRef.current,
       this.chartConfig,
       this.updateColorPicker,
       this.props.onDataPointHover,
+      this.updateRecommendation,
     );
-    this.classifier = new Classifier(this.props.data);
-    this.mp.update(this.state.plotConfig); // REMOVE THIS LATER
+    this.mp.update(this.state.plotConfig);
   }
 
   componentDidMount() {
+    // Ultimately this should be called in componentDidUpdate too
     if (this.props.data) {
       this._initializeMainPlotter();
     }
@@ -58,13 +60,20 @@ export class MainPlot extends Component {
 
     if (plotConfig[key] !== attribute) {
       plotConfig[key] = attribute;
-      this.setState((prevState) => ({plotConfig}));
+      this.setState((prevState) => ({
+        plotConfig,
+      }));
 
       const { x_attr, y_attr } = plotConfig;
       if (x_attr && y_attr) {
         this.mp.update(plotConfig)
       }
     }
+    if (plotConfig.color_attr) {
+      this.setState((prevState) => ({
+        isShowingUserColor: false,
+      }));
+    };
   };
 
   updateColorPicker = (style) => {
@@ -77,59 +86,46 @@ export class MainPlot extends Component {
     this.updateColorPicker({display: 'none'});
   };
 
+  // Note: now no need to call updateRecommendation the three methods below
+  // as recommendations are sync-ed in ActiveSelectionsWithRec
   handleChangeColorOnPicker = (colorObj) => {
+    this.setPlotConfig('color_attr', undefined); // this won't change color but it's still safer to call first
     this.mp.assignColor(colorObj);
-    this.updateRecommendation();
+    this.setState({ isShowingUserColor: true });
+  };
+
+  handleClickUncolorAll = () => {
     this.setPlotConfig('color_attr', undefined);
+    this.mp.uncolorAll();
+    this.setState({ isShowingUserColor: true });
   };
 
-  handleClickResetAllColor = () => {
-    this.mp.resetAllColor();
-    this.setPlotConfig(
-      'color_attr', undefined,
-    );
-    this.updateRecommendation();
+  handleClickUncolorSelected = () => {
+    this.mp.uncolorSelected();
   };
 
-
-  updateRecommendation = () => {
-    this.setState((prevState) => (
-      { 
-        suggestedAttrList: this.classifier.getMostSimilarAttr(
-            this.mp.getActiveSelections().getAllColorGroups(),
-            2,
-          ),
-      }
-    ));
+  updateRecommendation = (suggestedAttrList) => {
+    this.setState((prevState) => ({ suggestedAttrList }));
   };
 
-  clearRecommendation = () => {
-    this.setState((prevState) => ({suggestedAttrList: []}));
-  }
-
-  // shouldDisableRecommendation = () => {
-  //   return !this.state.suggestedAttr;
-  // }
-
-  updateColorByRecommendation = (color_attr) => {
-    const colorScale = ColorUtil.interpolateColorScale(
-      this.mp.getActiveSelections().getAllColorGroupsWithColor(),
-      this.props.data,
-      color_attr,
-    );
-    this.mp.updateColorWithScale(color_attr, colorScale)
-  };
+  // clearRecommendation = () => {
+  //   // in principle recommendation should be in sync with the colored groups
+  //   // this function may be used for potential cases where we want to 
+  //   // clear recommendations but preserve the color groups backstage.
+  //   this.setState((prevState) => ({suggestedAttrList: []}));
+  // };
 
   handleClickAccept = (color_attr) => {
-    this.updateColorByRecommendation(color_attr);
-    // this.setPlotConfig('color_attr', undefined);
-    this.clearRecommendation();
-  }
+    this.mp.clearSelection();
+    this.mp.updateColorWithRecommendationAndResetColorGroup(color_attr);
+    this.setState({ isShowingUserColor: false });
+    // TODO: add attribute text to the color encoding field
+  };
 
 
   handleHoverRecommendCard = (color_attr, action) => {
     if (action === 'mouseenter') {
-      this.updateColorByRecommendation(color_attr);
+      this.mp.updateColorWithRecommendation(color_attr);
     } else if (action === 'mouseleave') {
       if (this.state.plotConfig.color_attr) {
         this.mp.update()
@@ -137,8 +133,7 @@ export class MainPlot extends Component {
         this.mp.updateColorByUserSelection();
       }
     }
-  }
-
+  };
 
 
   render() {
@@ -169,11 +164,20 @@ export class MainPlot extends Component {
               onHoverRecommendCard={this.handleHoverRecommendCard}
             />
           }
+
+          {/* TODO: Use a drop down for reset options */}
+          <button
+            disabled={!this.state.isShowingUserColor}
+            className="btn btn-sm btn-outline-danger m-1"
+            onClick={this.handleClickUncolorSelected}
+          >
+            Clear color for selected points
+          </button>
           <button 
             className="btn btn-sm btn-outline-danger m-1"
-            onClick={this.handleClickResetAllColor}
+            onClick={this.handleClickUncolorAll}
           >
-            Reset Color
+            Clear color for all
           </button>
         </div>
       </div>
