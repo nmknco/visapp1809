@@ -115,3 +115,6 @@
 }
 
 /* ---- Right panel ---- */
+.rec-card:hover {
+  background-color: #FAFAFA;
+}

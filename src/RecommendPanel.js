@@ -30,7 +30,7 @@ class RecommendCard extends Component {
   render() {
     return (
       <div 
-        className="card border-light p-1 my-1"
+        className="rec-card card border-light p-1 my-1"
         onMouseEnter={() => {this.props.onHoverRecommendCard(this.props.suggestedAttr, 'mouseenter')}}
         onMouseLeave={() => {this.props.onHoverRecommendCard(this.props.suggestedAttr, 'mouseleave')}}
       >
