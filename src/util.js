@@ -62,33 +62,32 @@ class ColorUtil {
   }
 
   static interpolateColorScale = (idsByHSL, data, color_attr) => {
-    // Use two colors at most
+    // Use two colors at most - now use the two with most distant data value
+
     // console.log(idsByHSL);
-    const [e1, e2] = Object.entries(idsByHSL);
-    const [hslStr1, group1] = e1;
-    if (!e2) {
+    const entries = Object.entries(idsByHSL);
+    if (entries.length === 1) {
       return ColorUtil.interpolateColorScaleOneGroup(
         d3.median(data.filter(d => group1.has(d.__id_extra__)), d => d[color_attr]),
         ColorUtil.stringToHSL(hslStr1),
         data,
         color_attr,
+      ); 
+    }
+
+    const medians = {}; // cache for faster sorting
+    for (let e of entries) {
+      const [color, group] = e;
+      medians[color] = d3.median(
+        data.filter(d => group.has(d.__id_extra__)), d => d[color_attr]
       );
     }
+    entries.sort((ea, eb) => medians[ea[0]] - medians[eb[0]]);
 
-    const [hslStr2, group2] = e2;
-    let [hsl1, hsl2] = [hslStr1, hslStr2].map(ColorUtil.stringToHSL)
-    let [v1, v2] = [group1, group2].map(
-      s => d3.median(
-        data.filter(d => s.has(d.__id_extra__)), 
-        d => d[color_attr]
-      )
-    );
-
-    if (v1 === v2) return null;
-    if (v1 > v2) {
-      [v1, v2] = [v2, v1];
-      [hsl1, hsl2] = [hsl2, hsl1]
-    }
+    const [hslStr1, group1] = entries[0];
+    const [hslStr2, group2] = entries[entries.length - 1];
+    const [hsl1, hsl2] = [hslStr1, hslStr2].map(ColorUtil.stringToHSL);
+    const [v1, v2] = [hslStr1, hslStr2].map(hs => medians[hs]);
 
     const [min, max] = d3.extent(data, d => d[color_attr]);
 
