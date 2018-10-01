@@ -18,6 +18,7 @@
   display: flex;
   align-items: center;
   border-bottom: 0;
+  background-color: rgba(0, 0, 0, 0.05);
 }
 
 
@@ -73,13 +74,11 @@
 
 /* ---- Main Plot ---- */
 .chart-bg {
-  fill: #ffffff;
-  opacity: 0.2;
+  fill: rgba(0, 0, 0, 0);
 }
 
-.selection {
-  fill: #cccccc;
-  opacity: 0.2;
+.selection-shade {
+  fill: rgba(0, 0, 0, 0.05);
 }
 
 .dot {
@@ -116,5 +115,5 @@
 
 /* ---- Right panel ---- */
 .rec-card:hover {
-  background-color: #FAFAFA;
+  background-color: rgba(0, 0, 0, 0.05)
 }

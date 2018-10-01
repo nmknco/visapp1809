@@ -32,7 +32,7 @@ class Selector {
 
       this.selNode = document.createElementNS(
         'http://www.w3.org/2000/svg', 'rect');
-      this.selNode.classList.add('selection');
+      this.selNode.classList.add('selection-shade');
       this.selRect = new Rect(this.origin, this.origin);
       this._updateRectNode();
       this.chartNode.insertBefore(this.selNode, this.chartNode.firstChild);
