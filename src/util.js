@@ -67,9 +67,10 @@ class ColorUtil {
     // console.log(idsByHSL);
     const entries = Object.entries(idsByHSL);
     if (entries.length === 1) {
+      const [hs, g] = entries[0];
       return ColorUtil.interpolateColorScaleOneGroup(
-        d3.median(data.filter(d => group1.has(d.__id_extra__)), d => d[color_attr]),
-        ColorUtil.stringToHSL(hslStr1),
+        d3.median(data.filter(d => g.has(d.__id_extra__)), d => d[color_attr]),
+        ColorUtil.stringToHSL(hs),
         data,
         color_attr,
       ); 
@@ -84,8 +85,8 @@ class ColorUtil {
     }
     entries.sort((ea, eb) => medians[ea[0]] - medians[eb[0]]);
 
-    const [hslStr1, group1] = entries[0];
-    const [hslStr2, group2] = entries[entries.length - 1];
+    const hslStr1 = entries[0][0];
+    const hslStr2 = entries[entries.length - 1][0];
     const [hsl1, hsl2] = [hslStr1, hslStr2].map(ColorUtil.stringToHSL);
     const [v1, v2] = [hslStr1, hslStr2].map(hs => medians[hs]);
 

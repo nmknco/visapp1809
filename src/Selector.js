@@ -1,5 +1,5 @@
 import * as d3 from 'd3';
-import { Pos, Rect, SelUtil } from './util';
+import { Rect, SelUtil } from './util';
 
 class Selector {
   constructor(chartNode, chartBgNode, onSelectionChange) {

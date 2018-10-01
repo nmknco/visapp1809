@@ -219,10 +219,11 @@ class MainPlotter {
       // .on('mouseover', d => this.resizer.handleMouseOver(d3.event, d.__id_extra__))
       // .on('mouseout', this.resizer.handleMouseOut);
   
-    const allDots = dots.merge(newDots)
+    dots.merge(newDots)
       .transition()
       .duration(1000)
       .attr('transform', d => `translate(${this.xScale(d[x_attr])}, ${this.yScale(d[y_attr])})`)
+      // Save position data in attributes for selection funcitons
       .attr('data-x', d => this.xScale(d[x_attr]))
       .attr('data-y', d => this.yScale(d[y_attr]));
     
@@ -267,11 +268,10 @@ class MainPlotter {
   }
 
   highlightSelected = () => {
-    const isSelectedOrPending = d => 
-      this.selector.getIsSelectedOrPending(d.__id_extra__);
-
-    const selectedDots = d3.selectAll('.dot')
-      .classed('selected', d => isSelectedOrPending(d))
+    d3.selectAll('.dot')
+      .classed('selected', d => 
+        this.selector.getIsSelectedOrPending(d.__id_extra__)
+      );
   };
 
 }

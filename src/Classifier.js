@@ -45,7 +45,7 @@ class Classifier {
     if (k === 1) {
       for (const attr of this.attrList) {
         const var_all = this.vars[attr];
-        const var_sum = 0;
+        let var_sum = 0;
 
         for (const group of groups) {
           const selected = this.data.filter(d => group.has(d.__id_extra__));
@@ -56,7 +56,6 @@ class Classifier {
       } 
     } else {
       // Two or more groups
-      let fMax = -Infinity;
       for (const attr of this.attrList) {
         const f = this._F(attr, groups);
         simi[attr] = f;

@@ -1,4 +1,4 @@
-import { Pos, Rect, SelUtil } from './util';
+import { Pos, SelUtil } from './util';
 
 class Resizer {
   constructor(chartBgNode, isSelected, setSelectedSize) {
