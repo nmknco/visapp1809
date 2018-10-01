@@ -144,7 +144,7 @@ export class MainPlot extends Component {
   render() {
     return (
       <div style={{display: 'flex'}}>
-        <div className="mid_panel">
+        <div className="mid-panel">
           <Encodings 
             setPlotConfig={this.setPlotConfig}
             plotConfig={this.state.plotConfig}
@@ -160,7 +160,7 @@ export class MainPlot extends Component {
           </div>
         </div>
         
-        <div className="right_panel">
+        <div className="right-panel">
           {
             <RecommendPanel
               // disabled={this.shouldDisableRecommendation()}

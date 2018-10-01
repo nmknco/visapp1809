@@ -180,7 +180,7 @@ class MainPlotter {
   
     let newDots = dots.enter()
       .append('g')
-      .classed('dot unselected', true)
+      .classed('dot', true)
       .on('click', d => {
         const id = d.__id_extra__
         if (!this.resizer.getIsHovering()) {
@@ -272,7 +272,6 @@ class MainPlotter {
 
     const selectedDots = d3.selectAll('.dot')
       .classed('selected', d => isSelectedOrPending(d))
-      .classed('unselected', d => !isSelectedOrPending(d));
   };
 
 }

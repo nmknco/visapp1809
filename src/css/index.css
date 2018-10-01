@@ -1,3 +1,4 @@
+/* ---- Gloabl ---- */
 .app {
   margin: 0;
   padding: 0;
@@ -5,6 +6,8 @@
   font-size: 13px;
 }
 
+
+/* ---- Global overrides ---- */
 .app .btn {
   font-size: 13px;
 }
@@ -17,26 +20,29 @@
   border-bottom: 0;
 }
 
-.left_panel {
+
+/* ---- Layout ---- */
+.left-panel {
   flex: 0 0 300px;
 }
 
-.mid_panel {
+.mid-panel {
   flex: 0 0 720px;
 }
 
-.right_panel {
+.right-panel {
   flex: 0 0 280px;
 }
 
-.attr_tag {
+/* ---- Left panel ---- */
+.attr__tag {
   cursor: pointer;
   flex: 0 0 120px;
   height: 24px;
   overflow: hidden;
 }
 
-.attr_value {
+.attr__value {
   white-space: nowrap;
   overflow: hidden;
   color: #666666;
@@ -47,23 +53,25 @@
   text-align: justify;
 }
 
-.encode_field {
+/* ---- Mid Panel ---- */
+.encode-field {
   height: 32px;
   flex: 0 0 224px;
 }
 
-.encode_field_header {
+.encode-field__header {
   height: 100%;
   flex: 0 0 64px;
   margin-right: -1px;
   /* border-right: 0; */
 }
 
-.encode_field_content  {
+.encode-field__content  {
   height: 100%;
   flex: 0 0 160px;
 }
 
+/* ---- Main Plot ---- */
 .chart-bg {
   fill: #ffffff;
   opacity: 0.2;
@@ -74,29 +82,23 @@
   opacity: 0.2;
 }
 
-
-
 .dot {
   cursor: pointer;
+}
+
+.circle-bg {
+  stroke-width: 0;
+  opacity: 0;
+}
+
+.selected .circle-bg {
+  opacity: 0.15;
 }
 
 .circle-ring {
   fill: none;
   stroke-width: 3px;
   opacity: 0.7;
-}
-
-.circle-bg {
-  /* fill: white; */
-  stroke-width: 0;
-  opacity: 0;
-}
-
-.circle-ring {
-}
-
-.selected .circle-bg {
-  opacity: 0.15;
 }
 
 .label {
@@ -111,3 +113,5 @@
 .color-picker {
   position: relative;
 }
+
+/* ---- Right panel ---- */

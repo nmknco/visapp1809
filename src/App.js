@@ -62,7 +62,7 @@ class App extends Component {
   render() {
     return (
       <div className="app d-flex m-2">
-        <div className="left_panel">
+        <div className="left-panel">
           <FileSelector />
           <Attributes 
             attributes={this.attributes}  

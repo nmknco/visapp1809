@@ -57,13 +57,13 @@ class EncodingField extends Component {
     const { connectDropTarget, isOver, attribute, field } = this.props;
     return connectDropTarget(
       <div 
-        className="encode_field m-1 d-flex align-items-center"
+        className="encode-field m-1 d-flex align-items-center"
       >
-        <div className="encode_field_header border border-light rounded-left d-flex align-items-center justify-content-end px-2 bg-secondary text-white">
+        <div className="encode-field__header border border-light rounded-left d-flex align-items-center justify-content-end px-2 bg-secondary text-white">
           {this.displayName[field]}
         </div>
         <div 
-          className="encode_field_content border border-light rounded-right d-flex align-items-center px-1 text-muted"
+          className="encode-field__content border border-light rounded-right d-flex align-items-center px-1 text-muted"
           style={{backgroundColor: isOver ? '#cccccc' : undefined}}
         >
           {attribute ? <AttrTag { ...attribute } encoding={field} /> : 'Drag an attribute here'}

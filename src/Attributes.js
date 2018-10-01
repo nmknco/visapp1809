@@ -17,7 +17,7 @@ export class Attributes extends Component {
               return (
                 <div key={name} className="d-flex align-items-center p-0 m-1">
                   <AttrTag name={name} type={type} />
-                  <div className="attr_value pl-2">{this.props.activeEntry[name]}</div>
+                  <div className="attr__value pl-2">{this.props.activeEntry[name]}</div>
                 </div>
               )
             }
@@ -44,7 +44,7 @@ class AttrTag extends Component {
     const { connectDragSource, isDragging } = this.props;
     return connectDragSource(
       <div 
-        className={`attr_tag btn`
+        className={`attr__tag btn`
           + ` btn-outline-${ this.props.type === 'number' ? 'info' : 'success'}`
           + ` d-flex align-items-center p-1`} 
       >
