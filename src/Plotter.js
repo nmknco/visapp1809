@@ -141,15 +141,16 @@ class MainPlotter {
           .domain(_expand(d3.extent(data, d => d[x_attr]))) :
         d3.scalePoint()
           .domain(data.map(d => d[x_attr]))
-          .padding(0.1)
+          .padding(0.2)
     ).range([0, c.svgW - c.pad.l - c.pad.r]);
 
     this.yScale = this.scales.y[y_attr] || (
       (typeof data[0][y_attr] === 'number') ?
         d3.scaleLinear()
           .domain(_expand(d3.extent(data, d => d[y_attr]))) :
-        d3.scaleBand()
+        d3.scalePoint()
           .domain(data.map(d => d[y_attr]))
+          .padding(0.2)
     ).range([c.svgH - c.pad.t - c.pad.b, 0]);
 
     this.scales.x[x_attr] = this.xScale;
