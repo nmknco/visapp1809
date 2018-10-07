@@ -2,7 +2,7 @@ import React, { Component } from 'react';
 import { DragDropContext } from 'react-dnd';
 import HTML5Backend from 'react-dnd-html5-backend';
 
-import { Attributes } from './Attributes';
+import { Attribute, Attributes } from './Attributes';
 import { MainPlot } from './MainPlot';
 import { FileSelector } from './FileSelector';
 import { Description } from './Description';
@@ -46,10 +46,12 @@ class App extends Component {
       const d0 = data[0];
       for (const attr of Object.keys(d0)) {
         if (attr !== '__id_extra__') {
-          this.attributes.push({
-            name: attr,
-            type: (typeof d0[attr] === 'number') ? 'number' : 'other',
-          });
+          this.attributes.push(
+            new Attribute(
+              attr,
+              (typeof d0[attr] === 'number') ? 'number' : 'other',
+            )
+          );
         }
       }
     }

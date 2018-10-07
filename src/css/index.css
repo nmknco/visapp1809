@@ -57,7 +57,7 @@
 /* ---- Mid Panel ---- */
 .encode-field {
   height: 32px;
-  flex: 0 0 224px;
+  flex: 0 0 320px;
 }
 
 .encode-field__header {
@@ -69,7 +69,7 @@
 
 .encode-field__content  {
   height: 100%;
-  flex: 0 0 160px;
+  flex: 0 0 256px;
 }
 
 /* ---- Main Plot ---- */

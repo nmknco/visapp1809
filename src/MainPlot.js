@@ -3,20 +3,32 @@ import React, { Component } from 'react';
 import { MainPlotter } from './Plotter'
 import { ColorPicker } from './ColorPicker';
 import { RecommendPanel } from './RecommendPanel';
-import { Encodings } from './Encodings'
+import { Attribute } from './Attributes';
+import { Encodings } from './Encodings';
 import { ColorUtil } from './util';
 
-export class MainPlot extends Component {
+class PlotConfigEntry {
+  constructor(attribute, useCustomScale) {
+    this.attribute = attribute;
+    this.useCustomScale = useCustomScale || false;
+  }
+}
+
+class MainPlot extends Component {
   constructor(props) {
     super(props);
     this.d3ContainerRef = React.createRef();
     this.state = {
       colorPickerStyle: {left: 0, top: 0, display: 'none'},
       suggestedAttrList: [],
-      isShowingUserColor: true,
       // plotConfig: {},
-      plotConfig: {x_attr: {name: 'Horsepower', type: 'number'}, y_attr: {name: 'Miles_per_Gallon', type: 'number'}}
+      plotConfig: {
+        x: {attribute: {name: 'Horsepower', type: 'number'}},
+        y: {attribute: {name: 'Miles_per_Gallon', type: 'number'}},
+      },
     }
+
+    this.isShowingUserSelectedColor = true; 
 
     this.chartConfig = {
       pad: {t: 40, r: 40, b: 160, l: 160},
@@ -35,7 +47,7 @@ export class MainPlot extends Component {
       this.props.onDataPointHover,
       this.updateRecommendation,
     );
-    this.mp.update(this.state.plotConfig);
+    this.mp.updateXY(this.state.plotConfig);
   }
 
   componentDidMount() {
@@ -46,7 +58,6 @@ export class MainPlot extends Component {
   }
 
   componentDidUpdate(prevProps) {
-    // console.log('MainPlot update')
     if (prevProps.data !== this.props.data) {
       console.log('Dataset Changed!');
       this._initializeMainPlotter();
@@ -55,25 +66,33 @@ export class MainPlot extends Component {
 
   componentWillUnmount() {}
 
-  setPlotConfig = (key, attribute) => {
-    const plotConfig = { ...this.state.plotConfig }
+  setPlotConfig = (field, plotConfigEntry, keepSelection, callback) => {
+    const { x: prevX, y: prevY, color: prevColor } = this.state.plotConfig;
 
-    if (plotConfig[key] !== attribute) {
-      plotConfig[key] = attribute;
-      this.setState((prevState) => ({
-        plotConfig,
-      }));
-
-      const { x_attr, y_attr } = plotConfig;
-      if (x_attr && y_attr) {
-        this.mp.update(plotConfig)
+    this.setState((prevState) => ({
+      plotConfig: {
+        ...prevState.plotConfig,
+        [field]: plotConfigEntry,
       }
-    }
-    if (plotConfig.color_attr) {
-      this.setState((prevState) => ({
-        isShowingUserColor: false,
-      }));
-    };
+    }), () => {
+      const plotConfig = this.state.plotConfig;
+      if (field === 'x' || field === 'y') {
+        const { x, y } = plotConfig;
+        this.mp.updateXY(plotConfig); // updateXY() clears plot if x or y is undefined
+        if (!(prevX && prevY) && x && y) {
+          this.mp.updateFields(['color', 'size'], plotConfig); // restore color and size
+        }
+      }
+      
+      if (field === 'color' || field === 'size') {
+        this.mp.updateFields([field,], plotConfig, keepSelection);
+      }
+
+      if (callback) {
+        callback();
+      }
+    });
+
   };
 
   updateColorPicker = (style) => {
@@ -89,19 +108,26 @@ export class MainPlot extends Component {
   // Note: now no need to call updateRecommendation the three methods below
   // as recommendations are sync-ed in ActiveSelectionsWithRec
   handleChangeColorOnPicker = (colorObj) => {
-    this.setPlotConfig('color_attr', undefined); // this won't change color but it's still safer to call first
+    if (this.state.plotConfig.color) {
+      this.setPlotConfig('color', undefined, true); // note this now always updates(clears) color
+    }
     this.mp.assignColor(colorObj);
-    this.setState({ isShowingUserColor: true });
   };
 
   handleClickUncolorAll = () => {
-    this.setPlotConfig('color_attr', undefined);
+    if (this.state.plotConfig.color) {
+      this.setPlotConfig('color', undefined); // note this now always updates(clears) color
+    }
     this.mp.uncolorAll();
-    this.setState({ isShowingUserColor: true });
   };
 
   handleClickUncolorSelected = () => {
     this.mp.uncolorSelected();
+  };
+
+  _shouldDisableUncolorSelected = () => {
+    const { color } = this.state.plotConfig;
+    return !!color;
   };
 
   updateRecommendation = (suggestedAttrList) => {
@@ -117,9 +143,10 @@ export class MainPlot extends Component {
 
   handleClickAccept = (color_attr) => {
     this.mp.clearSelection();
-    this.mp.updateColorWithRecommendationAndResetColorGroup(color_attr);
-    this.setState({ isShowingUserColor: false });
-    // TODO: add attribute text to the color encoding field
+    this.setPlotConfig(
+      'color', 
+      new PlotConfigEntry(new Attribute(color_attr, 'number'), true)
+    );
   };
 
 
@@ -127,10 +154,10 @@ export class MainPlot extends Component {
     if (action === 'mouseenter') {
       this.mp.updateColorWithRecommendation(color_attr);
     } else if (action === 'mouseleave') {
-      if (this.state.plotConfig.color_attr) {
-        this.mp.update()
+      if (this.state.plotConfig.color) {
+        this.mp.updateColor(this.state.plotConfig)
       } else {
-        this.mp.updateColorByUserSelection();
+        this.mp.syncColorToUserSelection();
       }
     }
   };
@@ -143,6 +170,7 @@ export class MainPlot extends Component {
           <Encodings 
             setPlotConfig={this.setPlotConfig}
             plotConfig={this.state.plotConfig}
+            // isShowingCustomColor={this.state.isShowingCustomColor}
           />
           <div ref={this.d3ContainerRef}>
             <div style={{height: 0}}>
@@ -158,7 +186,6 @@ export class MainPlot extends Component {
         <div className="right-panel">
           {
             <RecommendPanel
-              // disabled={this.shouldDisableRecommendation()}
               suggestedAttrList={this.state.suggestedAttrList}
               onClickAccept={this.handleClickAccept}
               onHoverRecommendCard={this.handleHoverRecommendCard}
@@ -167,7 +194,7 @@ export class MainPlot extends Component {
 
           {/* TODO: Use a drop down for reset options */}
           <button
-            disabled={!this.state.isShowingUserColor}
+            disabled={this._shouldDisableUncolorSelected()}
             className="btn btn-sm btn-outline-danger m-1"
             onClick={this.handleClickUncolorSelected}
           >
@@ -184,3 +211,5 @@ export class MainPlot extends Component {
     )
   }
 }
+
+export { PlotConfigEntry, MainPlot };
