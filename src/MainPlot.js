@@ -20,15 +20,13 @@ class MainPlot extends Component {
     this.d3ContainerRef = React.createRef();
     this.state = {
       colorPickerStyle: {left: 0, top: 0, display: 'none'},
-      suggestedAttrList: [],
+      suggestedAttrListsByField: {color: [], size: []},
       // plotConfig: {},
       plotConfig: {
         x: {attribute: {name: 'Horsepower', type: 'number'}},
         y: {attribute: {name: 'Miles_per_Gallon', type: 'number'}},
       },
     }
-
-    this.isShowingUserSelectedColor = true; 
 
     this.chartConfig = {
       pad: {t: 40, r: 40, b: 160, l: 160},
@@ -46,8 +44,9 @@ class MainPlot extends Component {
       this.updateColorPicker,
       this.props.onDataPointHover,
       this.updateRecommendation,
+      this.handleChangeVisualByUser, // for resizer, which needs direct interaction with plot
     );
-    this.mp.updateXY(this.state.plotConfig);
+    this.mp.updatePosition(this.state.plotConfig);
   }
 
   componentDidMount() {
@@ -78,14 +77,14 @@ class MainPlot extends Component {
       const plotConfig = this.state.plotConfig;
       if (field === 'x' || field === 'y') {
         const { x, y } = plotConfig;
-        this.mp.updateXY(plotConfig); // updateXY() clears plot if x or y is undefined
+        this.mp.updatePosition(plotConfig); // updateXY() clears plot if x or y is undefined
         if (!(prevX && prevY) && x && y) {
-          this.mp.updateFields(['color', 'size'], plotConfig); // restore color and size
+          this.mp.updateVisual(['color', 'size'], plotConfig); // restore color and size
         }
       }
       
       if (field === 'color' || field === 'size') {
-        this.mp.updateFields([field,], plotConfig, keepSelection);
+        this.mp.updateVisual([field,], plotConfig, keepSelection);
       }
 
       if (callback) {
@@ -107,57 +106,61 @@ class MainPlot extends Component {
 
   // Note: now no need to call updateRecommendation the three methods below
   // as recommendations are sync-ed in ActiveSelectionsWithRec
-  handleChangeColorOnPicker = (colorObj) => {
-    if (this.state.plotConfig.color) {
-      this.setPlotConfig('color', undefined, true); // note this now always updates(clears) color
+  handleChangeVisualByUser = (field, value) => {
+    if (this.state.plotConfig[field]) {
+      this.setPlotConfig(field, undefined, true); // note this now always updates(clears) color
     }
-    this.mp.assignColor(colorObj);
+    this.mp.assignVisual(field, value);
   };
 
-  handleClickUncolorAll = () => {
-    if (this.state.plotConfig.color) {
-      this.setPlotConfig('color', undefined); // note this now always updates(clears) color
+
+  handleClickUnVisualAll = (field) => {
+    if (this.state.plotConfig[field]) {
+      this.setPlotConfig(field, undefined); // note this now always updates(clears) color
     }
-    this.mp.uncolorAll();
+    this.mp.unVisualAll(field);
   };
 
-  handleClickUncolorSelected = () => {
-    this.mp.uncolorSelected();
+  handleClickUnVisualSelected = (field) => {
+    this.mp.unVisualSelected(field);
   };
 
-  _shouldDisableUncolorSelected = () => {
-    const { color } = this.state.plotConfig;
-    return !!color;
+  _shouldEnableUnVisualSelected = (field) => {
+    const entry = this.state.plotConfig[field];
+    return !entry && this.mp && this.mp.selector.hasSelection();
+  };
+  _shouldEnableUnVisualAll = (field) => {
+    const entry = this.state.plotConfig[field];
+    return !entry && this.mp && this.mp.activeSelections.hasActiveSelection(field);
   };
 
-  updateRecommendation = (suggestedAttrList) => {
-    this.setState((prevState) => ({ suggestedAttrList }));
+  updateRecommendation = (suggestedAttrListsByField) => {
+    this.setState((prevState) => ({ suggestedAttrListsByField }));
   };
 
   // clearRecommendation = () => {
   //   // in principle recommendation should be in sync with the colored groups
-  //   // this function may be used for potential cases where we want to 
+  //   // this function may be defined for potential cases where we want to 
   //   // clear recommendations but preserve the color groups backstage.
-  //   this.setState((prevState) => ({suggestedAttrList: []}));
   // };
 
-  handleClickAccept = (color_attr) => {
+  handleClickAccept = (field, attrName) => {
     this.mp.clearSelection();
     this.setPlotConfig(
-      'color', 
-      new PlotConfigEntry(new Attribute(color_attr, 'number'), true)
+      field, 
+      new PlotConfigEntry(new Attribute(attrName, 'number'), true)
     );
   };
 
 
-  handleHoverRecommendCard = (color_attr, action) => {
+  handleHoverRecommendCard = (field, attrName, action) => {
     if (action === 'mouseenter') {
-      this.mp.updateColorWithRecommendation(color_attr);
+      this.mp.updateVisualWithRecommendation(field, attrName);
     } else if (action === 'mouseleave') {
-      if (this.state.plotConfig.color) {
-        this.mp.updateColor(this.state.plotConfig)
+      if (this.state.plotConfig[field]) {
+        this.mp.updateVisual([field,], this.state.plotConfig)
       } else {
-        this.mp.syncColorToUserSelection();
+        this.mp.syncVisualToUserSelection(field);
       }
     }
   };
@@ -170,13 +173,14 @@ class MainPlot extends Component {
           <Encodings 
             setPlotConfig={this.setPlotConfig}
             plotConfig={this.state.plotConfig}
-            // isShowingCustomColor={this.state.isShowingCustomColor}
           />
           <div ref={this.d3ContainerRef}>
             <div style={{height: 0}}>
               <ColorPicker 
                 style={this.state.colorPickerStyle} 
-                onChangeComplete={this.handleChangeColorOnPicker}
+                onChangeComplete={(colorObj) => {
+                  this.handleChangeVisualByUser('color', ColorUtil.hslToString(colorObj.hsl))
+                }}
                 onClick={this.hideColorPicker}
               />
             </div>
@@ -186,26 +190,34 @@ class MainPlot extends Component {
         <div className="right-panel">
           {
             <RecommendPanel
-              suggestedAttrList={this.state.suggestedAttrList}
+              suggestedAttrListsByField={this.state.suggestedAttrListsByField}
               onClickAccept={this.handleClickAccept}
               onHoverRecommendCard={this.handleHoverRecommendCard}
             />
           }
 
           {/* TODO: Use a drop down for reset options */}
-          <button
-            disabled={this._shouldDisableUncolorSelected()}
-            className="btn btn-sm btn-outline-danger m-1"
-            onClick={this.handleClickUncolorSelected}
-          >
-            Clear color for selected points
-          </button>
-          <button 
-            className="btn btn-sm btn-outline-danger m-1"
-            onClick={this.handleClickUncolorAll}
-          >
-            Clear color for all
-          </button>
+          {['color', 'size'].map(field => {
+            return (
+              <div key={`clear_${field}`} className="d-flex m-1 py-1">
+                <div className="m-1 text-right"> {`Clear my assigned ${field} for`} </div>
+                <button
+                  disabled={!this._shouldEnableUnVisualSelected(field)}
+                  className="btn btn-sm btn-outline-danger m-1"
+                  onClick={() => {this.handleClickUnVisualSelected(field)}}
+                >
+                  {`Selected points`}
+                </button>
+                <button 
+                  disabled={!this._shouldEnableUnVisualAll(field)}
+                  className="btn btn-sm btn-outline-danger m-1"
+                  onClick={() => {this.handleClickUnVisualAll(field)}}
+                >
+                  {`All`}
+                </button>
+              </div>
+            );
+          })}
         </div>
       </div>
     )

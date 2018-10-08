@@ -4,6 +4,16 @@ import { Panel } from './Panel'
 
 class RecommendPanel extends Component {
   
+  flatten = (suggestedAttrListsByField) => {
+    const flat = [];
+    for (let [field, list] of Object.entries(suggestedAttrListsByField)) {
+      for (let attrName of list) {
+        flat.push({field, attrName});
+      }
+    }
+    return flat;
+  };
+
   render() {
     return (
       <Panel 
@@ -11,13 +21,15 @@ class RecommendPanel extends Component {
         heading="Do you want to..."
       >
         {
-          this.props.suggestedAttrList.map(suggestedAttr =>
-            (<RecommendCard
-              key={suggestedAttr}
-              suggestedAttr={suggestedAttr}
-              onClickAccept={this.props.onClickAccept}
-              onHoverRecommendCard={this.props.onHoverRecommendCard}
-            />)
+          this.flatten(this.props.suggestedAttrListsByField).map(
+            ({ field, attrName }) =>
+              (<RecommendCard
+                key={`${field}_${attrName}`}
+                field={field}
+                attrName={attrName}
+                onClickAccept={this.props.onClickAccept}
+                onHoverRecommendCard={this.props.onHoverRecommendCard}
+              />)
           )
         }
       </Panel>
@@ -28,22 +40,23 @@ class RecommendPanel extends Component {
 class RecommendCard extends Component {
   
   render() {
+    const {attrName, field, onHoverRecommendCard, onClickAccept} = this.props
     return (
       <div 
         className="rec-card card border-light p-1 my-1"
-        onMouseEnter={() => {this.props.onHoverRecommendCard(this.props.suggestedAttr, 'mouseenter')}}
-        onMouseLeave={() => {this.props.onHoverRecommendCard(this.props.suggestedAttr, 'mouseleave')}}
+        onMouseEnter={() => {onHoverRecommendCard(field, attrName, 'mouseenter')}}
+        onMouseLeave={() => {onHoverRecommendCard(field, attrName, 'mouseleave')}}
       >
         <div className="card-body text-center">
           {
-            this.props.suggestedAttr
+            attrName
           &&
             (<div>
-              <p>{`Assign ${this.props.suggestedAttr} to color?`} </p>
+              <p>{`Assign ${attrName} to ${field}?`} </p>
               <button 
                   type="button"
                   className='btn btn-sm btn-success'
-                  onClick={() => {this.props.onClickAccept(this.props.suggestedAttr)}}
+                  onClick={() => {onClickAccept(field, attrName)}}
                   // disabled={this.props.disabled}
                 >
                   Accept

@@ -19,6 +19,8 @@ class Selector {
 
   getSelectedIds = () => this.selectedIds;
 
+  hasSelection = () => this.selectedIds.size > 0;
+
   getIsSelected = (id) => this.selectedIds.has(id);
   
   getIsSelectedOrPending = (id) => 

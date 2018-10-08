@@ -1,10 +1,11 @@
 import * as d3 from 'd3';
-import { Selector } from './Selector'
-import { Resizer } from './Resizer'
-import { ActiveSelectionsWithRec } from './ActiveSelections'
+import { Selector } from './Selector';
+import { Resizer } from './Resizer';
+import { ActiveSelectionsWithRec } from './ActiveSelections';
+import { expandRange } from './util';
 
-const DEFAULTSIZE = 7;
-const DEFAULTCOLOR = '#999999'
+const SVGATTR_BY_FIELD = {color: 'stroke', size: 'r'};
+const DEFAULT_BY_FIELD = {color: '#999999', size: 7};
 
 
 class MainPlotter {
@@ -15,12 +16,14 @@ class MainPlotter {
     updateColorPicker,
     onDataPointHover,
     updateRecommendation,
+    handleChangeVisualByUser,
   ){
     this.data = data;
     this.chartConfig = chartConfig;
     this.container = container;
     this.updateColorPicker = updateColorPicker;
     this.onDataPointHover = onDataPointHover;
+    this.handleChangeVisualByUser = handleChangeVisualByUser;
 
     this.activeSelections = new ActiveSelectionsWithRec(data, updateRecommendation);
 
@@ -64,7 +67,7 @@ class MainPlotter {
     this.resizer = new Resizer(
       chartBg.node(),
       this.selector.getIsSelected,
-      this.setSelectedSize,
+      this.handleResizing,
     );
 
     chart.append('g')
@@ -82,9 +85,9 @@ class MainPlotter {
 
   };
 
-  updateXY = (plotConfig) => {
+  updatePosition = (plotConfig) => {
+    console.log('update position called');
 
-    console.log('update called')
     const c = this.chartConfig;
     const data = this.data;
 
@@ -94,7 +97,9 @@ class MainPlotter {
     if (!x || !y) {
       this.chart.selectAll('.dot').remove();
       this.selector.clearSelection();
-      this.activeSelections.resetColor();
+      for (let field of ['color', 'size']) {
+        this.activeSelections.resetValue(field);
+      }
       return;
     }
 
@@ -105,7 +110,7 @@ class MainPlotter {
     this.xScale = this.scales.x[x_attr] || (
       (typeof data[0][x_attr] === 'number') ?
         d3.scaleLinear()
-          .domain(_expand(d3.extent(data, d => d[x_attr]))) :
+          .domain(expandRange(d3.extent(data, d => d[x_attr]))) :
         d3.scalePoint()
           .domain(data.map(d => d[x_attr]))
           .padding(0.2)
@@ -114,7 +119,7 @@ class MainPlotter {
     this.yScale = this.scales.y[y_attr] || (
       (typeof data[0][y_attr] === 'number') ?
         d3.scaleLinear()
-          .domain(_expand(d3.extent(data, d => d[y_attr]))) :
+          .domain(expandRange(d3.extent(data, d => d[y_attr]))) :
         d3.scalePoint()
           .domain(data.map(d => d[y_attr]))
           .padding(0.2)
@@ -166,14 +171,14 @@ class MainPlotter {
     
     newDots.append('circle')
       .classed('circle circle-bg', true)
-      .attr('r', DEFAULTSIZE);
+      .attr('r', DEFAULT_BY_FIELD.size);
     newDots.append('circle')
       .classed('circle circle-ring', true)
-      .attr('r', DEFAULTSIZE)
-      .attr('stroke', DEFAULTCOLOR)
-      // .on('mousedown', d => this.resizer.handleMouseDown(d3.event, d.__id_extra__))
-      // .on('mouseover', d => this.resizer.handleMouseOver(d3.event, d.__id_extra__))
-      // .on('mouseout', this.resizer.handleMouseOut);
+      .attr('r', DEFAULT_BY_FIELD.size)
+      .attr('stroke', DEFAULT_BY_FIELD.color)
+      .on('mousedown', d => this.resizer.handleMouseDown(d3.event, d.__id_extra__))
+      .on('mouseover', d => this.resizer.handleMouseOver(d3.event, d.__id_extra__))
+      .on('mouseout', this.resizer.handleMouseOut);
   
     dots.merge(newDots)
       .transition()
@@ -190,133 +195,112 @@ class MainPlotter {
 
   };
 
-  updateFields = (fields, plotConfig, keepSelection) => {
+  updateVisual = (fields, plotConfig, keepSelection) => {
+    console.log('update visual called');
 
     const data = this.data;
+    this.plotConfig = plotConfig; // see updatePosition() for motivation
 
-    this.plotConfig = plotConfig; // see update()
-    let colorScale, sizeScale;
-    let color_attr, size_attr;
-
-    if (fields.includes('color')) {
-      const { color } = plotConfig;
-
-      if (color) {
-        console.log(color)
-        color_attr = color.attribute.name;
-        if (color.useCustomScale) {
-          colorScale = this.customScales.color || this.activeSelections.getInterpolatedColorScale(color_attr);
-          this.customScales.color = colorScale;
+    for (let field of fields) {
+      const entry = plotConfig[field];
+      let attrName, visualScale;
+      
+      if (entry) {
+        attrName = entry.attribute.name;
+        if (entry.useCustomScale) {
+          visualScale = this.customScales[field] || this.activeSelections.getInterpolatedScale(field, attrName);
+          this.customScales[field] = visualScale;
         } else {
-          colorScale = this.scales.color[color_attr] || (
-            (color.attribute.type === 'number') ?
-              d3.scaleSequential(t => d3.interpolateInferno(d3.scaleLinear().domain([0,1]).range([0.9,0.1])(t))).domain(d3.extent(data, d => d[color_attr])) :
-              d3.scaleOrdinal(d3.schemeCategory10).domain(d3.map(data, d => d[color_attr]).keys())
-          );
-          this.scales.color[color_attr] = colorScale;
-          this.customScales.color = null;
+          if (field === 'color') {
+            visualScale = this.scales[field][attrName] || (
+              (entry.attribute.type === 'number') ?
+                d3.scaleSequential(t => d3.interpolateInferno(d3.scaleLinear().domain([0,1]).range([0.9,0.1])(t))).domain(d3.extent(data, d => d[attrName])) :
+                d3.scaleOrdinal(d3.schemeCategory10).domain(d3.map(data, d => d[attrName]).keys())
+            );
+          } else if (field === 'size') {
+            visualScale = this.scales.size[attrName] ||
+              d3.scaleLinear().domain(expandRange(d3.extent(data, d => d[attrName]))).range([3, 15]);
+          }
+          this.scales[field] = visualScale;
+          this.customScales[field] = null;
         }
       } else {
-        // reset color
-        colorScale = (x) => DEFAULTCOLOR;
-        this.customScales.color = null;
+        // reset visual upon empty plotConfig entry
+        visualScale = () => DEFAULT_BY_FIELD[field];
+        this.customScales[field] = null;
       }
-    }
 
-    if (fields.includes('size')) {
-      const { size } = plotConfig;
-
-      if (size) {
-        size_attr = size.attribute.name;
-        if (size.useCustomScale) {
-          // TODO
-        } else {
-          sizeScale = this.scales.size[size_attr] ||
-            d3.scaleLinear().domain(_expand(d3.extent(data, d => d[size_attr]))).range([3, 15]);
-          this.customScales.size = null;
-        }
-      } else {
-        // reset size
-        sizeScale = (x) => DEFAULTSIZE;
-        this.customScales.size = null;
-      }
+      // Clear both colored groups and selection, then applying visual
+      if (!keepSelection) { this.clearSelection(); }
+      this.activeSelections.resetValue(field);
+      
+      this.updateVisualWithScale(field, attrName, visualScale);
     }
-
-    // Clear both colored groups and selection before applying color/size
-    if (!keepSelection) {
-      this.clearSelection();
-    }
-    this.activeSelections.resetColor();
-    if (fields.includes('size')) { this.updateSizeWithScale(size_attr, sizeScale); }
-    if (fields.includes('color')) { this.updateColorWithScale(color_attr, colorScale) };
   }
 
-  updateColorWithScale = (color_attr, colorScale) => {
-    this.chart.selectAll('.circle-ring')
-      .attr('stroke', d => { return colorScale(color_attr ? d[color_attr] : d) });
+  _getD3SelectionByField = (field) => {
+    if (field === 'color') {
+      return this.chart.selectAll('.circle-ring');
+    } else if (field === 'size') {
+      return this.chart.selectAll('.dot').selectAll('circle');
+    }
   };
 
-  updateSizeWithScale = (size_attr, sizeScale) => {
-    this.chart.selectAll('.dot').selectAll('circle')
-      .attr('r', d => { return sizeScale(size_attr ? d[size_attr] : d) });
+  updateVisualWithScale = (field, attrName, scale) => {
+    // When attr is not passed we are using a default scale (i.e. constant), in which case we just pass d
+    const getValue = attrName ? (d => scale(d[attrName])) : (d => scale(d));
+    this._getD3SelectionByField(field).attr(SVGATTR_BY_FIELD[field], getValue);
   };
 
-  updateColorWithRecommendation = (color_attr) => {
-    // This is only used by hovering
-    this.updateColorWithScale(
-      color_attr, 
-      this.activeSelections.getInterpolatedColorScale(color_attr),
+  updateVisualWithRecommendation = (field, attr) => {
+    // This is only used by hovering on recommendation cards to show temporary visual changes
+    this.updateVisualWithScale(
+      field,
+      attr, 
+      this.activeSelections.getInterpolatedScale(field, attr),
     );
   };
 
-  // updateColorWithRecommendationAndResetColorGroup = (color_attr) => {
-  //   this.updateColorWithRecommendation(color_attr);
-  //   this.activeSelections.resetColor();
-  // }
-
-  assignColor = (colorObj) => {
-    this.activeSelections.assignColor(this.selector.getSelectedIds(), colorObj);
-    this.syncColorToUserSelection();
+  syncVisualToUserSelection = (field) => {
+    // Displayed visual (color, size, etc.) is sync-ed with active groups
+    this._getD3SelectionByField(field).attr(
+      SVGATTR_BY_FIELD[field], 
+      d => this.activeSelections.getValue(field, d.__id_extra__) || DEFAULT_BY_FIELD[field]
+    );
   };
 
-  uncolorAll = () => {
-    // this will clear ALL color (including ones generated by encoding box)
-    this.activeSelections.resetColor();
-    this.syncColorToUserSelection();
+  assignVisual = (field, value) => {
+    this.activeSelections.assignValue(field, this.selector.getSelectedIds(), value);
+    this.syncVisualToUserSelection(field);
   };
 
-  uncolorSelected = () => {
-    // this also update all color but is only enabled in user-selection-color mode
-    this.activeSelections.resetColor(this.selector.getSelectedIds());
-    this.syncColorToUserSelection();
+  unVisualSelected = (field) => {
+    // this also update all visual but is only enabled in user-selection mode
+    this.activeSelections.resetValue(field, this.selector.getSelectedIds());
+    this.syncVisualToUserSelection(field);
   };
 
-  syncColorToUserSelection = () => {
-    // Displayed color is sync-ed with active groups
-    d3.selectAll('.circle-ring')
-      .attr('stroke', d => {
-        const colorObj = this.activeSelections.getColor(d.__id_extra__);
-        return colorObj ? colorObj.hex : DEFAULTCOLOR;
-      });
+  unVisualAll = (field) => {
+    // this will clear ALL visual (including ones generated by encoding box)
+    // NOW this is also only enabled in user-selection mode since we can
+    // clear encoding directly in the encoding fields.
+    this.activeSelections.resetValue(field);
+    this.syncVisualToUserSelection(field);
   };
 
   highlightSelected = () => {
     d3.selectAll('.dot')
-      .classed('selected', d => 
-        this.selector.getIsSelectedOrPending(d.__id_extra__)
-      );
+      .classed('selected', d => this.selector.getIsSelectedOrPending(d.__id_extra__));
   };
 
   clearSelection = () => {
     this.selector.clearSelection();
   };
 
-}
+  handleResizing = (r) => {
+    this.handleChangeVisualByUser('size', r);
+  }
 
-const _expand = (extent) => {
-  const [lo, hi] = extent;
-  const len = hi - lo;
-  return [lo - len * 0.05, hi + len * 0.05];
-};
+}
 
 export { MainPlotter };

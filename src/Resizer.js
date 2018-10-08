@@ -1,16 +1,16 @@
 import { Pos, SelUtil } from './util';
 
 class Resizer {
-  constructor(chartBgNode, isSelected, setSelectedSize) {
+  constructor(chartBgNode, isSelected, onResizing) {
     this.chartBgNode = chartBgNode;
     this.isSelected = isSelected;
-    this.setSelectedSize = setSelectedSize;
+    this.onResizing = onResizing;
 
     this.isResizing = false;
     this.isHovering = false;
     this.currentDot = null;
 
-    // this.init();
+    this.init();
   }
 
   getIsHovering = () => this.isHovering;
@@ -35,7 +35,7 @@ class Resizer {
         this.currentDot.getAttribute('data-y')
       );
       const r = SelUtil.calcPos(e, this.chartBgNode).distTo(cPos);
-      this.setSelectedSize(r);
+      this.onResizing(r);
     }
   };
 

@@ -22,11 +22,11 @@ class App extends Component {
     fetch('data/cars.json')
     .then(res => res.json())
     .then(data => {
+      data = data.filter((d, i) => i % 5 === 0); // dev. Do this first so that id_extra is correct
+      // console.table(data);
+
       data = this._preProcess(data);
       this._updateAttributesInfo(data);
-      
-      data = data.filter((d, i) => i % 5 === 0);
-      // console.table(data);
       
       this.setState({data});
     });

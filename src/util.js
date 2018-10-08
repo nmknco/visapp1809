@@ -138,4 +138,10 @@ class ColorUtil {
   }
 }
 
-export { Pos, Rect, SelUtil, ColorUtil };
+const expandRange = (extent) => {
+  const [lo, hi] = extent;
+  const len = hi - lo;
+  return [lo - len * 0.05, hi + len * 0.05];
+};
+
+export { Pos, Rect, SelUtil, ColorUtil, expandRange };

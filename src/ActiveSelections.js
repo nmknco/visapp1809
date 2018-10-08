@@ -1,52 +1,51 @@
-import { ColorUtil } from './util'
+import * as d3 from 'd3';
+import { ColorUtil, expandRange } from './util';
 import { Classifier } from './Classifier';
 
 
 class ActiveSelections {
   constructor(len) {
-    this.colorByIds = Array(len);
-    this.idsByHSL = {};
+    this.len = len;
+    this.valueByIds = { color: Array(len), size: Array(len) };
+    this.idsByValue = { color: {}, size: {} };
   }
 
-  getColor = (id) => this.colorByIds[id];
+  getValue = (field, id) => this.valueByIds[field][id];
 
-  getAllColorGroups = () => Object.values(this.idsByHSL);
+  getAllGroups = (field) => Object.values(this.idsByValue[field]);
 
-  getAllColorGroupsWithColor = () => this.idsByHSL;
+  getAllGroupsWithValue = (field) => this.idsByValue[field];
 
-  assignColor = (selectedIds, colorObj) => {
-    for (const id of selectedIds) {
-      this.colorByIds[id] = colorObj;
-    }
-    this._updateIdsByHSL();
-  };
+  hasActiveSelection = (field) => Object.keys(this.idsByValue[field]).length > 0;
 
-  resetColor = (selectedIds) => {
-    // If no selection (empty or not) passed, reset all color
+  assignValue = (field, selectedIds, value) => {
+    // If no selectedIds passed, reset all
     if (!selectedIds) {
-      this.colorByIds = Array(this.colorByIds.length);
-      this.idsByHSL = {};
+      this.valueByIds[field] = Array(this.len);
+      this.idsByValue[field] = {};
     } else {
-      this.assignColor(selectedIds, undefined);
-      this._updateIdsByHSL();
+      for (let id of selectedIds) {
+        this.valueByIds[field][id] = value;
+      }
+      this._updateIdsByValue(field);
     }
   };
 
-  _updateIdsByHSL = () => {
-    this.idsByHSL = {};
-    for (let i = 0; i < this.colorByIds.length; i++) {
-      const colorObj = this.colorByIds[i];
-      if (colorObj) {
-        const hsl = ColorUtil.hslToString(colorObj.hsl)
-        const group = this.idsByHSL[hsl];
+  _updateIdsByValue = (field) => {
+    this.idsByValue = { color: {}, size: {} };
+    for (let i = 0; i < this.len; i++) {
+      const value = this.valueByIds[field][i];
+      if (value) {
+        const group = this.idsByValue[field][value];
         if (group) {
           group.add(i);
         } else {
-          this.idsByHSL[hsl] = new Set([i]);
+          this.idsByValue[field][value] = new Set([i]);
         }
       }
     }
   };
+
 }
 
 class ActiveSelectionsWithRec {
@@ -58,50 +57,58 @@ class ActiveSelectionsWithRec {
 
     this.as = new ActiveSelections(data.length);
     this.classifier = new Classifier(data);
-    this.suggestedAttrList = [];
-    this.interpolatedColorScales = {};
+    this.suggestedAttrListsByField = {color: [], size: []};
+
+    this.interpolatedScales = {color: {}, size: {}};
   }
 
-  getColor = (id) => this.as.getColor(id);
+  getValue = (field, id) => this.as.getValue(field, id);
 
-  getAllColorGroups = () => this.as.getAllColorGroups();
+  getAllGroups = (field) => this.as.getAllGroups(field);
 
-  getAllColorGroupsWithColor = () => this.as.getAllColorGroupsWithColor();
+  getAllGroupsWithValue = (field) => this.as.getAllGroupsWithValue(field);
 
-  getInterpolatedColorScale = (color_attr) => this.interpolatedColorScales[color_attr];
+  getInterpolatedScale = (field, attrName) => this.interpolatedScales[field][attrName];
 
-  assignColor = (selectedIds, colorObj) => {
-    this.as.assignColor(selectedIds, colorObj);
-    this._updateRecommendation();
-    this._updateInterpolatedColorScales();
+  hasActiveSelection = (field) => this.as.hasActiveSelection(field);
+
+  assignValue = (field, selectedIds, value) => {
+    this.as.assignValue(field, selectedIds, value);
+    this._updateRecommendation(field);
+    this._updateInterpolatedScales(field);
   };
 
-  resetColor = (selectedIds) => {
-    this.as.resetColor(selectedIds);
-    this._updateRecommendation();
-    this._updateInterpolatedColorScales();
-  }
+  resetValue = (field, selectedIds) => {
+    this.assignValue(field, selectedIds);
+  };
 
-  _updateRecommendation = () => {
-    this.suggestedAttrList = this.classifier.getMostSimilarAttr(
-      this.as.getAllColorGroups(), 
+  _updateRecommendation = (field) => {
+    this.suggestedAttrListsByField[field] = this.classifier.getMostSimilarAttr(
+      this.getAllGroups(field),
       2,
     );
-    this.updateRecommendation(this.suggestedAttrList);
-  }
+    this.updateRecommendation(this.suggestedAttrListsByField);
+  };
 
-  _updateInterpolatedColorScales = () => {
-    this.interpolatedColorScales = {};
-    let colorScale;
-    for (let color_attr of this.suggestedAttrList) {
-      colorScale = ColorUtil.interpolateColorScale(
-        this.as.getAllColorGroupsWithColor(),
-        this.data,
-        color_attr,
-      );
-      this.interpolatedColorScales[color_attr] = colorScale;
+  _updateInterpolatedScales = (field) => {
+    this.interpolatedScales[field] = {};
+    let scale;
+    for (let attrName of this.suggestedAttrListsByField[field]) {
+      if (field === 'color') {
+        scale = ColorUtil.interpolateColorScale(
+          this.as.getAllGroupsWithValue('color'),
+          this.data,
+          attrName,
+        );
+      } else if (field === 'size') {
+        // We do not actually interpolate size scales. Using the generic one instead
+        scale = d3.scaleLinear()
+        .domain(expandRange(d3.extent(this.data, d => d[attrName]))).range([3, 15]);
+      }
+      this.interpolatedScales[field][attrName] = scale;
     }
   };
+
 }
 
 export { ActiveSelectionsWithRec };
