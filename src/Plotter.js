@@ -178,7 +178,7 @@ class MainPlotter {
       .attr('stroke', DEFAULT_BY_FIELD.color)
       .on('mousedown', d => this.resizer.handleMouseDown(d3.event, d.__id_extra__))
       .on('mouseover', d => this.resizer.handleMouseOver(d3.event, d.__id_extra__))
-      .on('mouseout', this.resizer.handleMouseOut);
+      .on('mouseout', () => this.resizer.handleMouseOut(d3.event));
   
     dots.merge(newDots)
       .transition()

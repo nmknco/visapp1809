@@ -67,6 +67,7 @@ class Resizer {
 
   handleMouseOut = (e) => {
     this.isHovering = false;
+    e.target.style.cursor = 'pointer';
   }
 }
 
