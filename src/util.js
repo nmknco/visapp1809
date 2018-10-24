@@ -10,6 +10,10 @@ class Pos {
   distTo(pos0) {
     return Math.sqrt((this.x - pos0.x)**2 + (this.y - pos0.y)**2);
   }
+
+  relativeTo(pos0) {
+    return new Pos(this.x - pos0.x, this.y - pos0.y);
+  }
 }
 
 class Rect {

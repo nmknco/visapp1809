@@ -6,7 +6,7 @@ export class Description extends Component {
   render() {
     return (
       <Panel 
-        className="description_panel"
+        className="description-panel"
         heading="Tips"
       >
         <ul className="pt-2 pr-4">

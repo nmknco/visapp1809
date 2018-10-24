@@ -2,7 +2,7 @@ import * as d3 from 'd3';
 import { Selector } from './Selector';
 import { Resizer } from './Resizer';
 import { ActiveSelectionsWithRec } from './ActiveSelections';
-import { expandRange } from './util';
+import { expandRange, SelUtil, Pos } from './util';
 
 const SVGATTR_BY_FIELD = {color: 'stroke', size: 'r'};
 const DEFAULT_BY_FIELD = {color: '#999999', size: 7};
@@ -12,11 +12,16 @@ class MainPlotter {
   constructor(
     data, 
     container, 
-    chartConfig, 
+    chartConfig,
     updateColorPicker,
     onDataPointHover,
     updateRecommendation,
     handleChangeVisualByUser,
+    handleDragPointsEnd,
+    setMinimapScales,
+    updateHasSelection,
+    updateHasActiveSelection,
+    setIsDraggingPoints,
   ){
     this.data = data;
     this.chartConfig = chartConfig;
@@ -24,12 +29,26 @@ class MainPlotter {
     this.updateColorPicker = updateColorPicker;
     this.onDataPointHover = onDataPointHover;
     this.handleChangeVisualByUser = handleChangeVisualByUser;
+    this.handleDragPointsEnd = handleDragPointsEnd;
+    this.setMinimapScales = setMinimapScales;
+    this.updateHasSelection = updateHasSelection;
+    this.setIsDraggingPoints = setIsDraggingPoints;
 
-    this.activeSelections = new ActiveSelectionsWithRec(data, updateRecommendation);
+    this.activeSelections = new ActiveSelectionsWithRec(
+      data, 
+      updateRecommendation,
+      updateHasActiveSelection,
+    );
 
     this.scales = {x:{}, y:{}, color:{}, size: {}};
     this.customScales = {color: null, size: null}; // preserve this for toggle on and off x/y axis 
                                          // (as active selection is cleared and can't be used for restoration)
+
+    this.chart = null;
+    this.selector = null;
+    this.resizer = null;
+
+    this.isDraggingPoints = false;
 
     this.init();
   }
@@ -44,7 +63,8 @@ class MainPlotter {
     const canvas = d3.select(this.container)
       .append('svg')
       .attr('width', c.svgW)
-      .attr('height', c.svgH);
+      .attr('height', c.svgH)
+      .on('mousedown', this._closeColorPicker);
     const chart = canvas.append('g')
       .attr('transform', `translate(${c.pad.l}, ${c.pad.t})`);
     const chartBg = chart.append('rect')
@@ -52,16 +72,15 @@ class MainPlotter {
       .attr('x', 0)
       .attr('y', 0)
       .attr('width', c.svgW - c.pad.l - c.pad.r)
-      .attr('height', c.svgH - c.pad.t - c.pad.b)
-      .on('click', () => {
-        this.updateColorPicker({display: 'none'})
-      });
+      .attr('height', c.svgH - c.pad.t - c.pad.b);
+    
     this.chart = chart;
 
     this.selector = new Selector(
       chart.node(),
       chartBg.node(),
-      this.highlightSelected,
+      this.handlePendingSelectionChange,
+      this.handleSelectionChange,
     );
     
     this.resizer = new Resizer(
@@ -96,7 +115,7 @@ class MainPlotter {
 
     if (!x || !y) {
       this.chart.selectAll('.dot').remove();
-      this.selector.clearSelection();
+      this.clearSelection();
       for (let field of ['color', 'size']) {
         this.activeSelections.resetValue(field);
       }
@@ -107,7 +126,7 @@ class MainPlotter {
     const y_attr = y.attribute.name;
   
 
-    this.xScale = this.scales.x[x_attr] || (
+    const xScale = this.scales.x[x_attr] || (
       (typeof data[0][x_attr] === 'number') ?
         d3.scaleLinear()
           .domain(expandRange(d3.extent(data, d => d[x_attr]))) :
@@ -116,7 +135,7 @@ class MainPlotter {
           .padding(0.2)
     ).range([0, c.svgW - c.pad.l - c.pad.r]);
 
-    this.yScale = this.scales.y[y_attr] || (
+    const yScale = this.scales.y[y_attr] || (
       (typeof data[0][y_attr] === 'number') ?
         d3.scaleLinear()
           .domain(expandRange(d3.extent(data, d => d[y_attr]))) :
@@ -125,12 +144,16 @@ class MainPlotter {
           .padding(0.2)
     ).range([c.svgH - c.pad.t - c.pad.b, 0]);
 
-    this.scales.x[x_attr] = this.xScale;
-    this.scales.y[y_attr] = this.yScale;
+    // cache
+    this.scales.x[x_attr] = xScale;
+    this.scales.y[y_attr] = yScale;
+    // pass to the minimaps
+    this.setMinimapScales({xScale, yScale});
+
     const xg = this.chart.select('.x-axis');
     const yg = this.chart.select('.y-axis');
-    xg.call(d3.axisBottom(this.xScale));
-    yg.call(d3.axisLeft(this.yScale));
+    xg.call(d3.axisBottom(xScale));
+    yg.call(d3.axisLeft(yScale));
     xg.select('.label').text(x_attr);
     yg.select('.label').text(y_attr);
 
@@ -143,6 +166,7 @@ class MainPlotter {
       .append('g')
       .classed('dot', true)
       .on('click', d => {
+        // console.log('click!');
         const id = d.__id_extra__
         if (!this.resizer.getIsHovering()) {
           if (!d3.event.ctrlKey) {
@@ -155,38 +179,101 @@ class MainPlotter {
       .on('contextmenu', d => {
         d3.event.preventDefault();
         if (this.selector.getIsSelected(d.__id_extra__)) {
-          const { x, y } = this.plotConfig;
-          const left = c.pad.l + this.xScale(d[x.attribute.name]) - 18;
-          const top = c.pad.t + this.yScale(d[y.attribute.name]) + 20;
+          const left = c.pad.l + xScale(d[x_attr]) - 18;
+          const top = c.pad.t + yScale(d[y_attr]) + 20;
           
           this.updateColorPicker({left, top, display: undefined});
         }
-      })
-      
-    newDots.on('mouseover', d => {
+      });
+
+    newDots.on('mouseenter', d => {
         this.onDataPointHover(d);
-      }).on('mouseout', d => {
+      }).on('mouseleave', d => {
         this.onDataPointHover({});
       });
     
     newDots.append('circle')
       .classed('circle circle-bg', true)
-      .attr('r', DEFAULT_BY_FIELD.size);
+      .attr('r', DEFAULT_BY_FIELD.size)
+      .call(
+        d3.drag()
+        .on('start', () => {
+            // console.log('start');
+        })
+        .on('drag', d => {
+          if (this.selector.getIsSelected(d.__id_extra__)) {
+            // console.log('drag')
+            if (!this.isDraggingPoints) {
+              // Do the clone upon the first drag event rather than start - otherwise
+              //    the click behavior may be prevented
+              this.isDraggingPoints = true;
+              this.setIsDraggingPoints(true);
+
+              const e = d3.event.sourceEvent;
+              this.draggingPointsOrigin = new Pos(e.clientX, e.clientY);
+
+              const copyDiv = document.createElement('div');
+              copyDiv.classList.add('drag-clone')
+              Object.assign(copyDiv.style, {
+                position: 'absolute',
+                left: 0,
+                top: 0,
+                width: this.chart.attr('width'),
+                height: this.chart.attr('height'),
+              });
+              const copyCanvas = d3.select(copyDiv)
+                .append('svg')
+                .attr('width', this.chartConfig.svgW)
+                .attr('height', this.chartConfig.svgH)
+                .append('g')
+                .attr('transform', `translate(${this.chartConfig.pad.l}, ${this.chartConfig.pad.t})`);
+              d3.select(this.container).selectAll('.dot')
+                .filter(d => this.selector.getIsSelected(d.__id_extra__))
+                .each(function() {
+                  // Not using arrow func to avoid 'this' binding
+                  copyCanvas.append(() => this.cloneNode(true))
+                });
+              this.container.appendChild(copyDiv);
+            } else {
+              // Drag has started
+              const e = d3.event.sourceEvent;
+              const ePos = new Pos(e.clientX, e.clientY);
+              const offset = ePos.relativeTo(this.draggingPointsOrigin);
+              const copyDiv = this.container.querySelector('.drag-clone');
+              Object.assign(copyDiv.style, {
+                left: offset.x + 'px',
+                top: offset.y + 'px',
+              });
+              const svg = null;
+            }
+          }
+        })
+        .on('end', () => {
+          if (this.isDraggingPoints) {
+            // console.log('end');
+            this.isDraggingPoints = false;
+            this.setIsDraggingPoints(false);
+            this.container.removeChild(this.container.querySelector('.drag-clone'));
+            this.handleDragPointsEnd(new Set(this.selector.getSelectedIds())); // make a copy!
+          }
+        })
+      );
+
     newDots.append('circle')
       .classed('circle circle-ring', true)
       .attr('r', DEFAULT_BY_FIELD.size)
       .attr('stroke', DEFAULT_BY_FIELD.color)
       .on('mousedown', d => this.resizer.handleMouseDown(d3.event, d.__id_extra__))
-      .on('mouseover', d => this.resizer.handleMouseOver(d3.event, d.__id_extra__))
-      .on('mouseout', () => this.resizer.handleMouseOut(d3.event));
+      .on('mouseenter', d => this.resizer.handleMouseEnter(d3.event, d.__id_extra__))
+      .on('mouseleave', () => this.resizer.handleMouseLeave(d3.event));
   
     dots.merge(newDots)
       .transition()
       .duration(1000)
-      .attr('transform', d => `translate(${this.xScale(d[x_attr])}, ${this.yScale(d[y_attr])})`)
+      .attr('transform', d => `translate(${xScale(d[x_attr])}, ${yScale(d[y_attr])})`)
       // Save position data in attributes for selection funcitons
-      .attr('data-x', d => this.xScale(d[x_attr]))
-      .attr('data-y', d => this.yScale(d[y_attr]));
+      .attr('data-x', d => xScale(d[x_attr]))
+      .attr('data-y', d => yScale(d[y_attr]));
 
     // this shouldn't happen in current setting (no points excluded in individual plots)
     dots.exit()
@@ -274,23 +361,39 @@ class MainPlotter {
     this.syncVisualToUserSelection(field);
   };
 
-  unVisualSelected = (field) => {
-    // this also update all visual but is only enabled in user-selection mode
-    this.activeSelections.resetValue(field, this.selector.getSelectedIds());
+  unVisualGivenIds = (field, idSet) => {
+    // This is a VISUAL method that updates all visual but is only called in user-selection mode
+    // If we do not want to sync visuals, just use ActiveSelection methods directly
+    this.activeSelections.resetValue(field, idSet);
     this.syncVisualToUserSelection(field);
   };
 
+  unVisualSelected = (field) => {
+    // This is a VISUAL method that updates all visual but is only called in user-selection mode
+    // If we do not want to sync visuals, just use ActiveSelection methods directly
+    this.unVisualGivenIds(field, this.selector.getSelectedIds());
+  };
+
   unVisualAll = (field) => {
-    // this will clear ALL visual (including ones generated by encoding box)
-    // NOW this is also only enabled in user-selection mode since we can
+    // This is a VISUAL method that will clear ALL visual (including ones generated by encoding box)
+    // NOW this is also only called in user-selection mode since we can
     // clear encoding directly in the encoding fields.
     this.activeSelections.resetValue(field);
     this.syncVisualToUserSelection(field);
   };
 
-  highlightSelected = () => {
+  handlePendingSelectionChange = (selectedIds, pendingIds) => {
+    this.highlightDots(id => selectedIds.has(id) || pendingIds.has(id))
+  };
+
+  handleSelectionChange = (selectedIds) => {
+    this.highlightDots(id => selectedIds.has(id));
+    this.updateHasSelection(selectedIds.size > 0)
+  };
+
+  highlightDots = (idFilter) => {
     d3.selectAll('.dot')
-      .classed('selected', d => this.selector.getIsSelectedOrPending(d.__id_extra__));
+      .classed('selected', d => idFilter(d.__id_extra__));
   };
 
   clearSelection = () => {
@@ -300,6 +403,17 @@ class MainPlotter {
   handleResizing = (r) => {
     this.handleChangeVisualByUser('size', r);
   }
+
+  _closeColorPicker = () => {
+    this.updateColorPicker({display: 'none'});
+  }
+
+  toggleHideOrDimPoints = (idSet, shouldHide, dimOnly=false)=> {
+    this.chart.selectAll('.dot') // important not to select dots in drag copies
+      .filter(d => idSet.has(d.__id_extra__))
+      .classed('dim', false) // always reset dim
+      .classed(dimOnly ? 'dim' : 'hidden', shouldHide);
+  };
 
 }
 

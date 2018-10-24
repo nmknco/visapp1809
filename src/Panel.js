@@ -5,7 +5,7 @@ class Panel extends Component {
     return (
       <div className={"card border-light m-1 " + this.props.className}>
         <div className="card-header"> {this.props.heading} </div>
-        <div className="card-body p-1">
+        <div className={"card-body" + (this.props.noPadding ? " p-0" : " p-1")}>
           {this.props.children}
         </div>
       </div>

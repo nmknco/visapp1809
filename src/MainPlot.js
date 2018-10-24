@@ -4,8 +4,10 @@ import { MainPlotter } from './Plotter'
 import { ColorPicker } from './ColorPicker';
 import { RecommendPanel } from './RecommendPanel';
 import { Attribute } from './Attributes';
+import { Filters } from './Filters';
 import { Encodings } from './Encodings';
 import { ColorUtil } from './util';
+import { MINIMAP_D, MINIMAP_MAR, RIGHT_PANEL_WIDTH } from './Constants';
 
 class PlotConfigEntry {
   constructor(attribute, useCustomScale) {
@@ -26,6 +28,13 @@ class MainPlot extends Component {
         x: {attribute: {name: 'Horsepower', type: 'number'}},
         y: {attribute: {name: 'Miles_per_Gallon', type: 'number'}},
       },
+      scales: {xScale: null, yScale: null},
+      isDraggingPoints: false,
+      isHoveringFilterPanel: false,
+      idSetPendingFilter: null,
+      idSetsFiltered: [],
+      hasSelection: false,
+      hasActiveSelection: {color: false, size: false},
     }
 
     this.chartConfig = {
@@ -33,6 +42,8 @@ class MainPlot extends Component {
       svgW: 720,
       svgH: 720
     };
+
+    this.mp = null;
   }
 
   _initializeMainPlotter = () => {
@@ -45,6 +56,11 @@ class MainPlot extends Component {
       this.props.onDataPointHover,
       this.updateRecommendation,
       this.handleChangeVisualByUser, // for resizer, which needs direct interaction with plot
+      this.handleDragPointsEnd,
+      this.setMinimapScales,
+      this.updateHasSelection,
+      this.updateHasActiveSelection,
+      this.setIsDraggingPoints,
     );
     this.mp.updatePosition(this.state.plotConfig);
   }
@@ -78,6 +94,9 @@ class MainPlot extends Component {
       if (field === 'x' || field === 'y') {
         const { x, y } = plotConfig;
         this.mp.updatePosition(plotConfig); // updateXY() clears plot if x or y is undefined
+        if (!x || !y) {
+          this._clearAllFilters();
+        }
         if (!(prevX && prevY) && x && y) {
           this.mp.updateVisual(['color', 'size'], plotConfig); // restore color and size
         }
@@ -125,13 +144,23 @@ class MainPlot extends Component {
     this.mp.unVisualSelected(field);
   };
 
+  updateHasSelection = (hasSelection) => {
+    this.setState(() => ({hasSelection}))
+  };
+
+  updateHasActiveSelection = (field, hasActiveSelection) => {
+    this.setState((prevState) => ({hasActiveSelection: {
+      ...prevState.hasActiveSelection,
+      field: hasActiveSelection,
+    }}));
+  };
+
   _shouldEnableUnVisualSelected = (field) => {
-    const entry = this.state.plotConfig[field];
-    return !entry && this.mp && this.mp.selector.hasSelection();
+    return !this.state.plotConfig[field] && this.state.hasSelection;
   };
   _shouldEnableUnVisualAll = (field) => {
     const entry = this.state.plotConfig[field];
-    return !entry && this.mp && this.mp.activeSelections.hasActiveSelection(field);
+    return !entry && this.state.hasActiveSelection[field];
   };
 
   updateRecommendation = (suggestedAttrListsByField) => {
@@ -152,7 +181,6 @@ class MainPlot extends Component {
     );
   };
 
-
   handleHoverRecommendCard = (field, attrName, action) => {
     if (action === 'mouseenter') {
       this.mp.updateVisualWithRecommendation(field, attrName);
@@ -165,6 +193,91 @@ class MainPlot extends Component {
     }
   };
 
+  setIsHoveringFilterPanel = (isHoveringFilterPanel) => {
+    this.setState({isHoveringFilterPanel});
+  };
+
+  handleDragPointsEnd = (idSetPendingFilter) => {
+    if (this.state.isHoveringFilterPanel) {
+      // console.log('Drag release in filter');
+      this.setState(() => ({idSetPendingFilter}));
+    }
+  };
+
+  handleAcceptFilter = (filteredIds) => {
+    this._filterOutPoints(filteredIds);
+    this.setState((prevState) => ({
+      idSetPendingFilter: null,
+      idSetsFiltered: [...prevState.idSetsFiltered, filteredIds],
+    }));
+  }
+
+  handleRestoreFilter = (filteredIds) => {
+    this.toggleHidePoints(filteredIds, false);
+    this.setState((prevState) => {
+      // assuming sets are exclusive - so every id can be used as set-id
+      const i = filteredIds.values().next().value;
+      return {
+        idSetsFiltered: prevState.idSetsFiltered.filter(set => !set.has(i))
+      }
+    });
+  }
+
+  handleCancelFilter = () => {
+    this.setState((prevState) => ({idSetPendingFilter: null}));
+  };
+
+
+
+  _clearAllFilters = () => {
+    this.setState((prevState) => ({idSetPendingFilter: null, idSetsFiltered: []}));
+  }
+
+  _filterOutPoints = (filteredIds) => {
+    // 1. hide visual 
+    this.toggleHidePoints(filteredIds);
+    // 2. remove from active selections, BUT DO NOT SYNC COLOR
+    for (let field of ['color', 'size']) {
+      this.mp.activeSelections.resetValue(field, this.state.idSetPendingFilter)
+    }
+    // 3. clear selection 
+    this.mp.clearSelection();
+  };
+
+
+  handleHoverFilterCard = (idSet, action) => {
+    if (action === 'mouseenter') {
+      this.toggleDimPoints(idSet, true);
+    } else if (action === 'mouseleave') {
+      this.toggleDimPoints(idSet, false);
+    }
+  }
+
+  handleHoverMinimap = (idSet, action) => {
+    if (action === 'mouseenter') {
+      this.toggleHidePoints(idSet, false);
+      this.toggleDimPoints(idSet, true);
+    } else if (action === 'mouseleave') {
+      this.toggleHidePoints(idSet, true); // this will reset dim classes
+    }
+  }
+
+  toggleHidePoints = (idSet, shouldHide=true) => {
+    this.mp.toggleHideOrDimPoints(idSet, shouldHide);
+  };
+
+  toggleDimPoints = (idSet, shouldHide=true) => {
+    this.mp.toggleHideOrDimPoints(idSet, shouldHide, true);
+  }
+
+
+  setMinimapScales = (scales = {xScale: null, yScale: null}) => {
+    this.setState(() => ({scales}));
+  };
+
+  setIsDraggingPoints = (isDraggingPoints) => {
+    this.setState({isDraggingPoints});
+  }
 
   render() {
     return (
@@ -174,7 +287,7 @@ class MainPlot extends Component {
             setPlotConfig={this.setPlotConfig}
             plotConfig={this.state.plotConfig}
           />
-          <div ref={this.d3ContainerRef}>
+          <div ref={this.d3ContainerRef} className="main-plot-container">
             <div style={{height: 0}}>
               <ColorPicker 
                 style={this.state.colorPickerStyle} 
@@ -187,14 +300,30 @@ class MainPlot extends Component {
           </div>
         </div>
         
-        <div className="right-panel">
-          {
-            <RecommendPanel
-              suggestedAttrListsByField={this.state.suggestedAttrListsByField}
-              onClickAccept={this.handleClickAccept}
-              onHoverRecommendCard={this.handleHoverRecommendCard}
-            />
-          }
+        <div 
+          className="right-panel" 
+          style={{flex: `0 0 ${RIGHT_PANEL_WIDTH}px`}}
+        >
+          <Filters
+            data={this.props.data}
+            idSetPendingFilter={this.state.idSetPendingFilter}
+            idSetsFiltered={this.state.idSetsFiltered}
+            scales={this.state.scales}
+            plotConfig={this.state.plotConfig}
+            setIsHoveringFilterPanel={this.setIsHoveringFilterPanel}
+            onClickAccept={this.handleAcceptFilter}
+            onClickCancel={this.handleCancelFilter}
+            onHoverCard={this.handleHoverFilterCard}
+            onHoverMinimap={this.handleHoverMinimap}
+            onClickRestore={this.handleRestoreFilter}
+            isDraggingPoints={this.state.isDraggingPoints}
+            isHoveringFilterPanel={this.state.isHoveringFilterPanel}
+          />
+          <RecommendPanel
+            suggestedAttrListsByField={this.state.suggestedAttrListsByField}
+            onClickAccept={this.handleClickAccept}
+            onHoverRecommendCard={this.handleHoverRecommendCard}
+          />
 
           {/* TODO: Use a drop down for reset options */}
           {['color', 'size'].map(field => {

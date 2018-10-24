@@ -58,14 +58,14 @@ class Resizer {
     this.isResizing = false;
   };
 
-  handleMouseOver = (e, id) => {
+  handleMouseEnter = (e, id) => {
     if (this.isSelected(id)) {
       this.isHovering = true;
       e.target.style.cursor = this._getCursorStyle(e);
     }
   }
 
-  handleMouseOut = (e) => {
+  handleMouseLeave = (e) => {
     this.isHovering = false;
     e.target.style.cursor = 'pointer';
   }

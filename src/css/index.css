@@ -21,6 +21,10 @@
   background-color: rgba(0, 0, 0, 0.05);
 }
 
+.app .card-body {
+  min-height: 32px;
+}
+
 
 /* ---- Layout ---- */
 .left-panel {
@@ -32,7 +36,8 @@
 }
 
 .right-panel {
-  flex: 0 0 280px;
+  /* now set inline with plot config constants */
+  /* flex: 0 0 280px; */
 }
 
 /* ---- Left panel ---- */
@@ -73,6 +78,10 @@
 }
 
 /* ---- Main Plot ---- */
+.main-plot-container {
+  position: relative; /* to relatively position the absolute-positioned drag-copy inside */
+}
+
 .chart-bg {
   fill: rgba(0, 0, 0, 0);
 }
@@ -94,6 +103,14 @@
   opacity: 0.15;
 }
 
+.hidden {
+  visibility: hidden;
+}
+
+.dim {
+  opacity: 0.2;
+}
+
 .circle-ring {
   fill: none;
   stroke-width: 3px;
@@ -111,9 +128,80 @@
 
 .color-picker {
   position: relative;
+  width: 115px;
+}
+
+.drag-clone {
+  z-index: 1;
+  pointer-events: none; /* let events pass through for drag releasing */
 }
 
 /* ---- Right panel ---- */
-.rec-card:hover {
-  background-color: rgba(0, 0, 0, 0.05)
+.filters__drop {
+  min-height: 48px;
 }
+
+.filters__drop--can-drop {
+  background-color: #ffff99;
+}
+
+.filters__drop--is-over {
+  background-color: #ccffcc;
+}
+
+.filters__container {
+  width: 100%;
+  min-height: 100%;
+  max-height: 120px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.filters__prompt:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.minimap {
+  position: relative; /* to hold the overlay */
+}
+
+.minimap__svg {
+  background-color: rgba(0, 0, 0, 0.02);
+  border: rgba(0, 0, 0, 0.06) 1px solid;
+  border-radius: 5px;
+}
+
+.minimap__overlay {
+  opacity: 0;
+  cursor: pointer;
+  position: absolute;
+  /* positioning in Filter.js */
+  background-color: rgba(0, 0, 0, 0.05);
+  /* border: rgba(0, 0, 0, 0.06) 1px solid; */
+  border-radius: 5px;
+}
+
+.minimap__overlay:hover {
+  opacity: 1;
+}
+
+.minimap__restore-text {
+  font-size: 10px;
+  padding: 5px;
+  color: rgba(160, 0, 0, 0.9);
+  line-height: 1;
+}
+
+
+.minimap__dot {
+  fill: none;
+  stroke-width: 1px;
+  stroke: rgba(153, 153, 153, 0.7);
+}
+
+.rec-card:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+
+/* ---- Misc ---- */

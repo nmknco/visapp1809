@@ -15,22 +15,28 @@ class RecommendPanel extends Component {
   };
 
   render() {
+    const flattenRecList = this.flatten(this.props.suggestedAttrListsByField);
     return (
       <Panel 
-        className="recommendation_panel"
-        heading="Do you want to..."
+        className="recommendations-panel"
+        heading="Recommendations"
       >
-        {
-          this.flatten(this.props.suggestedAttrListsByField).map(
-            ({ field, attrName }) =>
-              (<RecommendCard
-                key={`${field}_${attrName}`}
-                field={field}
-                attrName={attrName}
-                onClickAccept={this.props.onClickAccept}
-                onHoverRecommendCard={this.props.onHoverRecommendCard}
-              />)
-          )
+        {flattenRecList.length > 0 &&
+          <div>
+            <div className="p-1">Do you want to:</div>
+            {
+              flattenRecList.map(
+                ({ field, attrName }) =>
+                  (<RecommendCard
+                    key={`${field}_${attrName}`}
+                    field={field}
+                    attrName={attrName}
+                    onClickAccept={this.props.onClickAccept}
+                    onHoverRecommendCard={this.props.onHoverRecommendCard}
+                  />)
+              )
+            }
+          </div>
         }
       </Panel>
     );
@@ -55,7 +61,7 @@ class RecommendCard extends Component {
               <p>{`Assign ${attrName} to ${field}?`} </p>
               <button 
                   type="button"
-                  className='btn btn-sm btn-success'
+                  className="btn btn-sm btn-success px-3"
                   onClick={() => {onClickAccept(field, attrName)}}
                   // disabled={this.props.disabled}
                 >

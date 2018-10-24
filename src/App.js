@@ -69,7 +69,7 @@ class App extends Component {
           <Attributes 
             attributes={this.attributes}  
             activeEntry={this.state.activeEntry}
-          /> 
+          />
           <Description />
         </div>
         <div className="">

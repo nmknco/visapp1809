@@ -2,10 +2,16 @@ import * as d3 from 'd3';
 import { Rect, SelUtil } from './util';
 
 class Selector {
-  constructor(chartNode, chartBgNode, onSelectionChange) {
+  constructor(
+    chartNode, 
+    chartBgNode, 
+    onPendingSelectionChange = (() => {}),
+    onSelectionChange = (() => {}),
+  ){
     this.chartNode = chartNode;
     this.chartBgNode = chartBgNode;
-    this.onSelectionChange = onSelectionChange || (() => {});
+    this.onPendingSelectionChange = () => onPendingSelectionChange(this.selectedIds, this.pendingIds);
+    this.onSelectionChange = () => onSelectionChange(this.selectedIds);
 
     this.isSelecting = false;
     this.selNode = null;
@@ -51,15 +57,17 @@ class Selector {
         }
 
         const { selRect, pendingIds } = this;
-        d3.selectAll('.dot').each(function(d) {
-          if (selRect.containsCoor(
-            this.getAttribute('data-x'), 
-            this.getAttribute('data-y')
-          )) { 
-            pendingIds.add(d.__id_extra__); 
-          }
-        });
-        this.onSelectionChange();
+        d3.selectAll('.dot:not(.hidden)')
+          .each(function(d) {
+          // Not using arrow func to void 'this' binding
+            if (selRect.containsCoor(
+              this.getAttribute('data-x'), 
+              this.getAttribute('data-y'),
+            )) { 
+              pendingIds.add(d.__id_extra__); 
+            }
+          });
+        this.onPendingSelectionChange();
       }
     });
 
@@ -71,6 +79,7 @@ class Selector {
         this.pendingIds.clear();
         this.isSelecting = false;
         this.selNode.outerHTML = '';
+        this.onSelectionChange();
       }
     });
   };
