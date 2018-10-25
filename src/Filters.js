@@ -95,7 +95,7 @@ class FilterRecCard extends Component {
       <RecCard 
         onHoverCard={ev => onHoverCard(ev, filteredIds)}
         onClickAccept={() => onClickAccept(filteredIds)}
-        header={previewMap}
+        // header={previewMap}
       >
         {this.props.children}
       </RecCard>
@@ -191,10 +191,15 @@ class Filters extends Component {
 
     const filteredSubsets = this.getFilteredSubsets(this.props);
 
+    const headingWithCancel = (<div className="w-100 d-flex justify-content-between align-items-center">
+      <div>Filters</div>
+      <i className="fas fa-times mr-1" title="Cancel" onClick={onClickCancel} />
+    </div>)
+
     return (
       <Panel
         className="filters-panel"
-        heading="Filters"
+        heading={headingWithCancel}
         noPadding={true}
       > 
         <div
@@ -211,7 +216,7 @@ class Filters extends Component {
           }
           {idSetPendingFilter &&
             <div>
-              {/* <div className="p-1">Do you want to: </div> */}
+              <div className="p-1">Recommended Filters: </div>
               {
                 ['selected', 'x', 'y', 'similar'].map(dataKey => {
                   const subset = filteredSubsets[dataKey];
@@ -229,23 +234,16 @@ class Filters extends Component {
                   }
                 })
               }
-              <div className={"py-3 mx-2 text-center"
+              <div className={"pb-1 mx-1 mb-3 text-center"
                 + (idSetsFiltered.length > 0 ? " border-bottom border-light" : "")}
               >
-                <button 
-                  type="button"
-                  className='btn btn-sm btn-danger px-3'
-                  onClick={onClickCancel}
-                >
-                  <i className="fas fa-times text-white mr-1" /> Cancel
-                </button>
               </div>
             </div>
 
           }
 
           {idSetsFiltered.length > 0 && 
-              <div className="p-1">Currently filtered points: </div>
+              <div className="p-1">Filtered points: </div>
           }
 
           <div className="filters__container d-flex flex-wrap">

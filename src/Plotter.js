@@ -173,7 +173,7 @@ class MainPlotter {
         // console.log('click!');
         const id = d.__id_extra__
         if (!this.resizer.getIsHovering()) {
-          if (!d3.event.ctrlKey) {
+          if (!(d3.event.ctrlKey || d3.event.metaKey)) {
             this.selector.selectOnlyOne(id);
           } else {
             this.selector.selectToggle(id);

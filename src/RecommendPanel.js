@@ -20,7 +20,7 @@ class RecommendPanel extends Component {
     return (
       <Panel 
         className="recommendations-panel"
-        heading="Recommendations"
+        heading="Recommended Mappings"
       >
         {flattenRecList.length > 0 &&
           <div>

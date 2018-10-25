@@ -51,7 +51,7 @@ class Selector {
         this._updateRectNode();
 
         this.pendingIds.clear();
-        if (!e.ctrlKey) {
+        if (!(e.ctrlKey || e.metaKey)) {
           this.selectedIds.clear();
         }
 
