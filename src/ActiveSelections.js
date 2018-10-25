@@ -4,10 +4,12 @@ import { Classifier } from './Classifier';
 
 
 class ActiveSelections {
-  constructor(len) {
+  constructor(len, onActiveSelectionChange) {
     this.len = len;
     this.valueByIds = { color: Array(len), size: Array(len) };
     this.idsByValue = { color: {}, size: {} };
+
+    this.onActiveSelectionChange = onActiveSelectionChange;
   }
 
   getValue = (field, id) => this.valueByIds[field][id];
@@ -29,6 +31,7 @@ class ActiveSelections {
       }
       this._updateIdsByValue(field);
     }
+    this.onActiveSelectionChange(field, this);
   };
 
   _updateIdsByValue = (field) => {
@@ -51,11 +54,11 @@ class ActiveSelections {
 class ActiveSelectionsWithRec {
   // Active selections that computes recommendation and keep it sync-ed
   // Also computes interpolated scales and caches them
-  constructor(data, updateRecommendation) {
+  constructor(data, updateRecommendation, onActiveSelectionChange) {
     this.data = data;
     this.updateRecommendation = updateRecommendation;
 
-    this.as = new ActiveSelections(data.length);
+    this.as = new ActiveSelections(data.length, onActiveSelectionChange);
     this.classifier = new Classifier(data);
     this.suggestedAttrListsByField = {color: [], size: []};
 

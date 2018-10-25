@@ -1,8 +1,9 @@
 import * as d3 from 'd3';
 import { Selector } from './Selector';
 import { Resizer } from './Resizer';
+import { Dragger } from './Dragger';
 import { ActiveSelectionsWithRec } from './ActiveSelections';
-import { expandRange, SelUtil, Pos } from './util';
+import { expandRange, SelUtil } from './util';
 
 const SVGATTR_BY_FIELD = {color: 'stroke', size: 'r'};
 const DEFAULT_BY_FIELD = {color: '#999999', size: 7};
@@ -32,12 +33,13 @@ class MainPlotter {
     this.handleDragPointsEnd = handleDragPointsEnd;
     this.setMinimapScales = setMinimapScales;
     this.updateHasSelection = updateHasSelection;
+    this.updateHasActiveSelection = updateHasActiveSelection;
     this.setIsDraggingPoints = setIsDraggingPoints;
 
     this.activeSelections = new ActiveSelectionsWithRec(
       data, 
       updateRecommendation,
-      updateHasActiveSelection,
+      this.handleActiveSelectionChange,
     );
 
     this.scales = {x:{}, y:{}, color:{}, size: {}};
@@ -67,7 +69,9 @@ class MainPlotter {
       .on('mousedown', this._closeColorPicker);
     const chart = canvas.append('g')
       .attr('transform', `translate(${c.pad.l}, ${c.pad.t})`);
-    const chartBg = chart.append('rect')
+  
+    // bg listening for select/resize drag, also works as ref for computing positions
+    const chartBg = chart.append('rect') 
       .classed('chart-bg', true)
       .attr('x', 0)
       .attr('y', 0)
@@ -77,7 +81,6 @@ class MainPlotter {
     this.chart = chart;
 
     this.selector = new Selector(
-      chart.node(),
       chartBg.node(),
       this.handlePendingSelectionChange,
       this.handleSelectionChange,
@@ -85,9 +88,10 @@ class MainPlotter {
     
     this.resizer = new Resizer(
       chartBg.node(),
-      this.selector.getIsSelected,
       this.handleResizing,
     );
+
+    this.dragger = new Dragger(this);
 
     chart.append('g')
       .attr('transform', `translate(0, ${c.svgH - c.pad.t - c.pad.b})`)
@@ -195,77 +199,25 @@ class MainPlotter {
     newDots.append('circle')
       .classed('circle circle-bg', true)
       .attr('r', DEFAULT_BY_FIELD.size)
-      .call(
-        d3.drag()
-        .on('start', () => {
-            // console.log('start');
-        })
-        .on('drag', d => {
-          if (this.selector.getIsSelected(d.__id_extra__)) {
-            // console.log('drag')
-            if (!this.isDraggingPoints) {
-              // Do the clone upon the first drag event rather than start - otherwise
-              //    the click behavior may be prevented
-              this.isDraggingPoints = true;
-              this.setIsDraggingPoints(true);
-
-              const e = d3.event.sourceEvent;
-              this.draggingPointsOrigin = new Pos(e.clientX, e.clientY);
-
-              const copyDiv = document.createElement('div');
-              copyDiv.classList.add('drag-clone')
-              Object.assign(copyDiv.style, {
-                position: 'absolute',
-                left: 0,
-                top: 0,
-                width: this.chart.attr('width'),
-                height: this.chart.attr('height'),
-              });
-              const copyCanvas = d3.select(copyDiv)
-                .append('svg')
-                .attr('width', this.chartConfig.svgW)
-                .attr('height', this.chartConfig.svgH)
-                .append('g')
-                .attr('transform', `translate(${this.chartConfig.pad.l}, ${this.chartConfig.pad.t})`);
-              d3.select(this.container).selectAll('.dot')
-                .filter(d => this.selector.getIsSelected(d.__id_extra__))
-                .each(function() {
-                  // Not using arrow func to avoid 'this' binding
-                  copyCanvas.append(() => this.cloneNode(true))
-                });
-              this.container.appendChild(copyDiv);
-            } else {
-              // Drag has started
-              const e = d3.event.sourceEvent;
-              const ePos = new Pos(e.clientX, e.clientY);
-              const offset = ePos.relativeTo(this.draggingPointsOrigin);
-              const copyDiv = this.container.querySelector('.drag-clone');
-              Object.assign(copyDiv.style, {
-                left: offset.x + 'px',
-                top: offset.y + 'px',
-              });
-              const svg = null;
-            }
-          }
-        })
-        .on('end', () => {
-          if (this.isDraggingPoints) {
-            // console.log('end');
-            this.isDraggingPoints = false;
-            this.setIsDraggingPoints(false);
-            this.container.removeChild(this.container.querySelector('.drag-clone'));
-            this.handleDragPointsEnd(new Set(this.selector.getSelectedIds())); // make a copy!
-          }
-        })
-      );
+      .call(this.dragger.getDragger());
 
     newDots.append('circle')
       .classed('circle circle-ring', true)
       .attr('r', DEFAULT_BY_FIELD.size)
       .attr('stroke', DEFAULT_BY_FIELD.color)
-      .on('mousedown', d => this.resizer.handleMouseDown(d3.event, d.__id_extra__))
-      .on('mouseenter', d => this.resizer.handleMouseEnter(d3.event, d.__id_extra__))
-      .on('mouseleave', () => this.resizer.handleMouseLeave(d3.event));
+      .on('mousedown', d => {
+        if (this.selector.getIsSelected(d.__id_extra__)) {
+          this.resizer.handleMouseDown(d3.event);
+        }
+      })
+      .on('mouseenter', d => {
+        if (this.selector.getIsSelected(d.__id_extra__)) {
+          this.resizer.handleMouseEnter(d3.event);
+        }
+      })
+      .on('mouseleave', () => 
+        this.resizer.handleMouseLeave(d3.event)
+      );
   
     dots.merge(newDots)
       .transition()
@@ -301,7 +253,7 @@ class MainPlotter {
           if (field === 'color') {
             visualScale = this.scales[field][attrName] || (
               (entry.attribute.type === 'number') ?
-                d3.scaleSequential(t => d3.interpolateInferno(d3.scaleLinear().domain([0,1]).range([0.9,0.1])(t))).domain(d3.extent(data, d => d[attrName])) :
+                d3.scaleSequential(t => d3.interpolateInferno(d3.scaleLinear().domain([0,1]).range([0.92,0])(t))).domain(d3.extent(data, d => d[attrName])) :
                 d3.scaleOrdinal(d3.schemeCategory10).domain(d3.map(data, d => d[attrName]).keys())
             );
           } else if (field === 'size') {
@@ -382,13 +334,17 @@ class MainPlotter {
     this.syncVisualToUserSelection(field);
   };
 
+  handleActiveSelectionChange = (field, activeSelection) => {
+    this.updateHasActiveSelection(field, activeSelection.hasActiveSelection(field));
+  }
+
   handlePendingSelectionChange = (selectedIds, pendingIds) => {
-    this.highlightDots(id => selectedIds.has(id) || pendingIds.has(id))
+    this.highlightDots(id => selectedIds.has(id) || pendingIds.has(id));
   };
 
   handleSelectionChange = (selectedIds) => {
     this.highlightDots(id => selectedIds.has(id));
-    this.updateHasSelection(selectedIds.size > 0)
+    this.updateHasSelection(selectedIds.size > 0);
   };
 
   highlightDots = (idFilter) => {

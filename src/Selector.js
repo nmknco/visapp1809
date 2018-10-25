@@ -3,12 +3,10 @@ import { Rect, SelUtil } from './util';
 
 class Selector {
   constructor(
-    chartNode, 
     chartBgNode, 
     onPendingSelectionChange = (() => {}),
     onSelectionChange = (() => {}),
   ){
-    this.chartNode = chartNode;
     this.chartBgNode = chartBgNode;
     this.onPendingSelectionChange = () => onPendingSelectionChange(this.selectedIds, this.pendingIds);
     this.onSelectionChange = () => onSelectionChange(this.selectedIds);
@@ -43,7 +41,8 @@ class Selector {
       this.selNode.classList.add('selection-shade');
       this.selRect = new Rect(this.origin, this.origin);
       this._updateRectNode();
-      this.chartNode.insertBefore(this.selNode, this.chartNode.firstChild);
+      const chartNode = this.chartBgNode.parentNode;
+      chartNode.insertBefore(this.selNode, chartNode.firstChild);
     });
 
     document.addEventListener('mousemove', (e) => {
@@ -57,7 +56,7 @@ class Selector {
         }
 
         const { selRect, pendingIds } = this;
-        d3.selectAll('.dot:not(.hidden)')
+        d3.selectAll('.dot:not(.hidden)') // prevent selecting filtered-out points
           .each(function(d) {
           // Not using arrow func to void 'this' binding
             if (selRect.containsCoor(

@@ -1,9 +1,8 @@
 import { Pos, SelUtil } from './util';
 
 class Resizer {
-  constructor(chartBgNode, isSelected, onResizing) {
+  constructor(chartBgNode, onResizing) {
     this.chartBgNode = chartBgNode;
-    this.isSelected = isSelected;
     this.onResizing = onResizing;
 
     this.isResizing = false;
@@ -20,12 +19,10 @@ class Resizer {
     document.addEventListener('mouseup', this.handleMouseUp);
   }
 
-  handleMouseDown = (e, id) => {
-    if (this.isSelected(id)) {
-      e.preventDefault();
-      this.currentDot = e.target.parentNode;
-      this.isResizing = true;
-    }
+  handleMouseDown = (e) => {
+    e.preventDefault();
+    this.currentDot = e.target.parentNode;
+    this.isResizing = true;
   };
 
   handleMouseMove = (e) => {
@@ -38,6 +35,20 @@ class Resizer {
       this.onResizing(r);
     }
   };
+
+  handleMouseUp = (e) => {
+    this.isResizing = false;
+  };
+
+  handleMouseEnter = (e) => {
+    this.isHovering = true;
+    e.target.style.cursor = this._getCursorStyle(e);
+  }
+
+  handleMouseLeave = (e) => {
+    this.isHovering = false;
+    e.target.style.cursor = 'pointer';
+  }
 
   _getCursorStyle = (e) => {
     const {x, y} = SelUtil.calcPos(e, this.chartBgNode);
@@ -52,22 +63,6 @@ class Resizer {
     } else {
       return dx * dy < 0 ? 'nesw-resize' : 'nwse-resize';
     }
-  }
-
-  handleMouseUp = (e) => {
-    this.isResizing = false;
-  };
-
-  handleMouseEnter = (e, id) => {
-    if (this.isSelected(id)) {
-      this.isHovering = true;
-      e.target.style.cursor = this._getCursorStyle(e);
-    }
-  }
-
-  handleMouseLeave = (e) => {
-    this.isHovering = false;
-    e.target.style.cursor = 'pointer';
   }
 }
 

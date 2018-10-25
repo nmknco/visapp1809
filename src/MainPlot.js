@@ -34,7 +34,7 @@ class MainPlot extends Component {
       idSetPendingFilter: null,
       idSetsFiltered: [],
       hasSelection: false,
-      hasActiveSelection: {color: false, size: false},
+      hasActiveSelection: {color: false, size: false}, // i.e. has visuals set on user selection
     }
 
     this.chartConfig = {
@@ -151,16 +151,17 @@ class MainPlot extends Component {
   updateHasActiveSelection = (field, hasActiveSelection) => {
     this.setState((prevState) => ({hasActiveSelection: {
       ...prevState.hasActiveSelection,
-      field: hasActiveSelection,
+      [field]: hasActiveSelection,
     }}));
   };
 
   _shouldEnableUnVisualSelected = (field) => {
-    return !this.state.plotConfig[field] && this.state.hasSelection;
+    return !this.state.plotConfig[field] && 
+      this.state.hasActiveSelection[field] && this.state.hasSelection;
   };
   _shouldEnableUnVisualAll = (field) => {
-    const entry = this.state.plotConfig[field];
-    return !entry && this.state.hasActiveSelection[field];
+    return !this.state.plotConfig[field] && 
+      this.state.hasActiveSelection[field];
   };
 
   updateRecommendation = (suggestedAttrListsByField) => {
@@ -182,13 +183,15 @@ class MainPlot extends Component {
   };
 
   handleHoverRecommendCard = (field, attrName, action) => {
-    if (action === 'mouseenter') {
-      this.mp.updateVisualWithRecommendation(field, attrName);
-    } else if (action === 'mouseleave') {
-      if (this.state.plotConfig[field]) {
-        this.mp.updateVisual([field,], this.state.plotConfig)
-      } else {
-        this.mp.syncVisualToUserSelection(field);
+    if (!this.state.isDraggingPoints) {
+      if (action === 'mouseenter') {
+        this.mp.updateVisualWithRecommendation(field, attrName);
+      } else if (action === 'mouseleave') {
+        if (this.state.plotConfig[field]) {
+          this.mp.updateVisual([field,], this.state.plotConfig)
+        } else {
+          this.mp.syncVisualToUserSelection(field);
+        }
       }
     }
   };
@@ -228,7 +231,6 @@ class MainPlot extends Component {
   };
 
 
-
   _clearAllFilters = () => {
     this.setState((prevState) => ({idSetPendingFilter: null, idSetsFiltered: []}));
   }
@@ -236,9 +238,12 @@ class MainPlot extends Component {
   _filterOutPoints = (filteredIds) => {
     // 1. hide visual 
     this.toggleHidePoints(filteredIds);
-    // 2. remove from active selections, BUT DO NOT SYNC COLOR
+    // 2. remove from active selections (and unvisual)
+    // Do this ONLY WHEN active selection is present (so no encoding visual is reset)
     for (let field of ['color', 'size']) {
-      this.mp.activeSelections.resetValue(field, this.state.idSetPendingFilter)
+      if (this.state.hasActiveSelection[field]) {
+        this.mp.unVisualGivenIds(field, filteredIds);
+      }
     }
     // 3. clear selection 
     this.mp.clearSelection();
