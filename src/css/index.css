@@ -25,6 +25,9 @@
   min-height: 32px;
 }
 
+.fas {
+  cursor: pointer;
+}
 
 /* ---- Layout ---- */
 .left-panel {
@@ -157,10 +160,6 @@
   overflow-x: hidden;
 }
 
-.filters__prompt:hover {
-  background-color: rgba(0, 0, 0, 0.05);
-}
-
 .minimap {
   position: relative; /* to hold the overlay */
 }
@@ -197,6 +196,10 @@
   fill: none;
   stroke-width: 1px;
   stroke: rgba(153, 153, 153, 0.7);
+}
+
+.rec-card {
+  min-height: 72px;
 }
 
 .rec-card:hover {

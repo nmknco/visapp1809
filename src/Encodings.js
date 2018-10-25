@@ -75,9 +75,13 @@ class EncodingField extends Component {
     if (plotConfigEntry) {
       const {attribute, useCustomScale} = plotConfigEntry
       return (
-        <div className="d-flex justify-content-between" style={{width: '100%'}}>
+        <div className="d-flex justify-content-between align-items-center" style={{width: '100%'}}>
           <AttrTag attribute={attribute} field={field} isCustom={useCustomScale} />
-          <span style={{cursor: 'pointer'}} onClick={() => {setPlotConfig(field, undefined)}}>x</span>
+          <i 
+            className="fas fa-times p-1" 
+            onClick={() => {setPlotConfig(field, undefined)}}
+            title="Remove"
+          />
         </div>
       );
     } else {

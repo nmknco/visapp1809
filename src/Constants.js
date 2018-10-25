@@ -10,3 +10,5 @@ export const SCROLL_WIDTH = 20;
 
 export const MINIMAP_D = (
   RIGHT_PANEL_WIDTH - 2 - 8 - 8 - SCROLL_WIDTH - MINIMAP_MAR * 2 * MINIMAP_PERROW) / MINIMAP_PERROW;
+
+export const MINIMAP_D_PREVIEW = 50;

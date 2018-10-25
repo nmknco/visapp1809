@@ -2,8 +2,10 @@ import * as d3 from 'd3';
 import React, { Component } from 'react';
 
 import { Panel } from './Panel';
+import { RecCard } from './RecCard';
 import { Classifier } from './Classifier';
-import { MINIMAP_D, MINIMAP_PAD, MINIMAP_MAR, MINIMAP_PERROW, } from './Constants';
+import { MINIMAP_D, MINIMAP_PAD, MINIMAP_MAR, MINIMAP_PERROW, MINIMAP_D_PREVIEW } from './Constants';
+
 
 class Minimap extends Component {
   constructor(props) {
@@ -11,19 +13,29 @@ class Minimap extends Component {
   }
 
   render() {
-    let {dataFiltered, scales: {xScale, yScale}, x, y, isPreview, onClickRestore, onHover} = this.props;
+    let {
+      dataFiltered, scales: {xScale, yScale}, x, y, 
+      isPreview, onClickRestore, onHover,
+      dimension,
+    } = this.props;
+
+    if (!dimension) {
+      dimension = isPreview ? MINIMAP_D_PREVIEW : MINIMAP_D;
+    }
+    const r = isPreview ? 1 : 2;
+
     const filteredIds = new Set(dataFiltered.map(d => d.__id_extra__)); 
-    xScale = xScale && xScale.copy().range([MINIMAP_PAD, MINIMAP_D - MINIMAP_PAD]);
-    yScale = yScale && yScale.copy().range([MINIMAP_D - MINIMAP_PAD, MINIMAP_PAD]);
+    xScale = xScale && xScale.copy().range([MINIMAP_PAD, dimension - MINIMAP_PAD]);
+    yScale = yScale && yScale.copy().range([dimension - MINIMAP_PAD, MINIMAP_PAD]);
     return (
       <div
         className="minimap"
-        style={{padding: MINIMAP_MAR, flex: `0 0 ${MINIMAP_D + MINIMAP_MAR * 2}px`}}
+        style={{padding: MINIMAP_MAR, flex: `0 0 ${dimension + MINIMAP_MAR * 2}px`}}
       >
         <svg 
           className="minimap__svg" 
-          width={MINIMAP_D}
-          height={MINIMAP_D}
+          width={dimension}
+          height={dimension}
         >
           {x && y && xScale && yScale &&
             dataFiltered.map(
@@ -32,7 +44,7 @@ class Minimap extends Component {
               className="minimap__dot"
               cx={xScale(d[x.attribute.name])} 
               cy={yScale(d[y.attribute.name])} 
-              r="2"
+              r={r}
             ></circle>
           )}
         </svg>
@@ -42,12 +54,12 @@ class Minimap extends Component {
             style={{
               top: MINIMAP_MAR,
               left: MINIMAP_MAR,
-              width: MINIMAP_D,
-              height: MINIMAP_D,
+              width: dimension,
+              height: dimension,
             }}
             onClick={() => {onClickRestore(new Set(dataFiltered.map(d => d.__id_extra__)))}}
-            onMouseEnter={() => {console.log(onHover); if(onHover) onHover(filteredIds, 'mouseenter')}}
-            onMouseLeave={() => {if(onHover) onHover(filteredIds, 'mouseleave')}}
+            onMouseEnter={onHover}
+            onMouseLeave={onHover}
           >
             <div 
               className="minimap__restore-text text-center"
@@ -68,34 +80,25 @@ class FilterRecCard extends Component {
   }
 
   render() {
-    const {dataFiltered, scales, x, y, onClickAccept, onClickCancel, onHoverCard} = this.props
-    const filterdIds = new Set(dataFiltered.map(d => d.__id_extra__));
+    const {miniMapProps, onClickAccept, onHoverCard} = this.props
+    const previewMap = (
+      <Minimap
+        {...miniMapProps}
+        isPreview={true}
+      />
+    )
+
+    const filteredIds = new Set(
+      miniMapProps.dataFiltered.map(d => d.__id_extra__));
+
     return (
-      <div 
-        className="filters__prompt card flex-row border-light align-items-center text-right p-3 my-1"
-        onMouseEnter={() => onHoverCard(filterdIds, 'mouseenter')}
-        onMouseLeave={() => onHoverCard(filterdIds, 'mouseleave')}
+      <RecCard 
+        onHoverCard={ev => onHoverCard(ev, filteredIds)}
+        onClickAccept={() => onClickAccept(filteredIds)}
+        header={previewMap}
       >
-        <div className={"filters__prompt-text mr-2"}>
-          <div className="pb-1">{this.props.text}</div>
-          <div className="pb-1">
-            <button 
-                type="button"
-                className='btn btn-sm btn-success px-3'
-                onClick={() => onClickAccept(filterdIds)}
-              >
-                Accept
-            </button>
-          </div>
-        </div>
-        <div className="filters__prompt-preview mx-2">
-          <Minimap
-            {...{dataFiltered, scales, x, y}}
-            isPreview={true}
-            onClickRestore={this.props.onClickRestore}
-          />
-        </div>
-      </div>
+        {this.props.children}
+      </RecCard>
     );
   }
 }
@@ -152,7 +155,7 @@ class Filters extends Component {
 
       if (idSetPendingFilter.size >= 2) {
         const cls = new Classifier(data);
-        simiAttr = cls.getMostSimilarAttr([idSetPendingFilter,], 1);
+        simiAttr = cls.getMostSimilarAttr([idSetPendingFilter,], 1)[0];
         if (simiAttr && simiAttr !== xName && simiAttr !== yName) {
           const [smin, smax] = d3.extent(selected, d => d[simiAttr]);
           filteredSubsets.similar = {
@@ -169,17 +172,16 @@ class Filters extends Component {
 
   getTextPrompt = (dataKey, label) => {
     const dict = {
-      selected: 'The points you selected',
-      x: 'All points within the same x range',
-      y: 'All points within the same y range',
-      similar: `Points with similar value of ${label}`,
+      selected: <span>the points you <strong>selected</strong></span>,
+      x: <span>all points within the <strong>same x range</strong></span>,
+      y: <span>all points within the <strong>same y range</strong></span>,
+      similar: <span>points with similar value of <strong>{label}</strong></span>,
     }
-    return `${dict[dataKey]}?`;
+    return (<div>Filter out {dict[dataKey]}</div>);
   }
 
   render() {
     const {
-      data,
       idSetPendingFilter, idSetsFiltered, scales, 
       plotConfig: {x, y}, 
       setIsHoveringFilterPanel,
@@ -196,7 +198,7 @@ class Filters extends Component {
         noPadding={true}
       > 
         <div
-          className={"filters__drop px-1" 
+          className={"filters__drop p-1" 
             + (isDraggingPoints ? isHoveringFilterPanel ? " filters__drop--is-over" : " filters__drop--can-drop" : "")}
           style={{
             cursor: isDraggingPoints && isHoveringFilterPanel ? 'pointer' : 'auto',
@@ -209,19 +211,20 @@ class Filters extends Component {
           }
           {idSetPendingFilter &&
             <div>
-              <div className="p-1">Do you want to filter out: </div>
+              {/* <div className="p-1">Do you want to: </div> */}
               {
                 ['selected', 'x', 'y', 'similar'].map(dataKey => {
                   const subset = filteredSubsets[dataKey];
                   if (subset) {
                     const dataFiltered = subset.data;
-                    const text = this.getTextPrompt(dataKey, subset.label);
                     return (
                       <FilterRecCard
                         key={dataKey}
-                        {...{dataFiltered, scales, x, y, text, 
-                          onClickAccept, onHoverCard}}
-                      />
+                        miniMapProps={{dataFiltered, scales, x, y}}
+                        {...{onClickAccept, onHoverCard}}
+                      >
+                        {this.getTextPrompt(dataKey, subset.label)}
+                      </FilterRecCard>
                     )
                   }
                 })
@@ -234,7 +237,7 @@ class Filters extends Component {
                   className='btn btn-sm btn-danger px-3'
                   onClick={onClickCancel}
                 >
-                  Cancel
+                  <i className="fas fa-times text-white mr-1" /> Cancel
                 </button>
               </div>
             </div>
@@ -251,7 +254,7 @@ class Filters extends Component {
                 key={idSet.values().next().value}
                 dataFiltered={this.filterDataByIds(idSet)}
                 onClickRestore={onClickRestore}
-                onHover={onHoverMinimap}
+                onHover={ev => onHoverMinimap(ev, idSet)}
                 {...{scales, x, y}}
               />
             )}

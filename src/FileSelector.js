@@ -9,7 +9,7 @@ class FileSelector extends Component {
         className="file_selector"
         heading="Data"
       >
-        <div className="card-body p-1"> <div>cars.json</div> </div>
+        <div>cars.json</div>
       </Panel>
     );
   }

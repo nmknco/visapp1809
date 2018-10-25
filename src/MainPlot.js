@@ -7,7 +7,7 @@ import { Attribute } from './Attributes';
 import { Filters } from './Filters';
 import { Encodings } from './Encodings';
 import { ColorUtil } from './util';
-import { MINIMAP_D, MINIMAP_MAR, RIGHT_PANEL_WIDTH } from './Constants';
+import { RIGHT_PANEL_WIDTH } from './Constants';
 
 class PlotConfigEntry {
   constructor(attribute, useCustomScale) {
@@ -174,7 +174,7 @@ class MainPlot extends Component {
   //   // clear recommendations but preserve the color groups backstage.
   // };
 
-  handleClickAccept = (field, attrName) => {
+  handleAcceptMapping = (field, attrName) => {
     this.mp.clearSelection();
     this.setPlotConfig(
       field, 
@@ -182,11 +182,11 @@ class MainPlot extends Component {
     );
   };
 
-  handleHoverRecommendCard = (field, attrName, action) => {
+  handleHoverMappingCard = (ev, field, attrName) => {
     if (!this.state.isDraggingPoints) {
-      if (action === 'mouseenter') {
+      if (ev.type === 'mouseenter') {
         this.mp.updateVisualWithRecommendation(field, attrName);
-      } else if (action === 'mouseleave') {
+      } else if (ev.type === 'mouseleave') {
         if (this.state.plotConfig[field]) {
           this.mp.updateVisual([field,], this.state.plotConfig)
         } else {
@@ -250,19 +250,19 @@ class MainPlot extends Component {
   };
 
 
-  handleHoverFilterCard = (idSet, action) => {
-    if (action === 'mouseenter') {
+  handleHoverFilterCard = (ev, idSet) => {
+    if (ev.type === 'mouseenter') {
       this.toggleDimPoints(idSet, true);
-    } else if (action === 'mouseleave') {
+    } else if (ev.type === 'mouseleave') {
       this.toggleDimPoints(idSet, false);
     }
   }
 
-  handleHoverMinimap = (idSet, action) => {
-    if (action === 'mouseenter') {
+  handleHoverMinimap = (ev, idSet) => {
+    if (ev.type === 'mouseenter') {
       this.toggleHidePoints(idSet, false);
       this.toggleDimPoints(idSet, true);
-    } else if (action === 'mouseleave') {
+    } else if (ev.type === 'mouseleave') {
       this.toggleHidePoints(idSet, true); // this will reset dim classes
     }
   }
@@ -326,8 +326,8 @@ class MainPlot extends Component {
           />
           <RecommendPanel
             suggestedAttrListsByField={this.state.suggestedAttrListsByField}
-            onClickAccept={this.handleClickAccept}
-            onHoverRecommendCard={this.handleHoverRecommendCard}
+            onClickAccept={this.handleAcceptMapping}
+            onHoverCard={this.handleHoverMappingCard}
           />
 
           {/* TODO: Use a drop down for reset options */}
