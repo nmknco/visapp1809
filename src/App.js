@@ -2,20 +2,14 @@ import React, { Component } from 'react';
 import { DragDropContext } from 'react-dnd';
 import HTML5Backend from 'react-dnd-html5-backend';
 
-import { Attribute, Attributes } from './Attributes';
 import { MainPlot } from './MainPlot';
-import { FileSelector } from './FileSelector';
-import { Description } from './Description';
 
 class App extends Component {
   constructor(props) {
     super(props);
     this.state = {
       data: null,
-      activeEntry: {},
     }
-    
-    this.attributes = [];
   }
 
   componentWillMount() {
@@ -26,7 +20,6 @@ class App extends Component {
       // console.table(data);
 
       data = this._preProcess(data);
-      this._updateAttributesInfo(data);
       
       this.setState({data});
     });
@@ -41,43 +34,10 @@ class App extends Component {
     });
   };
 
-  _updateAttributesInfo = (data) => {
-    if (data && data.length > 0) {
-      const d0 = data[0];
-      for (const attr of Object.keys(d0)) {
-        if (attr !== '__id_extra__') {
-          this.attributes.push(
-            new Attribute(
-              attr,
-              (typeof d0[attr] === 'number') ? 'number' : 'other',
-            )
-          );
-        }
-      }
-    }
-  }
-
-  setActiveEntry = (entry) => {
-    this.setState((prevState) => ({ activeEntry: entry, }));
-  };
-
   render() {
     return (
       <div className="app d-flex m-2">
-        <div className="left-panel">
-          <FileSelector />
-          <Attributes 
-            attributes={this.attributes}  
-            activeEntry={this.state.activeEntry}
-          />
-          <Description />
-        </div>
-        <div className="">
-          <MainPlot
-            data={this.state.data}
-            onDataPointHover={this.setActiveEntry}
-          />
-        </div>
+          <MainPlot data={this.state.data} />
       </div>
     );
   }

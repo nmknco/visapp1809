@@ -3,10 +3,13 @@ import React, { Component } from 'react';
 import { MainPlotter } from './Plotter'
 import { ColorPicker } from './ColorPicker';
 import { RecommendPanel } from './RecommendPanel';
-import { Attribute } from './Attributes';
+import { Attribute, Attributes } from './Attributes';
+import { Description } from './Description';
+import { FileSelector } from './FileSelector';
 import { Filters } from './Filters';
 import { Encodings } from './Encodings';
 import { ColorUtil } from './util';
+import { memoizeLast } from './memoize'
 import { RIGHT_PANEL_WIDTH } from './Constants';
 
 class PlotConfigEntry {
@@ -21,6 +24,7 @@ class MainPlot extends Component {
     super(props);
     this.d3ContainerRef = React.createRef();
     this.state = {
+      activeEntry: {},
       colorPickerStyle: {left: 0, top: 0, display: 'none'},
       suggestedAttrListsByField: {color: [], size: []},
       // plotConfig: {},
@@ -53,7 +57,7 @@ class MainPlot extends Component {
       this.d3ContainerRef.current,
       this.chartConfig,
       this.updateColorPicker,
-      this.props.onDataPointHover,
+      this.handleHoverDataPoint,
       this.updateRecommendation,
       this.handleChangeVisualByUser, // for resizer, which needs direct interaction with plot
       this.handleDragPointsEnd,
@@ -80,6 +84,24 @@ class MainPlot extends Component {
   }
 
   componentWillUnmount() {}
+ 
+  getAttributes = (data) => {
+    console.log('Recomputing attributes')
+    if (data && data.length > 0) {
+      const d0 = data[0];
+      return Object.keys(d0)
+        .filter(attrName => attrName !== '__id_extra__')
+        .map(attrName => new Attribute(
+          attrName,
+          (typeof d0[attrName] === 'number') ? 'number' : 'other'
+        ));
+    }
+    return [];
+  };
+
+  memoizedGetAttributes = memoizeLast(this.getAttributes);
+
+  handleHoverDataPoint = (activeEntry) => this.setState(() => ({activeEntry}));
 
   setPlotConfig = (field, plotConfigEntry, keepSelection, callback) => {
     const { x: prevX, y: prevY, color: prevColor } = this.state.plotConfig;
@@ -287,6 +309,14 @@ class MainPlot extends Component {
   render() {
     return (
       <div style={{display: 'flex'}}>
+        <div className="left-panel">
+          <FileSelector />
+          <Attributes 
+            attributes={this.memoizedGetAttributes(this.props.data)}  
+            activeEntry={this.state.activeEntry}
+          />
+          <Description />
+        </div>
         <div className="mid-panel">
           <Encodings 
             setPlotConfig={this.setPlotConfig}
