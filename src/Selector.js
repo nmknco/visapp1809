@@ -60,8 +60,8 @@ class Selector {
           .each(function(d) {
           // Not using arrow func to void 'this' binding
             if (selRect.containsCoor(
-              this.getAttribute('data-x'), 
-              this.getAttribute('data-y'),
+              +this.getAttribute('data-x'), 
+              +this.getAttribute('data-y'),
             )) { 
               pendingIds.add(d.__id_extra__); 
             }

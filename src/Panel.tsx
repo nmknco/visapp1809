@@ -1,6 +1,11 @@
-import React, { Component } from 'react';
+import * as React from 'react';
 
-class Panel extends Component {
+interface PanelProps {
+  readonly heading: string,
+  readonly noPadding?: boolean,
+}
+
+class Panel extends React.Component<PanelProps & React.HTMLAttributes<HTMLDivElement>> {
   render() {
     return (
       <div className={"card border-light m-1 " + this.props.className}>

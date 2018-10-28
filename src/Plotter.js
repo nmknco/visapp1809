@@ -4,6 +4,7 @@ import { Resizer } from './Resizer';
 import { Dragger } from './Dragger';
 import { ActiveSelectionsWithRec } from './ActiveSelections';
 import { expandRange, SelUtil } from './util';
+import { CHARTCONFIG } from './Constants';
 
 const SVGATTR_BY_FIELD = {color: 'stroke', size: 'r'};
 const DEFAULT_BY_FIELD = {color: '#999999', size: 7};
@@ -13,7 +14,6 @@ class MainPlotter {
   constructor(
     data, 
     container, 
-    chartConfig,
     updateColorPicker,
     onDataPointHover,
     updateRecommendation,
@@ -25,7 +25,6 @@ class MainPlotter {
     setIsDraggingPoints,
   ){
     this.data = data;
-    this.chartConfig = chartConfig;
     this.container = container;
     this.updateColorPicker = updateColorPicker;
     this.onDataPointHover = onDataPointHover;
@@ -35,7 +34,7 @@ class MainPlotter {
     this.updateHasSelection = updateHasSelection;
     this.updateHasActiveSelection = updateHasActiveSelection;
     this.setIsDraggingPoints = setIsDraggingPoints;
-
+    
     this.activeSelections = new ActiveSelectionsWithRec(
       data, 
       updateRecommendation,
@@ -58,25 +57,26 @@ class MainPlotter {
   getActiveSelections = () => this.activeSelections;
 
   init = () => {
-    const c = this.chartConfig;
+
+    const {pad: {t, r, b, l}, svgH, svgW} = CHARTCONFIG;
 
     d3.select(this.container).selectAll('svg').remove();
 
     const canvas = d3.select(this.container)
       .append('svg')
-      .attr('width', c.svgW)
-      .attr('height', c.svgH)
+      .attr('width', svgW)
+      .attr('height', svgH)
       .on('mousedown', this._closeColorPicker);
     const chart = canvas.append('g')
-      .attr('transform', `translate(${c.pad.l}, ${c.pad.t})`);
+      .attr('transform', `translate(${l}, ${t})`);
   
     // bg listening for select/resize drag, also works as ref for computing positions
     const chartBg = chart.append('rect') 
       .classed('chart-bg', true)
       .attr('x', 0)
       .attr('y', 0)
-      .attr('width', c.svgW - c.pad.l - c.pad.r)
-      .attr('height', c.svgH - c.pad.t - c.pad.b);
+      .attr('width', svgW - l - r)
+      .attr('height', svgH - t - b);
     
     this.chart = chart;
 
@@ -94,7 +94,7 @@ class MainPlotter {
     this.dragger = new Dragger(this);
 
     chart.append('g')
-      .attr('transform', `translate(0, ${c.svgH - c.pad.t - c.pad.b})`)
+      .attr('transform', `translate(0, ${svgH - t - b})`)
       .classed('x-axis', true)
       .append('text')
       .attr('x', 250).attr('y', 80)
@@ -111,10 +111,9 @@ class MainPlotter {
   updatePosition = (plotConfig) => {
     console.log('update position called');
 
-    const c = this.chartConfig;
+    const {pad: {t, r, b, l}, svgH, svgW} = CHARTCONFIG;
     const data = this.data;
 
-    this.plotConfig = plotConfig; // for dynamic click handlers (colorpicker menu)
     const { x, y } = plotConfig;
 
     if (!x || !y) {
@@ -126,27 +125,32 @@ class MainPlotter {
       return;
     }
 
+    // Note this
+
+    // Note, these are variables that are created anew each time. They
+    //  won't update the old closures when points move. 
+    //  i.e. Don't rely on these values' changes when writing event handlers 
+    //  (unless we store them in a persistent source, for exmaple, `this`,)
+
     const x_attr = x.attribute.name;
     const y_attr = y.attribute.name;
-  
-
     const xScale = this.scales.x[x_attr] || (
-      (typeof data[0][x_attr] === 'number') ?
+      (x.attribute.type === 'number') ?
         d3.scaleLinear()
           .domain(expandRange(d3.extent(data, d => d[x_attr]))) :
         d3.scalePoint()
           .domain(data.map(d => d[x_attr]))
           .padding(0.2)
-    ).range([0, c.svgW - c.pad.l - c.pad.r]);
+    ).range([0, svgW - l - r]);
 
     const yScale = this.scales.y[y_attr] || (
-      (typeof data[0][y_attr] === 'number') ?
+      (y.attribute.type === 'number') ?
         d3.scaleLinear()
           .domain(expandRange(d3.extent(data, d => d[y_attr]))) :
         d3.scalePoint()
           .domain(data.map(d => d[y_attr]))
           .padding(0.2)
-    ).range([c.svgH - c.pad.t - c.pad.b, 0]);
+    ).range([svgH - t - b, 0]);
 
     // cache
     this.scales.x[x_attr] = xScale;
@@ -181,11 +185,18 @@ class MainPlotter {
         }
       })
       .on('contextmenu', d => {
+        // Need to get things from reference, otherwise there's closure problem
         d3.event.preventDefault();
         if (this.selector.getIsSelected(d.__id_extra__)) {
-          const left = c.pad.l + xScale(d[x_attr]) - 18;
-          const top = c.pad.t + yScale(d[y_attr]) + 20;
-          
+          // WRONG!!!!!!!
+          // const left = l + xScale(d[x_attr]) - 18;
+          // const top = t + yScale(d[y_attr]) + 20;
+
+          // Correct
+          const node = d3.event.target.parentNode;
+          const {x, y} = node.dataset
+          const left = l + (+node.dataset.x) - 18;
+          const top = t + (+node.dataset.y) + 20;
           this.updateColorPicker({left, top, display: undefined});
         }
       });
@@ -238,7 +249,6 @@ class MainPlotter {
     console.log('update visual called');
 
     const data = this.data;
-    this.plotConfig = plotConfig; // see updatePosition() for motivation
 
     for (let field of fields) {
       const entry = plotConfig[field];

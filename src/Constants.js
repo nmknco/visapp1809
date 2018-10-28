@@ -1,7 +1,3 @@
-export const ItemTypes = {
-  ATTRIBUTE: 'attribute',
-};
-
 export const MINIMAP_PERROW = 3;
 export const RIGHT_PANEL_WIDTH = 300;
 export const MINIMAP_MAR = 2; // margin around svg (used as padding of container)
@@ -12,3 +8,9 @@ export const MINIMAP_D = (
   RIGHT_PANEL_WIDTH - 2 - 8 - 8 - SCROLL_WIDTH - MINIMAP_MAR * 2 * MINIMAP_PERROW) / MINIMAP_PERROW;
 
 export const MINIMAP_D_PREVIEW = 50;
+
+export const CHARTCONFIG = {
+  pad: {t: 40, r: 40, b: 160, l: 160},
+  svgW: 720,
+  svgH: 720
+};

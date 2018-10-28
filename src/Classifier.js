@@ -1,9 +1,12 @@
 import * as d3 from 'd3';
+import { memoizedGetAttributes } from './util';
 
 class Classifier {
   constructor(data) {
     this.data = data;
-    this.attrList = Object.keys(data[0]).filter(a => ((a !== '__id_extra__') && (typeof data[0][a] === 'number')));
+    this.attrList = memoizedGetAttributes(data)
+      .filter(attr => attr.type === 'number')
+      .map(attr => attr.name);
     this.vars = {};
     this._init(data)
   }

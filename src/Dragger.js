@@ -1,4 +1,6 @@
 import * as d3 from 'd3';
+
+import { CHARTCONFIG } from './Constants';
 import { Pos } from './util';
 
 class Dragger {
@@ -42,10 +44,10 @@ class Dragger {
         });
         const copyCanvas = d3.select(copyDiv)
           .append('svg')
-          .attr('width', this.chartConfig.svgW)
-          .attr('height', this.chartConfig.svgH)
+          .attr('width', CHARTCONFIG.svgW)
+          .attr('height', CHARTCONFIG.svgH)
           .append('g')
-          .attr('transform', `translate(${this.chartConfig.pad.l}, ${this.chartConfig.pad.t})`);
+          .attr('transform', `translate(${CHARTCONFIG.pad.l}, ${CHARTCONFIG.pad.t})`);
         d3.select(this.container).selectAll('.dot')
           .filter(d => this.selector.getIsSelected(d.__id_extra__))
           .each(function() {
