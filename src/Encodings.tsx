@@ -69,9 +69,9 @@ const encodingTarget = {
     const { sourceAttribute, sourceField } = monitor.getItem();
     return (
       !(
-        (sourceAttribute.type === 'other' && field === 'size') || 
+        (sourceAttribute.type === 'string' && field === 'size') || 
         (plotConfigEntry && plotConfigEntry.attribute && 
-          plotConfigEntry.attribute.type === 'other' && sourceField === 'size')
+          plotConfigEntry.attribute.type === 'string' && sourceField === 'size')
       )
     );
   }
@@ -97,7 +97,8 @@ class EncodingField extends React.PureComponent<EncodingFieldProps> {
     super(props);
   }
 
-  removeAttribute = () => this.props.setPlotConfig(this.props.field, undefined);
+  private removeAttribute = 
+    () => this.props.setPlotConfig(this.props.field, undefined);
 
   renderContent = () => {
     const { plotConfigEntry, field } = this.props;

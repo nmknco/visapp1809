@@ -1,29 +1,40 @@
 import * as React from 'react';
 
-import { Attribute, Attributes } from './Attributes';
+import { Attributes } from './Attributes';
 import { ColorPicker } from './ColorPicker';
-import { Description } from './Description';
 import { Encodings } from './Encodings';
 import { FileSelector } from './FileSelector';
 import { Filters } from './Filters';
-import { MainPlotter } from './Plotter'
 import { RecommendedEncodings } from './RecommendedEncodings';
+import { RecommendedFilters } from './RecommendedFilters';
 
-import { RIGHT_PANEL_WIDTH } from './Constants';
+import { FilterList, RecommendedFilter } from './Filter';
+import { FilterManager } from './FilterManager';
+import { MainPlotter } from './Plotter';
+
+import { FILTER_PANEL_WIDTH } from './commons/constants';
+import { Attribute, PointState, PointStateGetter } from './commons/types';
 import { ColorUtil, memoizedGetAttributes } from './util';
 
 import {
-  ColorObj, 
   ColorPickerStyle, 
   Data,
+  DataEntry,
   Field, 
-  HandleAcceptEncoding,
-  HandleHoverEncodingCard,
+  HandleAcceptRecommendedEncoding,
+  HandleAcceptRecommendedFilter,
+  HandleDismissAllRecommendations,
+  HandleHoverDrop,
+  HandleHoverFilter,
+  HandleHoverRecommendedEncoding,
+  HandleHoverRecommendedFilter,
+  HandlePickColor,
+  HandleRemoveFilter,
+  MinimapScaleMap,
   PlotConfig,
   PlotConfigEntry,
-  ScaleMap,
+  RecommendedAttrListsByField,
   SetPlotConfig,
-  SuggestedAttrListsByField,
   VField,
 } from './commons/types';
 
@@ -37,23 +48,26 @@ interface AppProps {
 //  a new object is always created when updating its value, 
 //  so components receiving them can be PURE.
 interface AppState {
-  readonly activeEntry: object,
+  readonly activeEntry: DataEntry | undefined,
   readonly colorPickerStyle: Readonly<ColorPickerStyle>,
-  readonly suggestedAttrListsByField: Readonly<SuggestedAttrListsByField>,
   readonly plotConfig: Readonly<PlotConfig>,
-  readonly scaleMap: Readonly<ScaleMap>,
+  readonly filterList: Readonly<FilterList>,
+  readonly minimapScaleMap: Readonly<MinimapScaleMap>,
   readonly isDraggingPoints: boolean,
-  readonly isHoveringFilterPanel: boolean
-  readonly idSetPendingFilter: Readonly<Set<number> | null>,
-  readonly idSetsFiltered: Readonly<Array<Set<number>>>,
+  readonly isHoveringFilterPanel: boolean,
+  readonly recommendedFilters: ReadonlyArray<RecommendedFilter>
+  
+  // Plotter knows the following but they need to be in the state to call render on change
   readonly hasSelection: boolean,
   readonly hasActiveSelection: Readonly<{[VField.COLOR]: boolean, [VField.SIZE]: boolean}>,
+  readonly recommendedAttrListsByField: Readonly<RecommendedAttrListsByField>,
 }
 
 class App extends React.Component<AppProps, AppState> {
 
   private d3ContainerRef: React.RefObject<HTMLDivElement> = React.createRef<HTMLDivElement>();
   private mp: MainPlotter;
+  private fm: FilterManager;
 
   constructor(props: AppProps) {
     super(props);
@@ -63,17 +77,17 @@ class App extends React.Component<AppProps, AppState> {
   private createInitialState = (): Readonly<AppState>  => {
     // create a fresh copy of initial state for resetting upon new data
     return {
-      activeEntry: {},
+      activeEntry: undefined,
       colorPickerStyle: {left: 0, top: 0, display: 'none'},
-      suggestedAttrListsByField: {color: [], size: []},
       plotConfig: {},
-      scaleMap: {xScale: null, yScale: null},
+      filterList: [],
+      minimapScaleMap: {xScale: null, yScale: null},
       isDraggingPoints: false,
       isHoveringFilterPanel: false,
-      idSetPendingFilter: null,
-      idSetsFiltered: [],
+      recommendedFilters: [],
       hasSelection: false,
       hasActiveSelection: {[VField.COLOR]: false, [VField.SIZE]: false}, // i.e. has visuals set on user selection
+      recommendedAttrListsByField: {color: [], size: []},
     }
   }
 
@@ -91,7 +105,7 @@ class App extends React.Component<AppProps, AppState> {
     this.setIsDraggingPoints,
   );
 
-  private drawInitialPlot = () => {
+  private setupInitialPlot = () => {
     if (!this.props.data.length) {
       return
     };
@@ -107,14 +121,15 @@ class App extends React.Component<AppProps, AppState> {
     this.setPlotConfig(Field.Y, new PlotConfigEntry(attrs[attrs.length ? 1 : 0]));
   };
 
-  private initializePlot = () => {
+  private initialize = () => {
     this.mp = this.createNewMainPlotter();
-    this.drawInitialPlot();
+    this.setupInitialPlot();
+    this.fm = new FilterManager(this.props.data);
   };
 
   componentDidMount() {
     if (this.props.data) {
-      this.initializePlot();
+      this.initialize();
     }
   }
 
@@ -123,12 +138,12 @@ class App extends React.Component<AppProps, AppState> {
       console.log('App received processed new data');
       this.setState(
         () => this.createInitialState(),
-        this.initializePlot,
+        this.initialize,
       );
     }
   }
 
-  handleHoverDataPoint = (activeEntry: object): void => 
+  private handleHoverDataPoint = (activeEntry: DataEntry): void => 
     this.setState(() => ({activeEntry}));
 
   setPlotConfig : SetPlotConfig = (
@@ -150,7 +165,7 @@ class App extends React.Component<AppProps, AppState> {
         const { [Field.X]: x, [Field.X]: y } = plotConfig;
         this.mp.updatePosition(plotConfig); // updateXY() clears plot if x or y is undefined
         if (!x || !y) {
-          this.clearAllFilters();
+          this.removeAllFilters();
         }
         if (!(prevX && prevY) && x && y) {
           this.mp.updateVisual(Object.values(VField), plotConfig); // restore color and size
@@ -167,46 +182,43 @@ class App extends React.Component<AppProps, AppState> {
     });
   };
 
-  updateColorPicker = (style: Partial<ColorPickerStyle>) => {
+  private updateColorPicker = (style: Partial<ColorPickerStyle>) => {
     this.setState((prevState) => (
       {colorPickerStyle: {...prevState.colorPickerStyle, ...style}}
     ));
   };
 
-  hideColorPicker = () => {
-    this.updateColorPicker({display: 'none'});
-  };
-
   // Note: now no need to call updateRecommendation the three methods below
   // as recommendations are sync-ed in ActiveSelectionsWithRec
-  handleChangeVisualByUser = (field: VField, value: string | number) => {
+  private handleChangeVisualByUser = (field: VField, value: string | number) => {
     if (this.state.plotConfig[field]) {
       this.setPlotConfig(field, undefined, true); // note this now always updates(clears) color
     }
     this.mp.assignVisual(field, value);
   };
 
-  handlePickColor = (colorObj: ColorObj) => {
+  private handlePickColor: HandlePickColor = (colorObj) => {
     this.handleChangeVisualByUser(VField.COLOR, ColorUtil.hslToString(colorObj.hsl))
+    this.updateColorPicker({display: 'none'});
   }
 
 
-  handleClickUnVisualAll = (field: VField) => {
+  private unVisualAll = (field: VField) => {
     if (this.state.plotConfig[field]) {
       this.setPlotConfig(field, undefined); // note this now always updates(clears) color
     }
     this.mp.unVisualAll(field);
   };
 
-  handleClickUnVisualSelected = (field: VField) => {
+  private unVisualSelected = (field: VField) => {
     this.mp.unVisualSelected(field);
   };
 
-  updateHasSelection = (hasSelection: boolean) => {
+  private updateHasSelection = (hasSelection: boolean) => {
     this.setState(() => ({hasSelection}))
   };
 
-  updateHasActiveSelection = (field: VField, hasActiveSelection: boolean) => {
+  private updateHasActiveSelection = (field: VField, hasActiveSelection: boolean) => {
     this.setState((prevState) => ({hasActiveSelection: {
       ...prevState.hasActiveSelection,
       [field]: hasActiveSelection,
@@ -222,8 +234,10 @@ class App extends React.Component<AppProps, AppState> {
       this.state.hasActiveSelection[field];
   };
 
-  updateRecommendation = (suggestedAttrListsByField: SuggestedAttrListsByField) => {
-    this.setState(() => ({ suggestedAttrListsByField }));
+  private updateRecommendation = (recommendedAttrListsByField: RecommendedAttrListsByField) => {
+    this.setState(() => ({recommendedAttrListsByField: {
+      ...recommendedAttrListsByField,
+    }}));
   };
 
   // clearRecommendation = () => {
@@ -232,7 +246,7 @@ class App extends React.Component<AppProps, AppState> {
   //   // clear recommendations but preserve the color groups backstage.
   // };
 
-  handleAcceptEncoding: HandleAcceptEncoding = (field, attrName) => {
+  private handleAcceptRecommendeedEncoding: HandleAcceptRecommendedEncoding = (field, attrName) => {
     this.mp.clearSelection();
     this.setPlotConfig(
       field, 
@@ -240,7 +254,7 @@ class App extends React.Component<AppProps, AppState> {
     );
   };
 
-  handleHoverEncodingCard: HandleHoverEncodingCard = (ev, field, attrName) => {
+  private handleHoverRecommendedEncoding: HandleHoverRecommendedEncoding = (ev, field, attrName) => {
     if (!this.state.isDraggingPoints) {
       if (ev.type === 'mouseenter') {
         this.mp.updateVisualWithRecommendation(field, attrName);
@@ -254,105 +268,142 @@ class App extends React.Component<AppProps, AppState> {
     }
   };
 
-  setIsHoveringFilterPanel = (isHoveringFilterPanel: boolean) => {
-    this.setState({isHoveringFilterPanel});
-  };
-
-  handleDragPointsEnd = (idSetPendingFilter: Set<number>) => {
-    if (this.state.isHoveringFilterPanel) {
-      // console.log('Drag release in filter');
-      this.setState(() => ({idSetPendingFilter}));
+  private handleDismissAllRecommendedEncodings: HandleDismissAllRecommendations = () => {
+    for (const field of Object.values(VField)) {
+      this.unVisualAll(field);
     }
   };
 
-  handleAcceptFilter = (filteredIds: Set<number>) => {
-    this.filterOutPoints(filteredIds);
-    this.setState((prevState) => ({
-      idSetPendingFilter: null,
-      idSetsFiltered: [...prevState.idSetsFiltered, filteredIds],
+
+  private setIsHoveringFilterPanel = (isHoveringFilterPanel: boolean) => {
+    this.setState({isHoveringFilterPanel});
+  };
+
+  private setIsDraggingPoints = (isDraggingPoints: boolean) => {
+    this.setState({isDraggingPoints});
+  };
+
+  private handleHoverDrop: HandleHoverDrop = (ev) => {
+    if (ev.type === 'mouseenter') {
+      this.setIsHoveringFilterPanel(true);
+    } else if (ev.type === 'mouseout') {
+      this.setIsHoveringFilterPanel(false);
+    }
+  }
+
+  private handleDragPointsEnd = (idSetDroppedToFilter: ReadonlySet<number>) => {
+    if (this.state.isHoveringFilterPanel) {
+      // console.log('Points dropped in filter');
+      const recommendedFilters = FilterManager.getRecommendedFilters({
+        idSetDroppedToFilter,
+        data: this.props.data,
+        xAttr: this.state.plotConfig.x && this.state.plotConfig.x.attribute,
+        yAttr: this.state.plotConfig.y && this.state.plotConfig.y.attribute,
+      })
+      this.setState(() => ({recommendedFilters}));
+    }
+  };
+
+  private syncFilterList = () => {
+    this.setState(() => ({
+      filterList: this.fm.getFilterListCopy(),
     }));
   }
 
-  handleRestoreFilter = (filteredIds: Set<number>) => {
-    this.toggleHidePoints(filteredIds, false);
-    this.setState((prevState) => {
-      // assuming sets are exclusive - so every id can be used as set-id
-      const i = filteredIds.values().next().value;
-      return {
-        idSetsFiltered: prevState.idSetsFiltered.filter(set => !set.has(i))
-      }
-    });
-  }
-
-  handleCancelFilter = () => {
-    this.setState(() => ({idSetPendingFilter: null}));
+  private handleAcceptRecommendedFilter: HandleAcceptRecommendedFilter = (filter) => {
+    // 1. Add filter
+    this.fm.addFilter(filter);
+    // 2. Set filterlist 
+    this.syncFilterList();
+    // 3. Clear recommended filters
+    this.clearAllRecommendedFilters();
+    // 4. Draw
+    this.hideOrDimPointsByState(this.fm.getStateGetterOnNoPreview());
+    // 5. Clean up selections for filtered points.
+    this.cleanUpPoints(new Set(this.props.data.filter(filter.filterFn).map(d => d.__id_extra__)));
   };
 
+  private handleHoverRecommendedFilter: HandleHoverRecommendedFilter = (ev, filter) => {
+    if (ev.type === 'mouseenter') {
+      this.hideOrDimPointsByState(this.fm.getStateGetterOnPreviewAdd(filter.filterFn))
+    } else if (ev.type === 'mouseleave') {
+      this.hideOrDimPointsByState(this.fm.getStateGetterOnNoPreview())
+    }
+  };
 
-  private clearAllFilters = () => {
-    this.setState(() => ({idSetPendingFilter: null, idSetsFiltered: []}));
-  }
+  private clearAllRecommendedFilters = () => {
+    this.setState(() => ({recommendedFilters: []}));
+  };
 
-  private filterOutPoints = (filteredIds: Set<number>) => {
-    // 1. hide visual 
-    this.toggleHidePoints(filteredIds);
-    // 2. remove from active selections (and unvisual)
-    // Do this ONLY WHEN active selection is present (so no encoding visual is reset)
+  private handleDismissAllRecommendedFilters = () => {
+    this.clearAllRecommendedFilters();
+  };
+
+  
+  private handleHoverFilter: HandleHoverFilter = (ev, filter) => {
+    if (ev.type === 'mouseenter') {
+      this.hideOrDimPointsByState(this.fm.getStateGetterOnPreviewRemove(filter.filterFn))
+    } else if (ev.type === 'mouseleave') {
+      this.hideOrDimPointsByState(this.fm.getStateGetterOnNoPreview())
+    }
+  };
+
+  private handleRemoveFilter: HandleRemoveFilter = (fid) => {
+    // 1. Remove
+    this.fm.removeFilter(fid);
+    // 2. Set filterlist
+    this.syncFilterList();
+    // 3. Draw
+    this.hideOrDimPointsByState(this.fm.getStateGetterOnNoPreview());
+  };
+
+  private removeAllFilters = () => {
+    this.fm.removeAllFilter();
+    this.syncFilterList();
+    this.clearAllRecommendedFilters();
+  };
+
+  private hideOrDimPointsByState = (getState: PointStateGetter) => {
+    const shouldHide = (d: DataEntry) => getState(d) === PointState.FILTERED;
+    const shouldDim = (d: DataEntry) => {
+      const s = getState(d);
+      return s === PointState.TO_FILTER || s === PointState.TO_RESTORE
+    }
+    this.mp.hideOrDimPoints(shouldHide, shouldDim);
+  };
+
+  private cleanUpPoints = (filteredIds: ReadonlySet<number>) => {
+    // 1. remove from active selections (and unvisual)
+    // Note that operations updating active selection always sync visual 
+    //    by design (see Plotter class), thereore we should
+    //    do this ONLY WHEN active selection is present so that
+    //    no encoding visual is reset
     for (const field of Object.values(VField)) {
       if (this.state.hasActiveSelection[field]) {
         this.mp.unVisualGivenIds(field, filteredIds);
       }
     }
-    // 3. clear selection 
+    // 2. clear selection
     this.mp.clearSelection();
   };
 
-
-  handleHoverFilterCard = (ev: MouseEvent, idSet: Set<number>) => {
-    if (ev.type === 'mouseenter') {
-      this.toggleDimPoints(idSet, true);
-    } else if (ev.type === 'mouseleave') {
-      this.toggleDimPoints(idSet, false);
-    }
-  }
-
-  handleHoverMinimap = (ev: MouseEvent, idSet: Set<number>) => {
-    if (ev.type === 'mouseenter') {
-      this.toggleHidePoints(idSet, false);
-      this.toggleDimPoints(idSet, true);
-    } else if (ev.type === 'mouseleave') {
-      this.toggleHidePoints(idSet, true); // this will reset dim classes
-    }
-  }
-
-  toggleHidePoints = (idSet: Set<number>, shouldHide: boolean = true) => {
-    this.mp.toggleHideOrDimPoints(idSet, shouldHide);
+  private setMinimapScales = (minimapScaleMap: MinimapScaleMap = {xScale: null, yScale: null}) => {
+    this.setState(() => ({minimapScaleMap}));
   };
-
-  toggleDimPoints = (idSet: Set<number>, shouldHide: boolean = true) => {
-    this.mp.toggleHideOrDimPoints(idSet, shouldHide, true);
-  }
-
-
-  setMinimapScales = (scaleMap: ScaleMap = {xScale: null, yScale: null}) => {
-    this.setState(() => ({scaleMap}));
-  };
-
-  setIsDraggingPoints = (isDraggingPoints: boolean) => {
-    this.setState({isDraggingPoints});
-  }
 
   render() {
     return (
       <div className="app d-flex m-2">
-        <div className="left-panel">
+        <div
+          className="left-panel"
+        >
           <FileSelector />
           <Attributes 
             attributes={memoizedGetAttributes(this.props.data)}  
             activeEntry={this.state.activeEntry}
           />
-          <Description />
         </div>
+
         <div className="mid-panel">
           <Encodings 
             setPlotConfig={this.setPlotConfig}
@@ -363,43 +414,42 @@ class App extends React.Component<AppProps, AppState> {
               <ColorPicker 
                 style={this.state.colorPickerStyle} 
                 onChangeComplete={this.handlePickColor}
-                onClick={this.hideColorPicker}
               />
             </div>
           </div>
         </div>
         
-        <div 
-          className="right-panel" 
-          style={{flex: `0 0 ${RIGHT_PANEL_WIDTH}px`}}
+        <div
+          className="right-panel"
+          style={{flex: `0 0 ${FILTER_PANEL_WIDTH}px`}}
         >
           <Filters
-            data={this.props.data}
-            idSetPendingFilter={this.state.idSetPendingFilter}
-            idSetsFiltered={this.state.idSetsFiltered}
-            scales={this.state.scaleMap}
-            plotConfig={this.state.plotConfig}
-            setIsHoveringFilterPanel={this.setIsHoveringFilterPanel}
-            onClickAccept={this.handleAcceptFilter}
-            onClickCancel={this.handleCancelFilter}
-            onHoverCard={this.handleHoverFilterCard}
-            onHoverMinimap={this.handleHoverMinimap}
-            onClickRestore={this.handleRestoreFilter}
+            filterList={this.state.filterList}
+            minimapScaleMap={this.state.minimapScaleMap}
+            onHoverFilter={this.handleHoverFilter}
+            onRemoveFilter={this.handleRemoveFilter}
+            onHoverDrop={this.handleHoverDrop}
             isDraggingPoints={this.state.isDraggingPoints}
-            isHoveringFilterPanel={this.state.isHoveringFilterPanel}
+          />
+          <RecommendedFilters
+            recommendedFilters={this.state.recommendedFilters}
+            onAcceptRecommendedFilter={this.handleAcceptRecommendedFilter}
+            onHoverRecommendedFilter={this.handleHoverRecommendedFilter}
+            onDismissAllRecommendedFilter={this.handleDismissAllRecommendedFilters}
           />
           <RecommendedEncodings
-            suggestedAttrListsByField={this.state.suggestedAttrListsByField}
-            onClickAccept={this.handleAcceptEncoding}
-            onHoverCard={this.handleHoverEncodingCard}
+            recommendedAttrListsByField={this.state.recommendedAttrListsByField}
+            onAcceptRecommendedEncoding={this.handleAcceptRecommendeedEncoding}
+            onHoverRecommendedEncoding={this.handleHoverRecommendedEncoding}
+            onDismissAllRecommendedEncodings={this.handleDismissAllRecommendedEncodings}
           />
 
-          {/* TODO: Use a drop down for reset options */}
+          {/* for debugging only */}
           {Object.values(VField).map(field => {
             const handleClickClearSelected = () => 
-              this.handleClickUnVisualSelected(field)
+              this.unVisualSelected(field)
             const handleClikcClearAll = () => 
-              this.handleClickUnVisualAll(field)
+              this.unVisualAll(field)
             return (
               <div key={`clear_${field}`} className="d-flex m-1 py-1">
                 <div className="m-1 text-right"> {`Clear my assigned ${field} for`} </div>
@@ -426,4 +476,4 @@ class App extends React.Component<AppProps, AppState> {
   }
 }
 
-export { PlotConfigEntry, App };
+export { App };

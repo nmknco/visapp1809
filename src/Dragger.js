@@ -1,10 +1,15 @@
 import * as d3 from 'd3';
 
-import { CHARTCONFIG } from './Constants';
+import { CHARTCONFIG } from './commons/constants';
 import { Pos } from './util';
 
 class Dragger {
   constructor(plotter) {
+
+    // To do: use plotter instead of binding
+    // Make a copy of the selected at the beginning and use the copy 
+    //    instead of querying the selector for the live selection (just ot be safe)
+
     this._dragStart = this._dragStart.bind(plotter);
     this._dragMove = this._dragMove.bind(plotter);
     this._dragEnd = this._dragEnd.bind(plotter);

@@ -4,7 +4,7 @@ import { Resizer } from './Resizer';
 import { Dragger } from './Dragger';
 import { ActiveSelectionsWithRec } from './ActiveSelections';
 import { expandRange, SelUtil } from './util';
-import { CHARTCONFIG } from './Constants';
+import { CHARTCONFIG } from './commons/constants';
 
 const SVGATTR_BY_FIELD = {color: 'stroke', size: 'r'};
 const DEFAULT_BY_FIELD = {color: '#999999', size: 7};
@@ -69,10 +69,11 @@ class MainPlotter {
       .on('mousedown', this._closeColorPicker);
     const chart = canvas.append('g')
       .attr('transform', `translate(${l}, ${t})`);
-  
-    // bg listening for select/resize drag, also works as ref for computing positions
-    const chartBg = chart.append('rect') 
-      .classed('chart-bg', true)
+
+    // the box listening for select/resize drag, also works as ref for computing positions
+    const chartBox = chart.append('rect') 
+      .classed('chart-box', true)
+      .attr('id', 'chart-box')
       .attr('x', 0)
       .attr('y', 0)
       .attr('width', svgW - l - r)
@@ -81,13 +82,13 @@ class MainPlotter {
     this.chart = chart;
 
     this.selector = new Selector(
-      chartBg.node(),
+      chartBox.node(),
       this.handlePendingSelectionChange,
       this.handleSelectionChange,
     );
     
     this.resizer = new Resizer(
-      chartBg.node(),
+      chartBox.node(),
       this.handleResizing,
     );
 
@@ -368,17 +369,17 @@ class MainPlotter {
 
   handleResizing = (r) => {
     this.handleChangeVisualByUser('size', r);
-  }
+  };
 
   _closeColorPicker = () => {
     this.updateColorPicker({display: 'none'});
-  }
+  };
 
-  toggleHideOrDimPoints = (idSet, shouldHide, dimOnly=false)=> {
-    this.chart.selectAll('.dot') // important not to select dots in drag copies
-      .filter(d => idSet.has(d.__id_extra__))
-      .classed('dim', false) // always reset dim
-      .classed(dimOnly ? 'dim' : 'hidden', shouldHide);
+  hideOrDimPoints = (shouldHide, shouldDimButNotHide) => {
+    this.chart
+      .selectAll('.dot') // important not to select dots in drag copies
+      .classed('hidden', shouldHide)
+      .classed('dim', shouldDimButNotHide);
   };
 
 }

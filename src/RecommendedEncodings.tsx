@@ -4,24 +4,28 @@ import { Panel } from './Panel';
 import { RecCard } from './RecCard';
 
 import { 
-  HandleAcceptEncoding,
-  HandleHoverEncodingCard,
-  SuggestedAttrListsByField,
-  VField 
+  HandleAcceptRecCard,
+  HandleAcceptRecommendedEncoding,
+  HandleDismissAllRecommendations, 
+  HandleHoverRecCard,
+  HandleHoverRecommendedEncoding,
+  RecommendedAttrListsByField,
+  VField,
 } from './commons/types';
 
 
 interface RecommendedEncodingsProps {
-  readonly suggestedAttrListsByField: SuggestedAttrListsByField,
-  readonly onClickAccept: HandleAcceptEncoding,
-  readonly onHoverCard: HandleHoverEncodingCard,
+  readonly recommendedAttrListsByField: Readonly<RecommendedAttrListsByField>,
+  readonly onAcceptRecommendedEncoding: HandleAcceptRecommendedEncoding,
+  readonly onHoverRecommendedEncoding: HandleHoverRecommendedEncoding,
+  readonly onDismissAllRecommendedEncodings: HandleDismissAllRecommendations,
 }
 
 class RecommendedEncodings extends React.PureComponent<RecommendedEncodingsProps> {
   
-  private flatten = (suggestedAttrListsByField: SuggestedAttrListsByField): Readonly<Array<{field: VField, attrName: string}>> => {
+  private flatten = (recommendedAttrListsByField: RecommendedAttrListsByField): ReadonlyArray<{field: VField, attrName: string}> => {
     const flat = [];
-    for (const [field, list] of Object.entries(suggestedAttrListsByField)) {
+    for (const [field, list] of Object.entries(recommendedAttrListsByField)) {
       for (const attrName of list) {
         flat.push({field: field as VField, attrName: attrName as string});
       }
@@ -31,8 +35,8 @@ class RecommendedEncodings extends React.PureComponent<RecommendedEncodingsProps
 
   render() {
     console.log('Recommended encodings render')
-    const { suggestedAttrListsByField, onClickAccept, onHoverCard } = this.props;
-    const flattenRecList = this.flatten(suggestedAttrListsByField);
+    const { recommendedAttrListsByField, onAcceptRecommendedEncoding, onHoverRecommendedEncoding } = this.props;
+    const flattenRecList = this.flatten(recommendedAttrListsByField);
     return (
       <Panel 
         className="recommended-encodings-panel"
@@ -46,7 +50,10 @@ class RecommendedEncodings extends React.PureComponent<RecommendedEncodingsProps
                 ({ field, attrName }) =>
                   <RecommendedEncodingsCard
                     key={`${field}-${attrName}`}
-                    {...{ field, attrName, onClickAccept, onHoverCard }}
+                    {...{ field, attrName,
+                      onAcceptRecommendedEncoding,
+                      onHoverRecommendedEncoding,
+                    }}
                   />
               )
             }
@@ -60,16 +67,20 @@ class RecommendedEncodings extends React.PureComponent<RecommendedEncodingsProps
 interface RecommendedEncodingsCardProps {
   readonly field: VField,
   readonly attrName: string,
-  readonly onClickAccept: HandleAcceptEncoding,
-  readonly onHoverCard: HandleHoverEncodingCard,
+  readonly onAcceptRecommendedEncoding: HandleAcceptRecommendedEncoding,
+  readonly onHoverRecommendedEncoding?: HandleHoverRecommendedEncoding,
 }
 
 class RecommendedEncodingsCard extends React.PureComponent<RecommendedEncodingsCardProps> {
   
-  private handleClickAccept =
-    () => this.props.onClickAccept(this.props.field, this.props.attrName)
-  private handleHoverCard =
-    (ev: MouseEvent) => this.props.onHoverCard(ev, this.props.field, this.props.attrName)
+  private handleAcceptCard: HandleAcceptRecCard =
+    () => this.props.onAcceptRecommendedEncoding(this.props.field, this.props.attrName);
+  private handleHoverCard: HandleHoverRecCard = (ev) => {
+    if (!this.props.onHoverRecommendedEncoding) {
+      return;
+    }
+    return this.props.onHoverRecommendedEncoding(ev, this.props.field, this.props.attrName);
+  }
 
   render() {
     console.log('Recommended encoding cards render')
@@ -77,12 +88,12 @@ class RecommendedEncodingsCard extends React.PureComponent<RecommendedEncodingsC
     return (
       <RecCard
         key={`${field}-${attrName}`}
-        onClickAccept={this.handleClickAccept}
+        onAcceptCard={this.handleAcceptCard}
         onHoverCard={this.handleHoverCard}
       >
         {'Assign '} <strong>{attrName}</strong> {` to ${field}`}
       </RecCard>
-    )
+    );
   }
 }
 

@@ -3,7 +3,7 @@ import { DragDropContext } from 'react-dnd';
 import HTML5Backend from 'react-dnd-html5-backend';
 
 import { App } from './App';
-import { Data } from './commons/types';
+import { Data, DataEntry } from './commons/types';
 
 interface AppContainerState {
   data: Data,
@@ -21,11 +21,9 @@ class AppContainer extends React.Component<{}, AppContainerState> {
     fetch('data/cars.json')
     .then(res => res.json())
     .then(data => {
-      // data = data.filter((d: object, i: number) => i % 5 === 0); // dev. Do this first so that id_extra is correct
+      // data = data.filter((d: object, i: number) => i % 2 === 0); // dev. Do this first so that id_extra is correct
       // console.table(data);
-
-      data = this.preProcess(data);
-      this.setState({data});
+      this.setState({data: this.preProcess(data)});
     });
   }
 
@@ -38,12 +36,24 @@ class AppContainer extends React.Component<{}, AppContainerState> {
     return <div><App data={this.state.data} /></div>;
   }
 
-  private preProcess = (data: Data): Data => {
+  private preProcess = (data: object[]): Data => {
     return data.filter(d => {
+      // remove entries with missing values
       const v = Object.values(d);
       return !v.includes(null) && !v.includes(undefined); 
-    }).map((d, i) => {
-      return { ...d, __id_extra__: i };
+    }).map((d) => {
+      // stringify non-number fields
+      const dcopy = {};
+      for (let [k, v] of Object.entries(d)) {
+        if (typeof v !== 'number' && typeof v !== 'string') {
+          v = v.toString();
+        }
+        dcopy[k] = v;
+      }
+      return dcopy;
+    }).map((d, i): DataEntry => {
+      // add an integer index
+      return { ...d, __id_extra__: i } as DataEntry;
     });
   };
   

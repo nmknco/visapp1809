@@ -39,8 +39,7 @@
 }
 
 .right-panel {
-  /* now set inline with plot config constants */
-  /* flex: 0 0 280px; */
+  flex: 0 0 280px;
 }
 
 /* ---- Left panel ---- */
@@ -85,7 +84,7 @@
   position: relative; /* to relatively position the absolute-positioned drag-copy inside */
 }
 
-.chart-bg {
+.chart-box {
   fill: rgba(0, 0, 0, 0);
 }
 
@@ -140,15 +139,15 @@
 }
 
 /* ---- Right panel ---- */
-.filters__drop {
+.drop {
   min-height: 48px;
 }
 
-.filters__drop--can-drop {
+.drop--can-drop {
   background-color: #ffff99;
 }
 
-.filters__drop--is-over {
+.drop--is-over {
   background-color: #ccffcc;
 }
 

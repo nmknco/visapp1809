@@ -1,18 +1,34 @@
-import React, { Component } from 'react';
+import * as React from 'react';
 
-class RecCard extends Component {
-  constructor(props) {
+import {
+  HandleAcceptRecCard,
+  HandleHoverRecCard,
+} from './commons/types';
+
+interface RecCardProps {
+  readonly onAcceptCard: HandleAcceptRecCard,
+  readonly onHoverCard?: HandleHoverRecCard,
+  readonly header?: Readonly<JSX.Element>, // used to show minimap in filter cards
+}
+
+interface RecCardState {
+  readonly dismissed: boolean,
+}
+
+class RecCard extends React.Component<RecCardProps, RecCardState> {
+  constructor(props: RecCardProps) {
     super(props);
     this.state = {
       dismissed: false,
     }
   }
 
-  _dismiss = () => {
+  private dismiss = () => {
     this.setState({dismissed: true});
   };
   
   render() {
+    console.log('Rec cards render');
     return (
       <div 
         className={
@@ -22,15 +38,15 @@ class RecCard extends Component {
         onMouseEnter={this.props.onHoverCard}
         onMouseLeave={this.props.onHoverCard}
       >
-        <div className="px-2 w-100 text-right">
+        <div className="px-1 w-100 text-right">
           <i 
             className="fas fa-check text-success p-1"
-            onClick={this.props.onClickAccept}
+            onClick={this.props.onAcceptCard}
             title="Accept"
           />
           <i 
             className="fas fa-times text-danger p-1"
-            onClick={this._dismiss}
+            onClick={this.dismiss}
             title="Dismiss"
           />
         </div>

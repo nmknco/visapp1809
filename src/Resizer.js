@@ -1,8 +1,8 @@
 import { Pos, SelUtil } from './util';
 
 class Resizer {
-  constructor(chartBgNode, onResizing) {
-    this.chartBgNode = chartBgNode;
+  constructor(chartBoxNode, onResizing) {
+    this.chartBoxNode = chartBoxNode;
     this.onResizing = onResizing;
 
     this.isResizing = false;
@@ -27,11 +27,12 @@ class Resizer {
 
   handleMouseMove = (e) => {
     if (this.isResizing) {
+      console.log(e)
       const cPos = new Pos(
         this.currentDot.getAttribute('data-x'),
         this.currentDot.getAttribute('data-y')
       );
-      const r = SelUtil.calcPos(e, this.chartBgNode).distTo(cPos);
+      const r = SelUtil.calcPos(e, this.chartBoxNode).distTo(cPos);
       this.onResizing(r);
     }
   };
@@ -51,7 +52,7 @@ class Resizer {
   }
 
   _getCursorStyle = (e) => {
-    const {x, y} = SelUtil.calcPos(e, this.chartBgNode);
+    const {x, y} = SelUtil.calcPos(e, this.chartBoxNode);
     const g = e.target.parentNode;
     const dx = x - g.getAttribute('data-x');
     const dy = y - g.getAttribute('data-y');

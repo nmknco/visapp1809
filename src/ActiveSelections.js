@@ -60,7 +60,7 @@ class ActiveSelectionsWithRec {
 
     this.as = new ActiveSelections(data.length, onActiveSelectionChange);
     this.classifier = new Classifier(data);
-    this.suggestedAttrListsByField = {color: [], size: []};
+    this.recommendedAttrListsByField = {color: [], size: []};
 
     this.interpolatedScales = {color: {}, size: {}};
   }
@@ -86,17 +86,17 @@ class ActiveSelectionsWithRec {
   };
 
   _updateRecommendation = (field) => {
-    this.suggestedAttrListsByField[field] = this.classifier.getMostSimilarAttr(
+    this.recommendedAttrListsByField[field] = this.classifier.getMostSimilarAttr(
       this.getAllGroups(field),
       2,
     );
-    this.updateRecommendation(this.suggestedAttrListsByField);
+    this.updateRecommendation(this.recommendedAttrListsByField);
   };
 
   _updateInterpolatedScales = (field) => {
     this.interpolatedScales[field] = {};
     let scale;
-    for (let attrName of this.suggestedAttrListsByField[field]) {
+    for (let attrName of this.recommendedAttrListsByField[field]) {
       if (field === 'color') {
         scale = ColorUtil.interpolateColorScale(
           this.as.getAllGroupsWithValue('color'),

@@ -4,26 +4,16 @@ import { ConnectDragSource, DragSource, DragSourceConnector, DragSourceMonitor }
 import { Panel } from './Panel';
 
 import {
-  AttrType,
+  Attribute,
+  DataEntry,
   DraggableType,
   Field,
 } from './commons/types';
 
 
-class Attribute {
-  readonly name: string;
-  readonly type: AttrType;
-
-  constructor(name: string, type: AttrType) {
-    this.name = name;
-    this.type = type;
-  }
-}
-
-
 interface AttributesProps {
-  readonly activeEntry: object,
-  readonly attributes: Attribute[],
+  readonly activeEntry?: DataEntry,
+  readonly attributes: Readonly<Attribute[]>,
 }
 
 class Attributes extends React.PureComponent<AttributesProps> {
@@ -40,7 +30,11 @@ class Attributes extends React.PureComponent<AttributesProps> {
               return (
                 <div key={name} className="d-flex align-items-center p-0 m-1">
                   <DraggableAttrTag attribute={attribute} />
-                  <div className="attr__value pl-2">{this.props.activeEntry[name]}</div>
+                  {this.props.activeEntry &&
+                    <div className="attr__value pl-2">
+                      {this.props.activeEntry[name]}
+                    </div>
+                  }
                 </div>
               )
             }

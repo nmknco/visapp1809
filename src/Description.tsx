@@ -1,8 +1,8 @@
-import React, { Component } from 'react';
+import * as React from 'react';
 
 import { Panel } from './Panel';
 
-export class Description extends Component {
+export class Description extends React.Component {
   render() {
     return (
       <Panel 

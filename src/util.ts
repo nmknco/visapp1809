@@ -1,14 +1,18 @@
 import * as d3 from 'd3'; 
 
-import { Attribute } from './Attributes'
 import { LIT, SAT } from './ColorPicker';
 
-import { InvalidHSLStringError, NoMedianError } from './commons/errors';
+import { Attribute } from './commons/types';
+
+import { 
+  InvalidHSLStringError,
+  NoExtentError,
+  NoMedianError,
+} from './commons/errors';
 import {
-  CustomColorScale,
   Data, 
   HSLColor,
-  IdsByHSL,
+  StringRangeScale,
 } from './commons/types';
 import { memoizeLast } from './memoize';
 
@@ -53,21 +57,21 @@ export class Rect {
     return x >= this.l && x < this.r && y > this.t && y < this.b;
   };
 
-  updateToNode = (rectNode: SVGRectElement) => {
-    rectNode.setAttribute('x', this.l.toString());
-    rectNode.setAttribute('y', this.t.toString());
-    rectNode.setAttribute('width', this.w.toString());
-    rectNode.setAttribute('height', this.h.toString());
+  static updateNodeByRect = (node: SVGRectElement, rect: Rect) => {
+    node.setAttribute('x', rect.l.toString());
+    node.setAttribute('y', rect.t.toString());
+    node.setAttribute('width', rect.w.toString());
+    node.setAttribute('height', rect.h.toString());
   };
 }
 
 export class SelUtil {
-  static calcPos = (ev: MouseEvent, reference: SVGRectElement) => {
-    // Compute mouse position for events relative to reference <rect> element
+  static calcPos = (ev: MouseEvent, box: SVGRectElement) => {
+    // Compute mouse position for events relative to the reference <rect> element
     //     - clipped at the edges
-    const w = reference.getAttribute('width');
-    const h = reference.getAttribute('height');
-    const rect = reference.getBoundingClientRect();
+    const w = box.getAttribute('width');
+    const h = box.getAttribute('height');
+    const rect = box.getBoundingClientRect();
     let x = ev.clientX - rect.left;
     let y = ev.clientY - rect.top;
     x = Math.max(Math.min(x, Number(w||0)), 0);
@@ -95,10 +99,10 @@ export class ColorUtil {
   }
 
   static interpolateColorScale = (
-    idsByHSL: IdsByHSL,
+    idsByHSL: {[key: string]: ReadonlySet<number>},
     data: Data,
     colorAttrName: string
-  ): CustomColorScale => {
+  ): StringRangeScale<number> => {
     // Use two colors at most - now use the two with most distant data value
 
     // console.log(idsByHSL);
@@ -106,9 +110,9 @@ export class ColorUtil {
     if (entries.length === 1) {
       // for one group, use median as the pivot to interpolate the color scale
       const [hs, g] = entries[0];
-      const med = d3.median(data.filter(d => g.has(d.__id_extra__)), d => d[colorAttrName]);
+      const med = d3.median(data.filter(d => g.has(d.__id_extra__)), d => d[colorAttrName] as number);
       if (med === undefined) {
-        throw new NoMedianError();
+        throw new NoMedianError(colorAttrName);
       }
       return ColorUtil.interpolateColorScaleOneGroup(
         med,
@@ -122,7 +126,7 @@ export class ColorUtil {
     for (const e of entries) {
       const [color, group] = e;
       medians[color] = d3.median(
-        data.filter(d => group.has(d.__id_extra__)), d => d[colorAttrName]
+        data.filter(d => group.has(d.__id_extra__)), d => d[colorAttrName] as number
       );
     }
     entries.sort((ea, eb) => medians[ea[0]] - medians[eb[0]]);
@@ -132,9 +136,12 @@ export class ColorUtil {
     const [hsl1, hsl2] = [hslStr1, hslStr2].map(ColorUtil.stringToHSL);
     const [v1, v2] = [hslStr1, hslStr2].map(hs => medians[hs]);
 
-    const [min, max] = d3.extent(data, d => d[colorAttrName]);
+    const [min, max] = d3.extent(data, d => d[colorAttrName] as number);
+    if (min === undefined || max === undefined) {
+      throw new NoExtentError(colorAttrName);
+    }
 
-    const colorScale: CustomColorScale = (val) => {
+    const colorScale: StringRangeScale<number> = (val) => {
       let hNew;
       let lNew;
       if (val <= v1) {
@@ -156,9 +163,12 @@ export class ColorUtil {
   };
 
   static interpolateColorScaleOneGroup = (pivotValue: number, pivotHSLColor: HSLColor, data: Data, colorAttrName: string) => {
-    const [min, max] = d3.extent(data, d => d[colorAttrName]);
+    const [min, max] = d3.extent(data, d => d[colorAttrName] as number);
+    if (min === undefined || max === undefined) {
+      throw new NoExtentError(colorAttrName);
+    }
     const [lmin, lmax] = [0.7, 0.1]
-    const colorScale: CustomColorScale = (val) => {
+    const colorScale: StringRangeScale<number> = (val) => {
       const hsl = { ...pivotHSLColor };
       if (min !== max) {
         if (val <= pivotValue) {
@@ -198,7 +208,7 @@ const getAttributes = (data: Data) => {
       .filter(attrName => attrName !== '__id_extra__')
       .map(attrName => new Attribute(
         attrName,
-        (typeof d0[attrName] === 'number') ? 'number' : 'other'
+        (typeof d0[attrName] === 'number') ? 'number' : 'string'
       ));
   } else {
     attrList = [];
@@ -207,3 +217,12 @@ const getAttributes = (data: Data) => {
 };
 
 export const memoizedGetAttributes = memoizeLast(getAttributes);
+
+
+export const subtract = (setA: Set<any>, setB: Set<any>) => {
+  const diff = new Set(setA);
+  for (const elem of setB) {
+      diff.delete(elem);
+  }
+  return diff;
+}

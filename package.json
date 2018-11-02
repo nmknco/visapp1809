@@ -4,6 +4,7 @@
   "private": true,
   "dependencies": {
     "@types/d3": "^5.0.1",
+    "@types/react-color": "^2.13.6",
     "d3": "^5.7.0",
     "react": "^16.6.0",
     "react-color": "^2.14.1",
