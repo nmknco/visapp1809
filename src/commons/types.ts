@@ -1,5 +1,6 @@
 // import * as d3 from 'd3';
 import { Filter } from '../Filter';
+import { FilterManager } from '../FilterManager';
 
 export interface DataEntry {
   readonly __id_extra__: number,
@@ -130,6 +131,10 @@ export type SetPlotConfig = (
   callback?: () => void,
 ) => void;
 
+export interface RecommendedEncoding {
+  readonly field: VField,
+  readonly attrName: string,
+}
 
 
 export type HandleAcceptRecCard = () => void;
@@ -138,8 +143,15 @@ export type HandleHoverRecCard = (
   ev: React.MouseEvent<Element>,
 ) => void;
 
+export type HandleDismissRecCard = () => void;
+
 export type HandleAcceptRecommendedEncoding = (
   field: VField,
+  attrName: string,
+) => void;
+
+export type HandleDismissRecommendedEncoding = (
+  filed: VField,
   attrName: string,
 ) => void;
 
@@ -148,7 +160,6 @@ export type HandleHoverRecommendedEncoding = (
   field: VField,
   attrName: string,
 ) => void;
-
 
 export type HandleAcceptRecommendedFilter = (
   filter: Filter,
@@ -159,6 +170,10 @@ export type HandleHoverRecommendedFilter = (
   filter: Filter,
 ) => void;
 
+export type HandleDismissRecommendedFilter = (
+  key: RFkey,
+) => void;
+
 export type HandleDismissAllRecommendations = () => void;
 
 
@@ -167,9 +182,23 @@ export type HandleHoverFilter = (
   filter: Filter,
 ) => void;
 
+
+export type HandleFilterListChange = (
+  fm: FilterManager,
+) => void;
+
+export type HandleAddFilter = (
+  filter: Filter,
+) => void;
+
+export type HandleSetFilter = (
+  fid: number,
+  filter: Filter,
+) => void;
+
 export type HandleRemoveFilter = (
   fid: number,
-) => void;
+) => void
 
 
 export type PointStateGetter = (

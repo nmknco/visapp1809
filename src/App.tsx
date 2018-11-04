@@ -13,30 +13,36 @@ import { FilterManager } from './FilterManager';
 import { MainPlotter } from './Plotter';
 
 import { FILTER_PANEL_WIDTH } from './commons/constants';
-import { Attribute, PointState, PointStateGetter } from './commons/types';
-import { ColorUtil, memoizedGetAttributes } from './util';
-
 import {
+  Attribute,
   ColorPickerStyle, 
   Data,
   DataEntry,
   Field, 
   HandleAcceptRecommendedEncoding,
   HandleAcceptRecommendedFilter,
+  HandleAddFilter,
   HandleDismissAllRecommendations,
+  HandleDismissRecommendedEncoding,
+  HandleDismissRecommendedFilter,
+  HandleFilterListChange,
   HandleHoverDrop,
   HandleHoverFilter,
   HandleHoverRecommendedEncoding,
   HandleHoverRecommendedFilter,
   HandlePickColor,
   HandleRemoveFilter,
+  HandleSetFilter,
   MinimapScaleMap,
   PlotConfig,
   PlotConfigEntry,
-  RecommendedAttrListsByField,
+  PointState,
+  PointStateGetter,
+  RecommendedEncoding,
   SetPlotConfig,
   VField,
 } from './commons/types';
+import { ColorUtil, memoizedGetAttributes } from './util';
 
 
 interface AppProps {
@@ -60,7 +66,7 @@ interface AppState {
   // Plotter knows the following but they need to be in the state to call render on change
   readonly hasSelection: boolean,
   readonly hasActiveSelection: Readonly<{[VField.COLOR]: boolean, [VField.SIZE]: boolean}>,
-  readonly recommendedAttrListsByField: Readonly<RecommendedAttrListsByField>,
+  readonly recommendedEncodings: ReadonlyArray<RecommendedEncoding>,
 }
 
 class App extends React.Component<AppProps, AppState> {
@@ -87,7 +93,7 @@ class App extends React.Component<AppProps, AppState> {
       recommendedFilters: [],
       hasSelection: false,
       hasActiveSelection: {[VField.COLOR]: false, [VField.SIZE]: false}, // i.e. has visuals set on user selection
-      recommendedAttrListsByField: {color: [], size: []},
+      recommendedEncodings: [],
     }
   }
 
@@ -124,7 +130,7 @@ class App extends React.Component<AppProps, AppState> {
   private initialize = () => {
     this.mp = this.createNewMainPlotter();
     this.setupInitialPlot();
-    this.fm = new FilterManager(this.props.data);
+    this.fm = new FilterManager(this.props.data, this.handleFilterListChange);
   };
 
   componentDidMount() {
@@ -204,9 +210,6 @@ class App extends React.Component<AppProps, AppState> {
 
 
   private unVisualAll = (field: VField) => {
-    if (this.state.plotConfig[field]) {
-      this.setPlotConfig(field, undefined); // note this now always updates(clears) color
-    }
     this.mp.unVisualAll(field);
   };
 
@@ -234,10 +237,8 @@ class App extends React.Component<AppProps, AppState> {
       this.state.hasActiveSelection[field];
   };
 
-  private updateRecommendation = (recommendedAttrListsByField: RecommendedAttrListsByField) => {
-    this.setState(() => ({recommendedAttrListsByField: {
-      ...recommendedAttrListsByField,
-    }}));
+  private updateRecommendation = (recommendedEncodings: ReadonlyArray<RecommendedEncoding>) => {
+    this.setState(() => ({ recommendedEncodings }));
   };
 
   // clearRecommendation = () => {
@@ -259,21 +260,32 @@ class App extends React.Component<AppProps, AppState> {
       if (ev.type === 'mouseenter') {
         this.mp.updateVisualWithRecommendation(field, attrName);
       } else if (ev.type === 'mouseleave') {
-        if (this.state.plotConfig[field]) {
-          this.mp.updateVisual([field,], this.state.plotConfig)
-        } else {
-          this.mp.syncVisualToUserSelection(field);
-        }
+        this.mp.syncVisualToUserSelection(field);
       }
     }
   };
 
+  private handleDismissRecommendedEncoding: HandleDismissRecommendedEncoding = (field, attrName) => {
+    this.setState((prevState) => ({
+      recommendedEncodings: prevState.recommendedEncodings
+          .filter(d => !(d.field === field && d.attrName === attrName))
+    }), () => {
+      if (this.state.recommendedEncodings.filter(d => d.field === field).length === 0) {
+        this.unVisualAll(field);
+      } else {
+        this.mp.syncVisualToUserSelection(field); // manually reset since mouseleave is not fired
+      }
+    })
+  }
+
   private handleDismissAllRecommendedEncodings: HandleDismissAllRecommendations = () => {
+    this.setState(() => ({
+      recommendedEncodings: [],
+    }));
     for (const field of Object.values(VField)) {
       this.unVisualAll(field);
     }
   };
-
 
   private setIsHoveringFilterPanel = (isHoveringFilterPanel: boolean) => {
     this.setState({isHoveringFilterPanel});
@@ -286,7 +298,7 @@ class App extends React.Component<AppProps, AppState> {
   private handleHoverDrop: HandleHoverDrop = (ev) => {
     if (ev.type === 'mouseenter') {
       this.setIsHoveringFilterPanel(true);
-    } else if (ev.type === 'mouseout') {
+    } else if (ev.type === 'mouseleave') {
       this.setIsHoveringFilterPanel(false);
     }
   }
@@ -304,42 +316,63 @@ class App extends React.Component<AppProps, AppState> {
     }
   };
 
-  private syncFilterList = () => {
-    this.setState(() => ({
-      filterList: this.fm.getFilterListCopy(),
-    }));
-  }
+
+  private handleFilterListChange: HandleFilterListChange = (fm) => {
+    this.setState(() => ({ filterList: fm.getFilterListCopy() }));
+    this.hideOrDimPointsByState(fm.getStateGetterOnNoPreview());
+  };
 
   private handleAcceptRecommendedFilter: HandleAcceptRecommendedFilter = (filter) => {
     // 1. Add filter
-    this.fm.addFilter(filter);
+    this.handleAddFilter(filter);
     // 2. Set filterlist 
-    this.syncFilterList();
+    //    (now done by filter manager as callback)
     // 3. Clear recommended filters
     this.clearAllRecommendedFilters();
     // 4. Draw
-    this.hideOrDimPointsByState(this.fm.getStateGetterOnNoPreview());
+    //    (now done by filter manager as callback)
     // 5. Clean up selections for filtered points.
     this.cleanUpPoints(new Set(this.props.data.filter(filter.filterFn).map(d => d.__id_extra__)));
   };
 
   private handleHoverRecommendedFilter: HandleHoverRecommendedFilter = (ev, filter) => {
     if (ev.type === 'mouseenter') {
-      this.hideOrDimPointsByState(this.fm.getStateGetterOnPreviewAdd(filter.filterFn))
+      this.hideOrDimPointsByState(this.fm.getStateGetterOnPreviewAdd(filter.filterFn));
     } else if (ev.type === 'mouseleave') {
-      this.hideOrDimPointsByState(this.fm.getStateGetterOnNoPreview())
+      this.hideOrDimPointsByState(this.fm.getStateGetterOnNoPreview());
     }
   };
+
+  private handleDismissRecommendedFilter: HandleDismissRecommendedFilter = (key) => {
+    this.setState((prevState) => ({
+      recommendedFilters: prevState.recommendedFilters.filter(rf => rf.key !== key),
+    }), () => {
+      // manually reset since mouseleave is not fired
+      this.hideOrDimPointsByState(this.fm.getStateGetterOnNoPreview());
+    });
+  }
 
   private clearAllRecommendedFilters = () => {
     this.setState(() => ({recommendedFilters: []}));
   };
 
-  private handleDismissAllRecommendedFilters = () => {
+  private handleDismissAllRecommendedFilters: HandleDismissAllRecommendations = () => {
     this.clearAllRecommendedFilters();
   };
 
-  
+
+  private handleAddFilter: HandleAddFilter = (filter) => {
+    this.fm.addFilter(filter); // fm calls callback which sets filterList state and draw plot
+  };
+
+  private handleSetFilter: HandleSetFilter = (fid, filter) => {
+    this.fm.setFilter(fid, filter); // fm calls callback which sets filterList state and draw plot
+  }
+
+  private handleRemoveFilter: HandleRemoveFilter = (fid) => {
+    this.fm.removeFilter(fid); // fm calls callback which sets filterList state and draw plot
+  };
+
   private handleHoverFilter: HandleHoverFilter = (ev, filter) => {
     if (ev.type === 'mouseenter') {
       this.hideOrDimPointsByState(this.fm.getStateGetterOnPreviewRemove(filter.filterFn))
@@ -348,18 +381,9 @@ class App extends React.Component<AppProps, AppState> {
     }
   };
 
-  private handleRemoveFilter: HandleRemoveFilter = (fid) => {
-    // 1. Remove
-    this.fm.removeFilter(fid);
-    // 2. Set filterlist
-    this.syncFilterList();
-    // 3. Draw
-    this.hideOrDimPointsByState(this.fm.getStateGetterOnNoPreview());
-  };
-
   private removeAllFilters = () => {
+    // used to clear filters when plot is cleared (e.g. removing X/Y)
     this.fm.removeAllFilter();
-    this.syncFilterList();
     this.clearAllRecommendedFilters();
   };
 
@@ -424,22 +448,27 @@ class App extends React.Component<AppProps, AppState> {
           style={{flex: `0 0 ${FILTER_PANEL_WIDTH}px`}}
         >
           <Filters
+            data={this.props.data}
             filterList={this.state.filterList}
             minimapScaleMap={this.state.minimapScaleMap}
-            onHoverFilter={this.handleHoverFilter}
+            onAddFilter={this.handleAddFilter}
+            onSetFilter={this.handleSetFilter}
             onRemoveFilter={this.handleRemoveFilter}
+            onHoverFilter={this.handleHoverFilter}
             onHoverDrop={this.handleHoverDrop}
             isDraggingPoints={this.state.isDraggingPoints}
           />
           <RecommendedFilters
             recommendedFilters={this.state.recommendedFilters}
             onAcceptRecommendedFilter={this.handleAcceptRecommendedFilter}
+            onDismissRecommendedFilter={this.handleDismissRecommendedFilter}
             onHoverRecommendedFilter={this.handleHoverRecommendedFilter}
             onDismissAllRecommendedFilter={this.handleDismissAllRecommendedFilters}
           />
           <RecommendedEncodings
-            recommendedAttrListsByField={this.state.recommendedAttrListsByField}
+            recommendedEncodings={this.state.recommendedEncodings}
             onAcceptRecommendedEncoding={this.handleAcceptRecommendeedEncoding}
+            onDismissRecommendedEncoding={this.handleDismissRecommendedEncoding}
             onHoverRecommendedEncoding={this.handleHoverRecommendedEncoding}
             onDismissAllRecommendedEncodings={this.handleDismissAllRecommendedEncodings}
           />

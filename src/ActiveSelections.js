@@ -90,7 +90,7 @@ class ActiveSelectionsWithRec {
       this.getAllGroups(field),
       2,
     );
-    this.updateRecommendation(this.recommendedAttrListsByField);
+    this.updateRecommendation(this.flatten(this.recommendedAttrListsByField));
   };
 
   _updateInterpolatedScales = (field) => {
@@ -110,6 +110,16 @@ class ActiveSelectionsWithRec {
       }
       this.interpolatedScales[field][attrName] = scale;
     }
+  };
+
+  flatten = (recommendedAttrListsByField) => {
+    const flat = [];
+    for (const [field, list] of Object.entries(recommendedAttrListsByField)) {
+      for (const attrName of list) {
+        flat.push({field: field, attrName: attrName});
+      }
+    }
+    return flat;
   };
 
 }

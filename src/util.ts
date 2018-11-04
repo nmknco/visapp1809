@@ -226,3 +226,12 @@ export const subtract = (setA: Set<any>, setB: Set<any>) => {
   }
   return diff;
 }
+
+export const getDropBackgroundColor = (isOver: boolean | undefined, canDrop: boolean | undefined) => {
+  /**
+   * Both isOver and canDrop are false if not currently dragging
+   */
+  return isOver ? 
+    (canDrop ? '#ccffcc' : '#eecccc') :
+    (canDrop ? '#ffff99' : undefined)
+}

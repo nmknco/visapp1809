@@ -11,6 +11,7 @@ import {
   PlotConfigEntry,
   SetPlotConfig,
 } from './commons/types';
+import { getDropBackgroundColor } from './util';
 
 const DISPLAYNAME = {
   [Field.X]: 'X axis',
@@ -48,11 +49,12 @@ class Encodings extends React.PureComponent<EncodingsProps> {
   }
 }
 
+
 const encodingTarget = {
   drop: (
     props: EncodingFieldProps,
     monitor: DropTargetMonitor,
-  ) => {
+  ): void => {
     const { plotConfigEntry, field } = props;
     const { sourceAttribute, sourceField } = monitor.getItem();
     props.setPlotConfig(field, new PlotConfigEntry(sourceAttribute));
@@ -64,7 +66,7 @@ const encodingTarget = {
   canDrop: (
     props: EncodingFieldProps,
     monitor: DropTargetMonitor,
-  ) => {
+  ): boolean => {
     const { plotConfigEntry, field } = props;
     const { sourceAttribute, sourceField } = monitor.getItem();
     return (
@@ -131,9 +133,7 @@ class EncodingField extends React.PureComponent<EncodingFieldProps> {
         </div>
         <div 
           className="encode-field__content border border-light rounded-right d-flex align-items-center px-1 text-muted"
-          style={{
-            backgroundColor: isOver ? (canDrop ? '#ccffcc' : '#eecccc') : (canDrop ? '#ffff99' : undefined),
-          }}
+          style={{ backgroundColor: getDropBackgroundColor(isOver, canDrop) }}
         >
           {this.renderContent()}
         </div>
@@ -145,7 +145,7 @@ class EncodingField extends React.PureComponent<EncodingFieldProps> {
 const DroppableEncodingField = DropTarget(
   DraggableType.ATTRIBUTE,
   encodingTarget,
-  collect
+  collect,
 )(EncodingField);
 
 export { Encodings }

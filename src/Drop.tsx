@@ -1,7 +1,10 @@
 import * as React from 'react';
+
 import {
   HandleHoverDrop,
 } from './commons/types';
+import { getDropBackgroundColor } from './util';
+
 
 interface DropProps {
   readonly isDragging: boolean,
@@ -34,19 +37,14 @@ class Drop extends React.PureComponent<DropProps, DropState> {
     }
   };
 
-  private getClassName = () => {
-    const base = 'drop';
-    let mod = '';
-    if (this.props.isDragging) {
-      mod = this.state.isHovered ? '--is-over' : '--can-drop'
-    }
-    return mod ? `${base} ${base+mod}` : base;
-  };
-
   render() {
     return (
-      <div 
-        className={this.getClassName()}
+      <div
+        className="drop"
+        style={{backgroundColor: getDropBackgroundColor(
+          this.props.isDragging && this.state.isHovered, 
+          this.props.isDragging
+        )}}
         onMouseEnter={this.handleMouseEnter}
         onMouseLeave={this.handleMouseLeave}
       >

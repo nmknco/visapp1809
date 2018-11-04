@@ -48,7 +48,25 @@ export class NumericRangeFilter extends AbstractFilter implements HasDescription
     super({attrName, seed, reversed})
     this.filterFn = (d: DataEntry) => {
       const [min, max] = this.seed;
-      return (d[this.attrName] >= min && d[this.attrName] <= max) !== this.reversed;
+      return (d[this.attrName] > min && d[this.attrName] < max) !== this.reversed;
+    }
+  }
+
+  getTextDescription = () => null;
+}
+
+export class StringFilter extends AbstractFilter implements HasDescription {
+  seed: StringFilterSeed;
+
+  constructor({attrName, seed, reversed}: {
+    attrName: string,
+    seed: StringFilterSeed,
+    reversed?: boolean,
+  }) {
+    super({attrName, seed, reversed})
+    const stringSet = seed;
+    this.filterFn = (d: DataEntry) => {
+      return stringSet.has(d[attrName] as string) !== this.reversed;
     }
   }
 
@@ -71,7 +89,7 @@ export class IdFilter extends AbstractFilter implements HasDescription {
   getTextDescription = () => null;
 }
 
-export type Filter = NumericRangeFilter | IdFilter;
+export type Filter = NumericRangeFilter | StringFilter | IdFilter;
 
 export interface FilterListEntry {
   readonly fid: number,

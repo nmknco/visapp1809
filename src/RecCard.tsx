@@ -2,39 +2,28 @@ import * as React from 'react';
 
 import {
   HandleAcceptRecCard,
+  HandleDismissRecCard,
   HandleHoverRecCard,
 } from './commons/types';
 
 interface RecCardProps {
   readonly onAcceptCard: HandleAcceptRecCard,
+  readonly onDismissCard: HandleDismissRecCard,
   readonly onHoverCard?: HandleHoverRecCard,
   readonly header?: Readonly<JSX.Element>, // used to show minimap in filter cards
 }
 
-interface RecCardState {
-  readonly dismissed: boolean,
-}
 
-class RecCard extends React.Component<RecCardProps, RecCardState> {
+class RecCard extends React.PureComponent<RecCardProps> {
   constructor(props: RecCardProps) {
     super(props);
-    this.state = {
-      dismissed: false,
-    }
   }
-
-  private dismiss = () => {
-    this.setState({dismissed: true});
-  };
   
   render() {
     console.log('Rec cards render');
     return (
       <div 
-        className={
-          this.state.dismissed ? "d-none" : 
-            "rec-card border border-light rounded p-1 my-1"
-        }
+        className="rec-card border border-light rounded p-1 my-1"
         onMouseEnter={this.props.onHoverCard}
         onMouseLeave={this.props.onHoverCard}
       >
@@ -46,7 +35,7 @@ class RecCard extends React.Component<RecCardProps, RecCardState> {
           />
           <i 
             className="fas fa-times text-danger p-1"
-            onClick={this.dismiss}
+            onClick={this.props.onDismissCard}
             title="Dismiss"
           />
         </div>

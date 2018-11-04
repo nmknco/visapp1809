@@ -140,21 +140,14 @@
 
 /* ---- Right panel ---- */
 .drop {
-  min-height: 48px;
-}
-
-.drop--can-drop {
-  background-color: #ffff99;
-}
-
-.drop--is-over {
-  background-color: #ccffcc;
+  height: 100%;
 }
 
 .filters__container {
   width: 100%;
-  min-height: 100%;
-  max-height: 120px;
+  height: 48px;
+  min-height: 48px;
+  max-height: 240px;
   overflow-y: auto;
   overflow-x: hidden;
 }

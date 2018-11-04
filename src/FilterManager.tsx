@@ -15,6 +15,7 @@ import {
   Attribute,
   Data,
   DataEntry,
+  HandleFilterListChange,
   PointState,
   PointStateGetter,
   RFkey,
@@ -22,13 +23,15 @@ import {
 
 class FilterManager {
   private readonly data: Data;
+  private readonly onFilterListChange?: HandleFilterListChange;
   private readonly filterList: FilterList;
   private readonly filterCntByPoint: number[];
 
   private fidCounter: number;
 
-  constructor(data: Data) {
+  constructor(data: Data, onFilterListChange?: HandleFilterListChange) {
     this.data = data;
+    this.onFilterListChange = onFilterListChange;
     this.filterList = [];
     this.filterCntByPoint = (new Array(data.length)).fill(0);
     this.fidCounter = 0;
@@ -42,6 +45,9 @@ class FilterManager {
       filter,
     });
     this.countFilter(filter);
+    if (this.onFilterListChange) {
+      this.onFilterListChange(this);
+    }
     return this;
   }
 
@@ -54,6 +60,9 @@ class FilterManager {
     entry.filter = filter;
     this.countFilter(oldFilter, -1);
     this.countFilter(filter);
+    if (this.onFilterListChange) {
+      this.onFilterListChange(this);
+    }
     return this;
   };
 
@@ -65,6 +74,9 @@ class FilterManager {
     const oldFilter = this.filterList[iToRemove].filter;
     this.filterList.splice(iToRemove, 1);
     this.countFilter(oldFilter, -1);
+    if (this.onFilterListChange) {
+      this.onFilterListChange(this);
+    }
     return this;
   };
 
@@ -73,6 +85,9 @@ class FilterManager {
       this.filterList.pop();
     }
     this.filterCntByPoint.fill(0);
+    if (this.onFilterListChange) {
+      this.onFilterListChange(this);
+    }
     return this;
   }
 
