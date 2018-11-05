@@ -127,9 +127,16 @@ class Selector {
     this.onSelectionChange();
   };
 
-  // Called then color the whole plot (with encoding or accepted recommendation)
-  clearSelection = () => {
-    this.selectedIds.clear();
+  clearSelection = (idSet?: Set<number>) => {
+    // clear some: Called when some points are filtered out
+    // clear all: Called when color the whole plot (with encoding or accepted recommendation)
+    if (idSet) {
+      for (const id of idSet) {
+        this.selectedIds.delete(id);
+      }
+    } else {
+      this.selectedIds.clear();
+    }
     this.onSelectionChange();
   };
 

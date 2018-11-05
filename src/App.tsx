@@ -322,12 +322,12 @@ class App extends React.Component<AppProps, AppState> {
     // Draw
     const getState = fm.getStateGetterOnNoPreview();
     this.hideOrDimPointsByState(getState);
-    // Clean up selection s
+    // Clean up selections
     const filteredIds = new Set(this.props.data
       .filter(d => getState(d) === PointState.FILTERED)
       .map(d => d.__id_extra__)
     );
-    this.cleanUpPoints(filteredIds);
+    this.cleanUpFilteredPoints(filteredIds);
   };
 
   private handleAcceptRecommendedFilter: HandleAcceptRecommendedFilter = (filter) => {
@@ -340,7 +340,7 @@ class App extends React.Component<AppProps, AppState> {
     // 4. Draw
     //    (now done by filter manager as callback)
     // 5. Clean up selections for filtered points.
-    this.cleanUpPoints(new Set(this.props.data.filter(filter.filterFn).map(d => d.__id_extra__)));
+    this.cleanUpFilteredPoints(new Set(this.props.data.filter(filter.filterFn).map(d => d.__id_extra__)));
   };
 
   private handleHoverRecommendedFilter: HandleHoverRecommendedFilter = (ev, filter) => {
@@ -404,7 +404,7 @@ class App extends React.Component<AppProps, AppState> {
     this.mp.hideOrDimPoints(shouldHide, shouldDim);
   };
 
-  private cleanUpPoints = (filteredIds: ReadonlySet<number>) => {
+  private cleanUpFilteredPoints = (filteredIds: ReadonlySet<number>) => {
     // 1. remove from active selections (and unvisual)
     // Note that operations updating active selection always sync visual 
     //    by design (see Plotter class), thereore we should
@@ -416,7 +416,7 @@ class App extends React.Component<AppProps, AppState> {
       }
     }
     // 2. clear selection
-    this.mp.clearSelection();
+    this.mp.clearSelection(filteredIds);
   };
 
   private setMinimapScales = (minimapScaleMap: MinimapScaleMap = {xScale: null, yScale: null}) => {

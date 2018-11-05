@@ -363,8 +363,8 @@ class MainPlotter {
       .classed('selected', d => idFilter(d.__id_extra__));
   };
 
-  clearSelection = () => {
-    this.selector.clearSelection();
+  clearSelection = (idSet) => {
+    this.selector.clearSelection(idSet);
   };
 
   handleResizing = (r) => {
