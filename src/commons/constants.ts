@@ -1,6 +1,6 @@
 export const MINIMAP_PERROW = 3;
 export const FILTER_PANEL_WIDTH = 300;
-export const MINIMAP_MAR = 2; // margin around svg (used as padding of container)
+export const MINIMAP_MAR = 3; // margin around svg (used as padding of container)
 export const MINIMAP_PAD = 3; // margin inside svg for data points
 export const SCROLL_WIDTH = 20;
 
@@ -13,3 +13,7 @@ export const CHARTCONFIG = {
   svgW: 720,
   svgH: 720
 };
+
+export const SLIDERW = 200
+export const SLIDERH = 8
+export const SLIDERHANDLESZIE = 16

@@ -48,7 +48,7 @@ export class NumericRangeFilter extends AbstractFilter implements HasDescription
     super({attrName, seed, reversed})
     this.filterFn = (d: DataEntry) => {
       const [min, max] = this.seed;
-      return (d[this.attrName] > min && d[this.attrName] < max) !== this.reversed;
+      return (d[this.attrName] >= min && d[this.attrName] <= max) !== this.reversed;
     }
   }
 

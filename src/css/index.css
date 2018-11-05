@@ -29,6 +29,28 @@
   cursor: pointer;
 }
 
+.fas--hover-effect {
+  opacity: 0.6;
+}
+
+.fas--hover-effect:hover {
+  opacity: 1;
+}
+
+.fa-angle-down,
+.fa-angle-up {
+  font-size: 16px;
+}
+
+.fa-filter {
+  font-size: 11px;
+}
+
+.fa-recycle {
+  font-size: 11px;
+}
+
+
 /* ---- Layout ---- */
 .left-panel {
   flex: 0 0 300px;
@@ -139,17 +161,64 @@
 }
 
 /* ---- Right panel ---- */
+
+.rec-card {
+  min-height: 72px;
+}
+
+.rec-card:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+/* ---- Filter ---- */
 .drop {
+  min-height: 64px;
   height: 100%;
 }
 
 .filters__container {
   width: 100%;
-  height: 48px;
-  min-height: 48px;
-  max-height: 240px;
+  max-height: 300px;
   overflow-y: auto;
   overflow-x: hidden;
+}
+
+.filters__container-inner {
+  width: 264px; /* leave soem space for scroll bar */
+}
+
+.idfilter-container {
+  width: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.filter-card {
+  width: 256px;
+}
+
+.filter-card--header {
+  background-color: rgba(0, 0, 0, 0.02);
+  height: 24px;
+}
+
+.filter-card--string-item {
+  cursor: pointer;
+  font-size: 10px;
+  height: 16px;
+  margin-bottom: 1px;
+}
+
+.filter-card--string-item:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.filter-card--string-item__incl {
+  background-color: rgba(0, 0, 0, 0.08);
+}
+
+.filter-card--string-item__excl {
+  background-color: rgba(0, 0, 0, 0);
 }
 
 .minimap {
@@ -176,13 +245,6 @@
   opacity: 1;
 }
 
-.minimap__restore-text {
-  font-size: 10px;
-  padding: 5px;
-  color: rgba(160, 0, 0, 0.9);
-  line-height: 1;
-}
-
 
 .minimap__dot {
   fill: none;
@@ -190,13 +252,70 @@
   stroke: rgba(153, 153, 153, 0.7);
 }
 
-.rec-card {
-  min-height: 72px;
+.slider--container {
+  position: relative;
+  width: 100%;
+  height: 50px;
+  /* border: 1px solid; */
 }
 
-.rec-card:hover {
-  background-color: rgba(0, 0, 0, 0.05);
+.slider--bg {
+  position: absolute;
+  z-index: 5;
 }
 
+.slider--overlay-container {
+  position: relative;
+  height: 100%;
+  z-index: 6;
+}
+
+.slider--overlay {
+  position: absolute;
+  height: 100%;
+}
+
+.slider--overlay__incl {
+  background-color: rgba(20, 116, 139, 0.5);
+}
+
+.slider--overlay__excl {
+  background-color: rgba(0, 0, 0, 0);
+}
+
+
+.slider--handle {
+  position: absolute;
+  background-color: #eeeeee;
+  box-shadow: 1px 1px 3px #cccccc;
+  cursor: pointer;
+}
+
+.slider--handle:hover {
+  box-shadow: 2px 2px 3px #cccccc;
+}
+
+.slider--handle-label {
+  position: relative;
+  text-align: center;
+  white-space: nowrap;
+  font-size: 10px;
+}
+
+.slider--handle-label__left {
+  top: 20px;
+}
+
+.slider--handle-label__right {
+  top: -15px;
+}
+
+.slider--handle__left {
+  z-index: 10;
+}
+
+.slider--handle__right {
+  z-index: 11;
+}
 
 /* ---- Misc ---- */

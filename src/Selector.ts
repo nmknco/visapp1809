@@ -52,7 +52,7 @@ class Selector {
   private addDragListeners = () => {
     this.chartBoxNode.addEventListener('mousedown', (ev: MouseEvent) => {
       ev.preventDefault();
-      this.origin = SelUtil.calcPos(ev, this.chartBoxNode);
+      this.origin = SelUtil.getEventPosRelativeToBoxClipped(ev, this.chartBoxNode);
 
       this.selNode = document.createElementNS(
         'http://www.w3.org/2000/svg', 'rect');
@@ -64,7 +64,7 @@ class Selector {
 
     document.addEventListener('mousemove', (e) => {
       if (this.selNode && this.origin) {
-        const currentRect = new Rect(this.origin, SelUtil.calcPos(e, this.chartBoxNode))
+        const currentRect = new Rect(this.origin, SelUtil.getEventPosRelativeToBoxClipped(e, this.chartBoxNode))
         Rect.updateNodeByRect(this.selNode, currentRect);
 
         const { pendingIds } = this; // for use in context where there's no access via `this`
