@@ -2,7 +2,11 @@ import * as React from 'react';
 
 import { Filter } from './Filter';
 
-import { HandleRemoveFilter, HandleSetFilter } from './commons/types';
+import {
+  HandleHoverFilter,
+  HandleRemoveFilter,
+  HandleSetFilter,
+} from './commons/types';
 import { FAButton } from './FAButton';
 
 
@@ -11,6 +15,7 @@ interface FilterCardProps {
   readonly filter: Filter,
   readonly onSetFilter: HandleSetFilter,
   readonly onRemoveFilter: HandleRemoveFilter,
+  readonly onHoverFilter: HandleHoverFilter,
 }
 
 interface FilterCardState {
@@ -39,9 +44,14 @@ class FilterCard extends React.PureComponent<FilterCardProps, FilterCardState> {
     this.props.filter.getReversedCopy()
   );
 
+  private handleHover = (ev: React.MouseEvent<Element>) =>
+    this.props.onHoverFilter(ev, this.props.filter);
+
   private renderHeader = () => {
     return (
-      <div className='filter-card--header d-flex justify-content-between align-items-center p-1'>
+      <div 
+        className='filter-card--header d-flex justify-content-between align-items-center p-1'
+      >
           <div>
             <span className="pr-1">
               <FAButton
@@ -55,17 +65,20 @@ class FilterCard extends React.PureComponent<FilterCardProps, FilterCardState> {
           <div>
             <FAButton
               faName="filter"
+              onHover={this.handleHover}
               title="Toggle on/off"
             />
             <FAButton
               faName="recycle"
               onClick={this.handleReverse}
+              onHover={this.handleHover}
               hoverEffect={true}
               title="Reverse"
             />
             <FAButton
               faName="times"
               onClick={this.handleRemove}
+              onHover={this.handleHover}
               hoverEffect={true}
               title="Remove"
             />

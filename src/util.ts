@@ -74,10 +74,16 @@ export class Rect {
 }
 
 export class SelUtil {
-  static getEventPosRelativeToBoxClipped = (
+
+  static getEventPosRelativeToBox = (
     ev: MouseEvent,
     box: SVGRectElement | HTMLDivElement,
   ) => SelUtil.getPosRelativeToBox(new Pos(ev.clientX, ev.clientY), box);
+
+  static getEventPosRelativeToBoxClipped = (
+    ev: MouseEvent,
+    box: SVGRectElement | HTMLDivElement,
+  ) => SelUtil.getPosRelativeToBoxClipped(new Pos(ev.clientX, ev.clientY), box);
 
   static getPosRelativeToBoxClipped = (
     pos: Pos,
@@ -86,7 +92,7 @@ export class SelUtil {
     // Compute mouse position for events relative to the reference <rect> element
     //     - clipped at the edges
     const relPos = SelUtil.getPosRelativeToBox(pos, box);
-    SelUtil.clipRelativePosition(relPos, box);
+    return SelUtil.clipRelativePosition(relPos, box);
   };
 
   static clipRelativePosition = (

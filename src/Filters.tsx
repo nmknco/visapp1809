@@ -128,6 +128,7 @@ class Filters extends React.PureComponent<FiltersProps> {
                 { ...{fid, filter}}
                 onSetFilter={this.props.onSetFilter}
                 onRemoveFilter={this.props.onRemoveFilter}
+                onHoverFilter={this.props.onHoverFilter}
               >
                 {this.renderPanel(fid, filter)}
               </FilterCard>

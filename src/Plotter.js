@@ -174,6 +174,7 @@ class MainPlotter {
     let newDots = dots.enter()
       .append('g')
       .classed('dot', true)
+      .classed('normal', true)
       .on('click', d => {
         // console.log('click!');
         const id = d.__id_extra__
@@ -379,7 +380,8 @@ class MainPlotter {
     this.chart
       .selectAll('.dot') // important not to select dots in drag copies
       .classed('hidden', shouldHide)
-      .classed('dim', shouldDimButNotHide);
+      .classed('dim', shouldDimButNotHide)
+      .classed('normal', d => !(shouldHide(d) || shouldDimButNotHide(d)));
   };
 
 }

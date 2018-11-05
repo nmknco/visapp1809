@@ -35,10 +35,10 @@ class Minimap extends React.PureComponent<MinimapProps> {
     this.props.onRemove(this.props.fid);
 
   private handleHover = (ev: React.MouseEvent<Element>) =>
-    this.props.onHover(ev, this.props.filter)
+    this.props.onHover(ev, this.props.filter);
 
   private getDimension = () => 
-    this.props.dimension || this.props.isPreview ? MINIMAP_D_PREVIEW : MINIMAP_D
+    this.props.dimension || this.props.isPreview ? MINIMAP_D_PREVIEW : MINIMAP_D;
 
 
   private renderDots = () => {

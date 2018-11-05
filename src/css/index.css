@@ -127,12 +127,19 @@
   opacity: 0.15;
 }
 
+.normal {
+  opacity: 1;
+  transition: opacity 100ms;
+}
+
 .hidden {
-  visibility: hidden;
+  opacity: 0;
+  transition: opacity 100ms;
 }
 
 .dim {
   opacity: 0.2;
+  transition: opacity 100ms;
 }
 
 .circle-ring {

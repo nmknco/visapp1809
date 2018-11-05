@@ -4,8 +4,9 @@ interface FAButtonProps {
   readonly faName: string,
   readonly color?: string,
   readonly colorClass?: string,
-  readonly hoverEffect?: boolean,
   readonly onClick?: () => void,
+  readonly onHover?: (ev: React.MouseEvent<Element>) => void,
+  readonly hoverEffect?: boolean,
   readonly title?: string,
 }
 
@@ -18,6 +19,8 @@ class FAButton extends React.PureComponent<FAButtonProps> {
           color: this.props.color,
         }}
         onClick={this.props.onClick}
+        onMouseEnter={this.props.onHover}
+        onMouseLeave={this.props.onHover}
         title={this.props.title}
       >
         <i 
