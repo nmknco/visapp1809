@@ -1,6 +1,6 @@
 import * as React from 'react';
 
-import { Panel } from './Panel';
+import { PanelWithDismiss } from './Panel';
 import { RecCard } from './RecCard';
 
 import { 
@@ -36,9 +36,10 @@ class RecommendedEncodings extends React.PureComponent<RecommendedEncodingsProps
       onDismissRecommendedEncoding,
       onHoverRecommendedEncoding } = this.props;
     return (
-      <Panel 
+      <PanelWithDismiss 
         className="recommended-encodings-panel"
-        heading="Recommended Encoding"
+        heading="Recommended Encodings"
+        onClickDismissAll={this.props.onDismissAllRecommendedEncodings}
       >
         {recommendedEncodings.map(
           ({ field, attrName }) =>
@@ -51,7 +52,7 @@ class RecommendedEncodings extends React.PureComponent<RecommendedEncodingsProps
               }}
             />
         )}
-      </Panel>
+      </PanelWithDismiss>
     );
   }
 }

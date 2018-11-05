@@ -21,7 +21,7 @@ class AppContainer extends React.Component<{}, AppContainerState> {
     fetch('data/cars.json')
     .then(res => res.json())
     .then(data => {
-      // data = data.filter((d: object, i: number) => i % 2 === 0); // dev. Do this first so that id_extra is correct
+      data = data.filter((d: object, i: number) => i % 4 === 0); // dev. Do this first so that id_extra is correct
       // console.table(data);
       this.setState({data: this.preProcess(data)});
     });

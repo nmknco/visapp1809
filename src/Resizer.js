@@ -27,12 +27,11 @@ class Resizer {
 
   handleMouseMove = (e) => {
     if (this.isResizing) {
-      console.log(e)
       const cPos = new Pos(
         this.currentDot.getAttribute('data-x'),
         this.currentDot.getAttribute('data-y')
       );
-      const r = SelUtil.calcPos(e, this.chartBoxNode).distTo(cPos);
+      const r = SelUtil.getEventPosRelativeToBoxClipped(e, this.chartBoxNode).distTo(cPos);
       this.onResizing(r);
     }
   };
@@ -52,7 +51,7 @@ class Resizer {
   }
 
   _getCursorStyle = (e) => {
-    const {x, y} = SelUtil.calcPos(e, this.chartBoxNode);
+    const {x, y} = SelUtil.getEventPosRelativeToBoxClipped(e, this.chartBoxNode);
     const g = e.target.parentNode;
     const dx = x - g.getAttribute('data-x');
     const dy = y - g.getAttribute('data-y');

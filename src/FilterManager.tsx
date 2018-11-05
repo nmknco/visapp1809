@@ -40,7 +40,7 @@ class FilterManager {
   getFilterListCopy = () => [...this.filterList];
 
   addFilter = (filter: Filter): this => {
-    this.filterList.push({
+    this.filterList.unshift({
       fid: this.fidCounter++,
       filter,
     });

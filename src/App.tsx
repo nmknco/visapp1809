@@ -319,7 +319,15 @@ class App extends React.Component<AppProps, AppState> {
 
   private handleFilterListChange: HandleFilterListChange = (fm) => {
     this.setState(() => ({ filterList: fm.getFilterListCopy() }));
-    this.hideOrDimPointsByState(fm.getStateGetterOnNoPreview());
+    // Draw
+    const getState = fm.getStateGetterOnNoPreview();
+    this.hideOrDimPointsByState(getState);
+    // Clean up selection s
+    const filteredIds = new Set(this.props.data
+      .filter(d => getState(d) === PointState.FILTERED)
+      .map(d => d.__id_extra__)
+    );
+    this.cleanUpPoints(filteredIds);
   };
 
   private handleAcceptRecommendedFilter: HandleAcceptRecommendedFilter = (filter) => {
@@ -426,6 +434,19 @@ class App extends React.Component<AppProps, AppState> {
             attributes={memoizedGetAttributes(this.props.data)}  
             activeEntry={this.state.activeEntry}
           />
+          <Filters
+            data={this.props.data}
+            filterList={this.state.filterList}
+            minimapScaleMap={this.state.minimapScaleMap}
+            xAttrName={this.state.plotConfig[Field.X] && this.state.plotConfig[Field.X]!.attribute.name}
+            yAttrName={this.state.plotConfig[Field.Y] && this.state.plotConfig[Field.Y]!.attribute.name}
+            onAddFilter={this.handleAddFilter}
+            onSetFilter={this.handleSetFilter}
+            onRemoveFilter={this.handleRemoveFilter}
+            onHoverFilter={this.handleHoverFilter}
+            onHoverDrop={this.handleHoverDrop}
+            isDraggingPoints={this.state.isDraggingPoints}
+          />
         </div>
 
         <div className="mid-panel">
@@ -447,17 +468,6 @@ class App extends React.Component<AppProps, AppState> {
           className="right-panel"
           style={{flex: `0 0 ${FILTER_PANEL_WIDTH}px`}}
         >
-          <Filters
-            data={this.props.data}
-            filterList={this.state.filterList}
-            minimapScaleMap={this.state.minimapScaleMap}
-            onAddFilter={this.handleAddFilter}
-            onSetFilter={this.handleSetFilter}
-            onRemoveFilter={this.handleRemoveFilter}
-            onHoverFilter={this.handleHoverFilter}
-            onHoverDrop={this.handleHoverDrop}
-            isDraggingPoints={this.state.isDraggingPoints}
-          />
           <RecommendedFilters
             recommendedFilters={this.state.recommendedFilters}
             onAcceptRecommendedFilter={this.handleAcceptRecommendedFilter}

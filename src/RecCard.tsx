@@ -1,5 +1,7 @@
 import * as React from 'react';
 
+import { FAButton } from './FAButton';
+
 import {
   HandleAcceptRecCard,
   HandleDismissRecCard,
@@ -28,14 +30,18 @@ class RecCard extends React.PureComponent<RecCardProps> {
         onMouseLeave={this.props.onHoverCard}
       >
         <div className="px-1 w-100 text-right">
-          <i 
-            className="fas fa-check text-success p-1"
+          <FAButton
+            faName="check"
             onClick={this.props.onAcceptCard}
+            colorClass="text-success"
+            hoverEffect={true}
             title="Accept"
           />
-          <i 
-            className="fas fa-times text-danger p-1"
+          <FAButton
+            faName="times"
             onClick={this.props.onDismissCard}
+            colorClass="text-danger"
+            hoverEffect={true}
             title="Dismiss"
           />
         </div>

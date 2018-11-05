@@ -32,6 +32,14 @@ export class Pos {
   relativeTo = (pos0: Pos): Pos => {
     return new Pos(this.x - pos0.x, this.y - pos0.y);
   };
+
+  clipToRect = (rect: Rect) => {
+    // used to clip pos within an arbitrary given Rect in the same refenrece system
+    return new Pos(
+      Math.max(Math.min(this.x, rect.r), rect.l),
+      Math.max(Math.min(this.y, rect.b), rect.t),
+    );
+  }
 }
 
 export class Rect {
@@ -66,18 +74,60 @@ export class Rect {
 }
 
 export class SelUtil {
-  static calcPos = (ev: MouseEvent, box: SVGRectElement) => {
+  static getEventPosRelativeToBoxClipped = (
+    ev: MouseEvent,
+    box: SVGRectElement | HTMLDivElement,
+  ) => SelUtil.getPosRelativeToBox(new Pos(ev.clientX, ev.clientY), box);
+
+  static getPosRelativeToBoxClipped = (
+    pos: Pos,
+    box: SVGRectElement | HTMLDivElement,
+  ) => {
     // Compute mouse position for events relative to the reference <rect> element
     //     - clipped at the edges
-    const w = box.getAttribute('width');
-    const h = box.getAttribute('height');
-    const rect = box.getBoundingClientRect();
-    let x = ev.clientX - rect.left;
-    let y = ev.clientY - rect.top;
-    x = Math.max(Math.min(x, Number(w||0)), 0);
-    y = Math.max(Math.min(y, Number(h||0)), 0);
-    return new Pos(x, y);
+    const relPos = SelUtil.getPosRelativeToBox(pos, box);
+    SelUtil.clipRelativePosition(relPos, box);
   };
+
+  static clipRelativePosition = (
+    posRelativeToBox: Pos,
+    box: SVGRectElement | HTMLDivElement,
+  ) => {
+    let w: number;
+    let h: number;
+    if (box instanceof SVGRectElement) {
+      w = Number(box.getAttribute('width') || 0);
+      h = Number(box.getAttribute('height') || 0);
+    } else {
+      w = box.offsetWidth;
+      h = box.offsetHeight;
+    }
+    return posRelativeToBox.clipToRect(
+      new Rect(new Pos(0, 0), new Pos(w, h))
+    );
+  };
+
+  static getPosRelativeToBox = (
+    pos: Pos,
+    box: SVGRectElement | HTMLDivElement,
+  ) => {
+    const rect = box.getBoundingClientRect();
+    return new Pos(
+      pos.x - rect.left,
+      pos.y - rect.top
+    );
+  };
+
+  static getPosAbsoluteFromBox = (
+    posRelativeToBox: Pos,
+    box: SVGRectElement | HTMLDivElement,
+  ) => {
+    const rect = box.getBoundingClientRect();
+    return new Pos(
+      posRelativeToBox.x + rect.left,
+      posRelativeToBox.y + rect.top
+    );
+  }
 }
 
 export class ColorUtil {

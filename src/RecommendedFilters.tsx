@@ -1,7 +1,7 @@
 import * as React from 'react';
 
+import { PanelWithDismiss } from './Panel';
 import { RecCard } from './RecCard';
-import { RecommendedPanel } from './RecommendedPanel';
 
 import {
   HandleAcceptRecCard,
@@ -48,7 +48,7 @@ class RecommendedFilters extends React.PureComponent<RecommendedFiltersProps & R
 
   render() {
     return (
-      <RecommendedPanel
+      <PanelWithDismiss
         className="recommended-filters-panel"
         heading="Recommended Filters"
         onClickDismissAll={this.props.onDismissAllRecommendedFilter}
@@ -56,7 +56,7 @@ class RecommendedFilters extends React.PureComponent<RecommendedFiltersProps & R
         {this.props.recommendedFilters.length > 0 &&
           (<div>{this.renderCards()}</div>)
         }
-      </RecommendedPanel>
+      </PanelWithDismiss>
     )
   }
 }

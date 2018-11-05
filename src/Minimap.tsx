@@ -1,94 +1,116 @@
-// import * as React from 'react';
+import * as React from 'react';
 
-// import {
-//   MINIMAP_D,
-//   MINIMAP_D_PREVIEW,
-//   MINIMAP_MAR,
-//   MINIMAP_PAD,
-// } from './commons/constants';
-// import {
-//   Data,
-//   HandleHoverFilter,
-//   HandleRemoveFilter,
-//   MinimapScaleMap,
-// } from './commons/types';
+import { Filter } from './Filter';
 
-// interface MinimapProps {
-//   readonly dataFiltered: Data,
-//   readonly scales: Readonly<MinimapScaleMap>,
-//   readonly xAttrName: string,
-//   readonly yAttrName: string,
-//   readonly onClick: HandleRemoveFilter,
-//   readonly onHover: HandleHoverFilter,
-//   readonly dimension: number,
-//   readonly isPreview?: boolean,
-// }
+import {
+  MINIMAP_D,
+  MINIMAP_D_PREVIEW,
+  MINIMAP_MAR,
+  MINIMAP_PAD,
+} from './commons/constants';
+import {
+  Data,
+  HandleHoverFilter,
+  HandleRemoveFilter,
+  MinimapScaleMap,
+} from './commons/types';
+import { FAButton } from './FAButton';
 
-// class Minimap extends React.PureComponent<MinimapProps> {
+interface MinimapProps {
+  readonly fid: number,
+  readonly filter: Filter,
+  readonly dataFiltered: Data,
+  readonly onRemove: HandleRemoveFilter,
+  readonly onHover: HandleHoverFilter,
+  readonly scales: Readonly<MinimapScaleMap>,
+  readonly xAttrName?: string,
+  readonly yAttrName?: string,
+  readonly dimension?: number,
+  readonly isPreview?: boolean,
+}
 
-//   private getFilteredIds = () => 
-//     new Set(this.props.dataFiltered.map(d => d.__id_extra__));
+class Minimap extends React.PureComponent<MinimapProps> {
 
-//   private handleClick = () =>
-//     this.props.onClickRestore(this.getFilteredIds());
+  private handleRemove = () =>
+    this.props.onRemove(this.props.fid);
 
-//   private handleHover = (ev: React.MouseEvent<Element>) =>
-//     this.props.onHover(ev, this.getFilteredIds())
+  private handleHover = (ev: React.MouseEvent<Element>) =>
+    this.props.onHover(ev, this.props.filter)
 
-//   render() {
-//     const { dataFiltered, xAttrName, yAttrName, isPreview, } = this.props;
+  private getDimension = () => 
+    this.props.dimension || this.props.isPreview ? MINIMAP_D_PREVIEW : MINIMAP_D
 
-//     const dimension = this.props.dimension || isPreview ? MINIMAP_D_PREVIEW : MINIMAP_D
-//     const r = isPreview ? 1 : 2;
 
-//     let {scales: {xScale, yScale}} = this.props;
-//     xScale = xScale && xScale.copy().range([MINIMAP_PAD, dimension - MINIMAP_PAD]);
-//     yScale = yScale && yScale.copy().range([dimension - MINIMAP_PAD, MINIMAP_PAD]);
+  private renderDots = () => {
+    const { dataFiltered, xAttrName, yAttrName } = this.props;
+    // const r = this.props.isPreview ? 1 : 2;
+    const r = 1;
+    const dimension = this.getDimension();
+
+    let {scales: {xScale, yScale}} = this.props;
+    xScale = xScale && xScale.copy().range([MINIMAP_PAD, dimension - MINIMAP_PAD]);
+    yScale = yScale && yScale.copy().range([dimension - MINIMAP_PAD, MINIMAP_PAD]);
     
-//     return (
-//       <div
-//         className="minimap"
-//         style={{padding: MINIMAP_MAR, flex: `0 0 ${dimension + MINIMAP_MAR * 2}px`}}
-//       >
-//         <svg 
-//           className="minimap__svg" 
-//           width={dimension}
-//           height={dimension}
-//         >
-//           {xScale && yScale &&
-//             dataFiltered.map(
-//             d => <circle
-//               key={d.__id_extra__}
-//               className="minimap__dot"
-//               cx={xScale!(d[xAttrName])} 
-//               cy={yScale!(d[yAttrName])} 
-//               r={r}
-//             />
-//           )}
-//         </svg>
-//         {!isPreview &&
-//           <div 
-//             className="minimap__overlay text-right"
-//             style={{
-//               top: MINIMAP_MAR,
-//               left: MINIMAP_MAR,
-//               width: dimension,
-//               height: dimension,
-//             }}
-//             onClick={this.handleClick}
-//             onMouseEnter={this.handleHover}
-//             onMouseLeave={this.handleHover}
-//           >
-//             <div 
-//               className="minimap__restore-text text-center"
-//             > 
-//               Click to restore
-//             </div>
-//           </div>
-//         }
-//       </div>
-//     );
-//   }
-// }
+    if (xAttrName && yAttrName && xScale && yScale) {
+      return dataFiltered.map(d => 
+        <circle
+              key={d.__id_extra__}
+              className="minimap__dot"
+              cx={xScale!(d[xAttrName])} 
+              cy={yScale!(d[yAttrName])} 
+              r={r}
+        />
+      )
+    } else {
+      return null;
+    }
+  }
 
-// export { Minimap };
+  render() {
+    const dimension = this.getDimension();
+
+    return (
+      <div
+        className="minimap"
+        style={{padding: `${MINIMAP_MAR}px 0`, flex: `0 0 ${dimension + MINIMAP_MAR * 2}px`}}
+      >
+        <svg 
+          className="minimap__svg" 
+          width={dimension}
+          height={dimension}
+        >
+          {this.renderDots()}
+        </svg>
+        {!this.props.isPreview &&
+          <div 
+            className="minimap__overlay"
+            style={{
+              top: MINIMAP_MAR,
+              width: dimension,
+              height: dimension,
+            }}
+            onMouseEnter={this.handleHover}
+            onMouseLeave={this.handleHover}
+          >
+            <div 
+              className="minimap__overlay--buttons px-1"
+            > 
+              <FAButton
+                faName="times"
+                onClick={this.handleRemove}
+                hoverEffect={true}
+                title="Remove"
+              />
+              <FAButton
+                faName="filter"
+                title="Toggle on/off"
+              />
+            </div>
+          </div>
+        }
+      </div>
+    );
+  }
+}
+
+export { Minimap };
