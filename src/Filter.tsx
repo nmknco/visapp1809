@@ -13,38 +13,48 @@ export type StringFilterSeed = ReadonlySet<string>;
 export type IdFilterSeed = ReadonlySet<number>;
 export type FilterSeed = NumericRangeFilterSeed | StringFilterSeed | IdFilterSeed
 
+interface FilterConstructorArgs<T extends FilterSeed> {
+  attrName: string,
+  seed: T,
+  reversed?: boolean,
+}
+
+interface FilterUpdate<T extends FilterSeed> {
+  attrName?: string,
+  seed?: T,
+  reversed?: boolean,
+}
 
 
-abstract class AbstractFilter {
+abstract class AbstractFilter<T extends FilterSeed> {
   // May use Symbols to avoid collision between recommended and fixed filter keys
   readonly attrName: string;
-  readonly seed: FilterSeed;
+  seed: T;
   readonly reversed: boolean;
   filterFn: FilterFn;
 
-  constructor({attrName, seed, reversed}: {
-    attrName: string,
-    seed: FilterSeed,
-    reversed?: boolean,
-  }) {
+  constructor({attrName, seed, reversed}: FilterConstructorArgs<T>) {
     this.attrName = attrName;
     this.seed = seed;
     this.reversed = reversed || false
   }
-}
 
+  mergeUpdates = ({attrName, seed, reversed}: FilterUpdate<T>): FilterConstructorArgs<T> => {
+    attrName = (attrName !== undefined) ? attrName : this.attrName;
+    seed = seed || this.seed;
+    reversed = (reversed !== undefined) ? reversed : this.reversed;
+    return ({attrName, seed, reversed})
+  }
+  
+  getReversedCopy: () => void
+
+}
 interface HasDescription {
   getTextDescription(): JSX.Element | string | null;
 }
 
-export class NumericRangeFilter extends AbstractFilter implements HasDescription {
-  seed: NumericRangeFilterSeed;
-
-  constructor({attrName, seed, reversed}: {
-    attrName: string,
-    seed: NumericRangeFilterSeed,
-    reversed?: boolean,
-  }) {
+export class NumericRangeFilter extends AbstractFilter<NumericRangeFilterSeed> implements HasDescription {
+  constructor({attrName, seed, reversed}: FilterConstructorArgs<NumericRangeFilterSeed>) {
     super({attrName, seed, reversed})
     this.filterFn = (d: DataEntry) => {
       const [min, max] = this.seed;
@@ -52,17 +62,17 @@ export class NumericRangeFilter extends AbstractFilter implements HasDescription
     }
   }
 
+  getReversedCopy = () =>
+    new NumericRangeFilter(this.mergeUpdates({reversed: !this.reversed}));
+
+  getNumericFilterCopy = (update: FilterUpdate<NumericRangeFilterSeed>) => 
+    new NumericRangeFilter(this.mergeUpdates(update));
+
   getTextDescription = () => null;
 }
 
-export class StringFilter extends AbstractFilter implements HasDescription {
-  seed: StringFilterSeed;
-
-  constructor({attrName, seed, reversed}: {
-    attrName: string,
-    seed: StringFilterSeed,
-    reversed?: boolean,
-  }) {
+export class StringFilter extends AbstractFilter<StringFilterSeed> implements HasDescription {
+  constructor({attrName, seed, reversed}: FilterConstructorArgs<StringFilterSeed>) {
     super({attrName, seed, reversed})
     const stringSet = seed;
     this.filterFn = (d: DataEntry) => {
@@ -70,21 +80,29 @@ export class StringFilter extends AbstractFilter implements HasDescription {
     }
   }
 
+  getReversedCopy = () =>
+    new StringFilter(this.mergeUpdates({reversed: !this.reversed}));
+
+  getStringFilterCopy = (update: FilterUpdate<StringFilterSeed>) =>
+    new StringFilter(this.mergeUpdates(update));
+
   getTextDescription = () => null;
 }
 
-export class IdFilter extends AbstractFilter implements HasDescription {
+export class IdFilter extends AbstractFilter<IdFilterSeed> implements HasDescription {
   readonly seed: IdFilterSeed;
 
-  constructor({seed, reversed}: {
-    seed: IdFilterSeed,
-    reversed?: boolean,
-  }) {
+  constructor({seed, reversed}: Pick<FilterConstructorArgs<IdFilterSeed>, 'seed' | 'reversed'>) {
     super({attrName: '__id_extra__', seed, reversed})
     const idSet = seed;
     this.filterFn = (d: DataEntry) =>
       idSet.has(d.__id_extra__) !== this.reversed;
   }
+
+  getReversedCopy = () =>
+    new IdFilter(this.mergeUpdates({reversed: !this.reversed}));
+
+  
 
   getTextDescription = () => null;
 }

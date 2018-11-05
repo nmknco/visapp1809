@@ -375,7 +375,7 @@ class App extends React.Component<AppProps, AppState> {
 
   private handleSetFilter: HandleSetFilter = (fid, filter) => {
     this.fm.setFilter(fid, filter); // fm calls callback which sets filterList state and draw plot
-  }
+  };
 
   private handleRemoveFilter: HandleRemoveFilter = (fid) => {
     this.fm.removeFilter(fid); // fm calls callback which sets filterList state and draw plot

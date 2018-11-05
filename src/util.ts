@@ -269,7 +269,7 @@ const getAttributes = (data: Data) => {
 export const memoizedGetAttributes = memoizeLast(getAttributes);
 
 
-export const subtract = (setA: Set<any>, setB: Set<any>) => {
+export const subtract = (setA: Set<any> | ReadonlySet<any>, setB: Set<any> | ReadonlySet<any>) => {
   const diff = new Set(setA);
   for (const elem of setB) {
       diff.delete(elem);

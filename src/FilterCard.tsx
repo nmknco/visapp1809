@@ -2,13 +2,14 @@ import * as React from 'react';
 
 import { Filter } from './Filter';
 
-import { HandleRemoveFilter } from './commons/types';
+import { HandleRemoveFilter, HandleSetFilter } from './commons/types';
 import { FAButton } from './FAButton';
 
 
 interface FilterCardProps {
   readonly fid: number,
   readonly filter: Filter,
+  readonly onSetFilter: HandleSetFilter,
   readonly onRemoveFilter: HandleRemoveFilter,
 }
 
@@ -33,6 +34,11 @@ class FilterCard extends React.PureComponent<FilterCardProps, FilterCardState> {
 
   private handleRemove = () => this.props.onRemoveFilter(this.props.fid);
 
+  private handleReverse = () => this.props.onSetFilter(
+    this.props.fid,
+    this.props.filter.getReversedCopy()
+  );
+
   private renderHeader = () => {
     return (
       <div className='filter-card--header d-flex justify-content-between align-items-center p-1'>
@@ -53,6 +59,8 @@ class FilterCard extends React.PureComponent<FilterCardProps, FilterCardState> {
             />
             <FAButton
               faName="recycle"
+              onClick={this.handleReverse}
+              hoverEffect={true}
               title="Reverse"
             />
             <FAButton

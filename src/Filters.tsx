@@ -126,6 +126,7 @@ class Filters extends React.PureComponent<FiltersProps> {
               <FilterCard
                 key={fid}
                 { ...{fid, filter}}
+                onSetFilter={this.props.onSetFilter}
                 onRemoveFilter={this.props.onRemoveFilter}
               >
                 {this.renderPanel(fid, filter)}

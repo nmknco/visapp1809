@@ -16,28 +16,26 @@ class StringFilterPanel extends React.PureComponent<StringFilterPanelProps> {
 
   private onToggleValue = (str: string) => {
     const { fid, filter, onSetFilter } = this.props;
-    const newExcludedSet = new Set<string>(filter.seed);
-    if (newExcludedSet.has(str)) {
-      newExcludedSet.delete(str);
+
+    const newSeed = new Set(filter.seed) // maybe the excl or incl set depending on .reversed
+    if (newSeed.has(str)) {
+      newSeed.delete(str);
     } else {
-      newExcludedSet.add(str);
+      newSeed.add(str);
     }
-    onSetFilter(fid, new StringFilter({
-      ...filter,
-      seed: newExcludedSet
-    }));
+    onSetFilter(fid, filter.getStringFilterCopy({seed: newSeed}));
   };
 
   render() {
-    const excludedSet = this.props.filter.seed;
+    const {filter: {seed, reversed}} = this.props;
     return (
       Array.from(this.props.values).map((str) => 
         <StringFilterItem
           key={str}
           str={str}
-          filtered={excludedSet.has(str)}
+          filtered={seed.has(str) !== reversed}
           onToggleValue={this.onToggleValue}
-          reversed={this.props.filter.reversed}
+          reversed={reversed}
         />
       )
     );
