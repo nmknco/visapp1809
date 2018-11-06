@@ -227,9 +227,12 @@ export class ColorUtil {
     const colorScale: StringRangeScale<number> = (val) => {
       const hsl = { ...pivotHSLColor };
       if (min !== max) {
-        if (val <= pivotValue) {
+        if (val < pivotValue) {
+          // assert pivotValue > min
           hsl.l = lmin + (val - min) / (pivotValue - min) * (hsl.l - lmin);
-        } else {
+          console.log(hsl.l)
+        } else if (val > pivotValue) {
+          // assert pivotValue < max
           hsl.l = lmax - (max - val) / (max - pivotValue) * (lmax - hsl.l);
         }
       }
