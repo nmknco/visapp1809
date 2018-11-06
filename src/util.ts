@@ -230,7 +230,6 @@ export class ColorUtil {
         if (val < pivotValue) {
           // assert pivotValue > min
           hsl.l = lmin + (val - min) / (pivotValue - min) * (hsl.l - lmin);
-          console.log(hsl.l)
         } else if (val > pivotValue) {
           // assert pivotValue < max
           hsl.l = lmax - (max - val) / (max - pivotValue) * (lmax - hsl.l);
