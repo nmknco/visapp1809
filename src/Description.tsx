@@ -2,7 +2,7 @@ import * as React from 'react';
 
 import { Panel } from './Panel';
 
-export class Description extends React.Component {
+export class Description extends React.PureComponent {
   render() {
     return (
       <Panel 

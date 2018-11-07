@@ -217,22 +217,22 @@
   height: 24px;
 }
 
-.filter-card__string-item {
+.filter-card__discrete-item {
   cursor: pointer;
   font-size: 10px;
   height: 16px;
   margin-bottom: 1px;
 }
 
-.filter-card__string-item:hover {
+.filter-card__discrete-item:hover {
   background-color: rgba(0, 0, 0, 0.05);
 }
 
-.filter-card__string-item--incl {
+.filter-card__discrete-item--incl {
   background-color: rgba(0, 0, 0, 0.08);
 }
 
-.filter-card__string-item--excl {
+.filter-card__discrete-item--excl {
   background-color: rgba(0, 0, 0, 0);
 }
 

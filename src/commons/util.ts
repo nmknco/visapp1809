@@ -2,14 +2,11 @@ import * as d3 from 'd3';
 
 import { LIT, SAT } from '../ColorPicker';
 
-import { Attribute } from '../Attributes';
-
 import { 
   InvalidHSLStringError,
-  NoExtentError,
   NoMedianError,
 } from './errors';
-import { memoizeLast } from './memoize';
+import { memoizedGetExtent } from './memoized';
 import {
   Data, 
   HSLColor,
@@ -192,10 +189,7 @@ export class ColorUtil {
     const [hsl1, hsl2] = [hslStr1, hslStr2].map(ColorUtil.stringToHSL);
     const [v1, v2] = [hslStr1, hslStr2].map(hs => medians[hs]);
 
-    const [min, max] = d3.extent(data, d => d[colorAttrName] as number);
-    if (min === undefined || max === undefined) {
-      throw new NoExtentError(colorAttrName);
-    }
+    const [min, max] = memoizedGetExtent(data, colorAttrName);
 
     const colorScale: StringRangeScale<number> = (val) => {
       let hNew;
@@ -219,10 +213,7 @@ export class ColorUtil {
   };
 
   static interpolateColorScaleOneGroup = (pivotValue: number, pivotHSLColor: HSLColor, data: Data, colorAttrName: string) => {
-    const [min, max] = d3.extent(data, d => d[colorAttrName] as number);
-    if (min === undefined || max === undefined) {
-      throw new NoExtentError(colorAttrName);
-    }
+    const [min, max] = memoizedGetExtent(data, colorAttrName);
     const [lmin, lmax] = [0.7, 0.1]
     const colorScale: StringRangeScale<number> = (val) => {
       const hsl = { ...pivotHSLColor };
@@ -256,31 +247,6 @@ export const expandRange = (extent: [number, number]) => {
   const len = hi - lo;
   return [lo - len * 0.05, hi + len * 0.05];
 };
-
-
-export const getDistinctValueCount = (data: Data, attrName: string) => {
-  return (new Set(data.map(d => d[attrName]))).size
-};
-
-
-const getAttributes = (data: Data) => {
-  console.log('Recomputing attributes')
-  let attrList: Readonly<Attribute[]>
-  if (data && data.length > 0) {
-    const d0 = data[0];
-    attrList = Object.keys(d0)
-      .filter(attrName => attrName !== '__id_extra__')
-      .map(attrName => new Attribute(
-        attrName,
-        (typeof d0[attrName] === 'number') ? 'number' : 'string'
-      ));
-  } else {
-    attrList = [];
-  };
-  return attrList;
-};
-
-export const memoizedGetAttributes = memoizeLast(getAttributes);
 
 
 export const subtract = (setA: Set<any> | ReadonlySet<any>, setB: Set<any> | ReadonlySet<any>) => {

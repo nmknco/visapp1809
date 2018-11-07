@@ -15,7 +15,9 @@ interface DropState {
   readonly isHovered: boolean, // Drop should know this itself
 }
 
-class Drop extends React.PureComponent<DropProps, DropState> {
+class Drop extends React.Component<DropProps, DropState> {
+  // Always rerender because of children
+
   constructor(props: DropProps) {
     super(props);
     this.state = {

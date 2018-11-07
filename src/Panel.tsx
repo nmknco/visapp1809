@@ -8,6 +8,8 @@ interface PanelProps {
 }
 
 class Panel extends React.Component<PanelProps & React.HTMLAttributes<HTMLDivElement>> {
+  // Always rerender because of props.children
+  
   render() {
     // console.log('Panel render');
     return (
@@ -25,7 +27,8 @@ interface PanelWithDismissProps extends PanelProps {
   readonly onClickDismissAll?: () => void,
 }
 
-class PanelWithDismiss extends React.PureComponent<PanelWithDismissProps & React.HTMLAttributes<HTMLDivElement>> {
+class PanelWithDismiss extends React.Component<PanelWithDismissProps & React.HTMLAttributes<HTMLDivElement>> {
+  // Always rerender because of props.children
 
   render() {
     const headingWithCancel = (

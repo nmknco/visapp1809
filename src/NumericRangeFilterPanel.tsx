@@ -25,6 +25,7 @@ class NumericRangeFilterPanel extends React.PureComponent<NumericRangeFilterPane
   };
 
   render() {
+    console.log('Numeric filter panel render')
     return (
       <NumericRangeSlider
         extent={this.props.extent}

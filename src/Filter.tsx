@@ -9,9 +9,9 @@ export type FilterFn = (d: DataEntry) => boolean;
 
 // Types used for generating and uniquely representing the filters
 export type NumericRangeFilterSeed = Readonly<[number, number]>
-export type StringFilterSeed = ReadonlySet<string>;
+export type DiscreteFilterSeed = ReadonlySet<string|number>;
 export type IdFilterSeed = ReadonlySet<number>;
-export type FilterSeed = NumericRangeFilterSeed | StringFilterSeed | IdFilterSeed
+export type FilterSeed = NumericRangeFilterSeed | DiscreteFilterSeed | IdFilterSeed
 
 interface FilterConstructorArgs<T extends FilterSeed> {
   attrName: string,
@@ -71,20 +71,20 @@ export class NumericRangeFilter extends AbstractFilter<NumericRangeFilterSeed> i
   getTextDescription = () => null;
 }
 
-export class StringFilter extends AbstractFilter<StringFilterSeed> implements HasDescription {
-  constructor({attrName, seed, reversed}: FilterConstructorArgs<StringFilterSeed>) {
+export class DiscreteFilter extends AbstractFilter<DiscreteFilterSeed> implements HasDescription {
+  constructor({attrName, seed, reversed}: FilterConstructorArgs<DiscreteFilterSeed>) {
     super({attrName, seed, reversed})
     const stringSet = seed;
     this.filterFn = (d: DataEntry) => {
-      return stringSet.has(d[attrName] as string) !== this.reversed;
+      return stringSet.has(d[attrName]) !== this.reversed;
     }
   }
 
   getReversedCopy = () =>
-    new StringFilter(this.mergeUpdates({reversed: !this.reversed}));
+    new DiscreteFilter(this.mergeUpdates({reversed: !this.reversed}));
 
-  getStringFilterCopy = (update: FilterUpdate<StringFilterSeed>) =>
-    new StringFilter(this.mergeUpdates(update));
+  getDiscreteFilterCopy = (update: FilterUpdate<DiscreteFilterSeed>) =>
+    new DiscreteFilter(this.mergeUpdates(update));
 
   getTextDescription = () => null;
 }
@@ -107,7 +107,7 @@ export class IdFilter extends AbstractFilter<IdFilterSeed> implements HasDescrip
   getTextDescription = () => null;
 }
 
-export type Filter = NumericRangeFilter | StringFilter | IdFilter;
+export type Filter = NumericRangeFilter | DiscreteFilter | IdFilter;
 
 export interface FilterListEntry {
   readonly fid: number,

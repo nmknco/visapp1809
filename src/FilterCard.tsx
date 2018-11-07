@@ -22,8 +22,9 @@ interface FilterCardState {
   readonly expanded: boolean,
 }
 
-class FilterCard extends React.PureComponent<FilterCardProps, FilterCardState> {
-  
+class FilterCard extends React.Component<FilterCardProps, FilterCardState> {
+  // Always rerender because of props.children
+
   constructor(props: FilterCardProps) {
     super(props);
     this.state = {
@@ -88,7 +89,7 @@ class FilterCard extends React.PureComponent<FilterCardProps, FilterCardState> {
   }
   
   render() {
-    console.log('Filter card render');
+    // console.log('Filter card render');
     return (
       <div className="filter-card my-1 border border-light rounded">
         {this.renderHeader()}

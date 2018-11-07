@@ -1,5 +1,6 @@
 import * as d3 from 'd3';
-import { memoizedGetAttributes } from './commons/util';
+
+import { memoizedGetAttributes } from './commons/memoized';
 
 class Classifier {
   constructor(data) {

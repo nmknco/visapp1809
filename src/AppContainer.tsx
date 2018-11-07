@@ -9,7 +9,7 @@ interface AppContainerState {
   data: Data,
 }
 
-class AppContainer extends React.Component<{}, AppContainerState> {
+class AppContainer extends React.PureComponent<{}, AppContainerState> {
   constructor(props: {}) {
     super(props);
     this.state = {

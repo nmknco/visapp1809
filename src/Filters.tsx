@@ -1,17 +1,16 @@
-import * as d3 from 'd3';
 import * as React from 'react';
 import { ConnectDropTarget, DropTarget, DropTargetConnector, DropTargetMonitor } from 'react-dnd';
 
+import { DiscreteFilterPanel } from './DiscreteFilterPanel';
 import { Drop } from './Drop';
+import { DiscreteFilter, Filter, FilterList, IdFilter, NumericRangeFilter } from './Filter';
 import { FilterCard } from './FilterCard';
 import { Minimap } from './Minimap';
 import { NumericRangeFilterPanel } from './NumericRangeFilterPanel';
 import { Panel } from './Panel';
-import { StringFilterPanel } from './StringFilterPanel';
 
-import { Filter, FilterList, IdFilter, NumericRangeFilter, StringFilter } from './Filter';
 
-import { NoExtentError } from './commons/errors';
+import { memoizedGetExtent, memoizedGetValueSet } from './commons/memoized';
 import {
   Data,
   DraggableType,
@@ -37,6 +36,7 @@ interface FiltersProps {
   readonly minimapScaleMap: Readonly<MinimapScaleMap>,
   readonly xAttrName?: string,
   readonly yAttrName?: string,
+  random: number,
 }
 
 class Filters extends React.PureComponent<FiltersProps> {
@@ -44,43 +44,22 @@ class Filters extends React.PureComponent<FiltersProps> {
   // TDOD: Prevent creating new objects as props
 
   private renderPanel(fid: number, filter: Filter) {
-    if (filter instanceof StringFilter) {
+    if (filter instanceof DiscreteFilter) {
       return (
-        <StringFilterPanel
+        <DiscreteFilterPanel
           { ...{fid, filter} }
-          values={new Set(this.props.data.map(d => d[filter.attrName] as string))}
+          values={memoizedGetValueSet(this.props.data, filter.attrName)}
           onSetFilter={this.props.onSetFilter}
         />
       );
     } else if (filter instanceof NumericRangeFilter) {
-      const [min, max] = d3.extent(
-        this.props.data, d => d[filter.attrName] as number);
-      if (!min || !max) {
-        throw new NoExtentError(filter.attrName);
-      }
-      if (max - min <= 0) {
-        // Use string filter in special cases
-        const strf = new StringFilter({
-          attrName: filter.attrName,
-          seed: new Set(),
-        });
-        return (
-          <StringFilterPanel
-            fid={fid}
-            filter={strf}
-            values={new Set(this.props.data.map(d => d[filter.attrName] as string))}
-            onSetFilter={this.props.onSetFilter}
-          />
-        );
-      } else {
-        return (
-          <NumericRangeFilterPanel
-            { ...{fid, filter} }
-            extent={[min, max]}
-            onSetFilter={this.props.onSetFilter}
-          />
-        );
-      }
+      return (
+        <NumericRangeFilterPanel
+          { ...{fid, filter} }
+          extent={memoizedGetExtent(this.props.data, filter.attrName)}
+          onSetFilter={this.props.onSetFilter}
+        />
+      );
     } else {
       return;
     }
@@ -96,8 +75,9 @@ class Filters extends React.PureComponent<FiltersProps> {
           idFilterList.map(({fid, filter}) => 
             <Minimap
               key={fid}
-              { ...{fid, filter} }
-              dataFiltered={this.props.data.filter(filter.filterFn)}
+              fid={fid}
+              filter={filter}
+              data={this.props.data}
               onRemove={this.props.onRemoveFilter}
               onHover={this.props.onHoverFilter}
               scales={this.props.minimapScaleMap}
@@ -142,7 +122,7 @@ class Filters extends React.PureComponent<FiltersProps> {
   };
 
   render() {
-    console.log('Filters panel render');
+    // console.log('Filters panel render');
     return (
       <Panel
         heading="Filters"
@@ -174,17 +154,14 @@ const filterTarget = {
     const { data, onAddFilter } = props;
     const { sourceAttribute: {name: attrName, type} } = monitor.getItem();
     if (type === 'number') {
-      const [min, max] = d3.extent(data, d => d[attrName] as number);
-      if (min === undefined || max === undefined) {
-        throw new NoExtentError(attrName);
-      }
+      const [min, max] = memoizedGetExtent(data, attrName);
       onAddFilter(new NumericRangeFilter({
         attrName,
         seed: [min, max],
         reversed: true // exclude points outside [min, max]
       }));
     } else if (type === 'string') {
-      onAddFilter(new StringFilter({
+      onAddFilter(new DiscreteFilter({
         attrName,
         seed: new Set(), 
       }));
@@ -211,7 +188,9 @@ interface FiltersAttributeDropProps {
   readonly canDrop?: boolean,
 }
 
-class FiltersAttributeDropContainer extends React.PureComponent<FiltersAttributeDropProps> {
+class FiltersAttributeDropContainer extends React.Component<FiltersAttributeDropProps> {
+    // Always rerender because of props.children
+  
   render() {
     const { connectDropTarget, isOver, canDrop } = this.props;
     return connectDropTarget!(

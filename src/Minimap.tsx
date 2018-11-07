@@ -19,7 +19,10 @@ import { FAButton } from './FAButton';
 interface MinimapProps {
   readonly fid: number,
   readonly filter: Filter,
-  readonly dataFiltered: Data,
+  
+  // passing data instead of filtered ones to avoid unnecessary rerender
+  readonly data: Data,
+ 
   readonly onRemove: HandleRemoveFilter,
   readonly onHover: HandleHoverFilter,
   readonly scales: Readonly<MinimapScaleMap>,
@@ -42,7 +45,9 @@ class Minimap extends React.PureComponent<MinimapProps> {
 
 
   private renderDots = () => {
-    const { dataFiltered, xAttrName, yAttrName } = this.props;
+    const { data, filter, xAttrName, yAttrName } = this.props;
+    const filteredData = data.filter(filter.filterFn)
+
     // const r = this.props.isPreview ? 1 : 2;
     const r = 1;
     const dimension = this.getDimension();
@@ -52,7 +57,7 @@ class Minimap extends React.PureComponent<MinimapProps> {
     yScale = yScale && yScale.copy().range([dimension - MINIMAP_PAD, MINIMAP_PAD]);
     
     if (xAttrName && yAttrName && xScale && yScale) {
-      return dataFiltered.map(d => 
+      return filteredData.map(d => 
         <circle
               key={d.__id_extra__}
               className="minimap__dot"
@@ -67,6 +72,7 @@ class Minimap extends React.PureComponent<MinimapProps> {
   }
 
   render() {
+    console.log('Minimap render');
     const dimension = this.getDimension();
 
     return (

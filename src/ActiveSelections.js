@@ -1,6 +1,9 @@
 import * as d3 from 'd3';
-import { ColorUtil, expandRange } from './commons/util';
+
 import { Classifier } from './Classifier';
+
+import { memoizedGetExtent } from './commons/memoized';
+import { ColorUtil, expandRange } from './commons/util';
 
 
 class ActiveSelections {
@@ -106,7 +109,7 @@ class ActiveSelectionsWithRec {
       } else if (field === 'size') {
         // We do not actually interpolate size scales. Using the generic one instead
         scale = d3.scaleLinear()
-        .domain(expandRange(d3.extent(this.data, d => d[attrName]))).range([3, 15]);
+        .domain(expandRange(memoizedGetExtent(this.data, attrName))).range([3, 15]);
       }
       this.interpolatedScales[field][attrName] = scale;
     }

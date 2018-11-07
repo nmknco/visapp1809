@@ -3,6 +3,7 @@ import * as d3 from 'd3';
 import { Attribute } from './Attribute';
 import { Classifier } from './Classifier';
 import {
+  DiscreteFilter,
   Filter,
   FilterFn,
   FilterList,
@@ -12,6 +13,7 @@ import {
 } from './Filter';
 
 import { FilterIdError } from './commons/errors';
+import { memoizedGetValueSet } from './commons/memoized';
 import {
   Data,
   DataEntry,
@@ -46,6 +48,7 @@ class FilterManager {
 
 
   addFilter = (filter: Filter): this => {
+    filter = this.convertToDiscreteIfNecessary(filter);
     this.filterList.unshift({
       fid: this.fidCounter++,
       filter,
@@ -134,6 +137,19 @@ class FilterManager {
     }
   };
 
+  private convertToDiscreteIfNecessary = (filter: Filter): Filter => {
+    if (filter instanceof NumericRangeFilter) {
+      const values = memoizedGetValueSet(this.data, filter.attrName);
+      if (values.size < 10) {
+        return new DiscreteFilter({
+          attrName: filter.attrName,
+          seed: new Set(),
+        });
+      }
+    }
+    return filter;
+  }
+
   static getRecommendedFilters = (args: {
     idSetDroppedToFilter: ReadonlySet<number>,
     data: Data,
@@ -162,7 +178,7 @@ class FilterManager {
     // Filter2: X range
     if (xAttr && xAttr.type === 'number') {
       const [min, max] = d3.extent(selectedData, d => d[xAttr.name] as number);
-      if (min && max) {
+      if (min !== undefined && max !== undefined) {
         recommendedFilters.push(new RecommendedFilter(
           new NumericRangeFilter({
             attrName: xAttr.name,
@@ -175,7 +191,7 @@ class FilterManager {
     // Filter 3: Y range
     if (yAttr && yAttr.type === 'number') {
       const [min, max] = d3.extent(selectedData, d => d[yAttr.name] as number);
-      if (min && max) {
+      if (min !== undefined && max !== undefined) {
         recommendedFilters.push(new RecommendedFilter(
           new NumericRangeFilter({
             attrName: yAttr.name,
@@ -191,7 +207,7 @@ class FilterManager {
       const simiAttrName = cls.getMostSimilarAttr([idSetDroppedToFilter,], 1)[0];
       if (simiAttrName && (!xAttr || simiAttrName !== xAttr.name) && (!yAttr || simiAttrName !== yAttr.name)) {
         const [min, max] = d3.extent(selectedData, d => d[simiAttrName] as number);
-        if (min && max) {
+        if (min !== undefined && max !== undefined) {
           recommendedFilters.push(new RecommendedFilter(
             new NumericRangeFilter({
               attrName: simiAttrName,

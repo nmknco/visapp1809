@@ -18,6 +18,9 @@ import { Searcher } from './Searcher';
 
 import { FILTER_PANEL_WIDTH } from './commons/constants';
 import {
+  memoizedGetAttributes,
+} from './commons/memoized';
+import {
   ColorPickerStyle, 
   Data,
   DataEntry,
@@ -45,7 +48,7 @@ import {
   SetPlotConfig,
   VField,
 } from './commons/types';
-import { ColorUtil, memoizedGetAttributes } from './commons/util';
+import { ColorUtil } from './commons/util';
 
 
 interface AppProps {
@@ -76,7 +79,7 @@ interface AppState {
   readonly isSearchResultSelected: boolean;
 }
 
-class App extends React.Component<AppProps, AppState> {
+class App extends React.PureComponent<AppProps, AppState> {
 
   private d3ContainerRef: React.RefObject<HTMLDivElement> = React.createRef<HTMLDivElement>();
   private mp: MainPlotter;
@@ -499,6 +502,7 @@ class App extends React.Component<AppProps, AppState> {
             onHoverFilter={this.handleHoverFilter}
             onHoverDrop={this.handleHoverDrop}
             isDraggingPoints={this.state.isDraggingPoints}
+            random={Math.random()}
           />
         </div>
 

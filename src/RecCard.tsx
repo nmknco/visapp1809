@@ -16,7 +16,9 @@ interface RecCardProps {
 }
 
 
-class RecCard extends React.PureComponent<RecCardProps> {
+class RecCard extends React.Component<RecCardProps> {
+  // Always rerender because of props.children
+
   constructor(props: RecCardProps) {
     super(props);
   }

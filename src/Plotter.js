@@ -5,6 +5,7 @@ import { Dragger } from './Dragger';
 import { ActiveSelectionsWithRec } from './ActiveSelections';
 import { expandRange, SelUtil } from './commons/util';
 import { CHARTCONFIG } from './commons/constants';
+import { memoizedGetExtent } from './commons/memoized';
 
 const SVGATTR_BY_FIELD = {color: 'stroke', size: 'r'};
 const DEFAULT_BY_FIELD = {color: '#999999', size: 7};
@@ -140,7 +141,7 @@ class MainPlotter {
     const xScale = this.scales.x[x_attr] || (
       (x.attribute.type === 'number') ?
         d3.scaleLinear()
-          .domain(expandRange(d3.extent(data, d => d[x_attr]))) :
+          .domain(expandRange(memoizedGetExtent(data, x_attr))) :
         d3.scalePoint()
           .domain(data.map(d => d[x_attr]))
           .padding(0.2)
@@ -149,7 +150,7 @@ class MainPlotter {
     const yScale = this.scales.y[y_attr] || (
       (y.attribute.type === 'number') ?
         d3.scaleLinear()
-          .domain(expandRange(d3.extent(data, d => d[y_attr]))) :
+          .domain(expandRange(memoizedGetExtent(data, y_attr))) :
         d3.scalePoint()
           .domain(data.map(d => d[y_attr]))
           .padding(0.2)
@@ -267,12 +268,12 @@ class MainPlotter {
           if (field === 'color') {
             visualScale = this.scales[field][attrName] || (
               (entry.attribute.type === 'number') ?
-                d3.scaleSequential(t => d3.interpolateInferno(d3.scaleLinear().domain([0,1]).range([0.92,0])(t))).domain(d3.extent(data, d => d[attrName])) :
+                d3.scaleSequential(t => d3.interpolateInferno(d3.scaleLinear().domain([0,1]).range([0.92,0])(t))).domain(memoizedGetExtent(data, attrName)) :
                 d3.scaleOrdinal(d3.schemeCategory10).domain(d3.map(data, d => d[attrName]).keys())
             );
           } else if (field === 'size') {
             visualScale = this.scales.size[attrName] ||
-              d3.scaleLinear().domain(expandRange(d3.extent(data, d => d[attrName]))).range([3, 15]);
+              d3.scaleLinear().domain(expandRange(memoizedGetExtent(data, attrName))).range([3, 15]);
           }
           this.scales[field] = visualScale;
           this.customScales[field] = null;
