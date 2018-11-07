@@ -219,3 +219,10 @@ export type HandlePendingSelectionChange = (
 export type HandleSelectionChange = (
   selection: ReadonlySet<number>,
 ) => void;
+
+
+export type HandleInputChange = (
+  value: string,
+) => void;
+
+export type HandleSearchChange = HandleInputChange;

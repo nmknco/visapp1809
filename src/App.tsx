@@ -7,10 +7,12 @@ import { FileSelector } from './FileSelector';
 import { Filters } from './Filters';
 import { RecommendedEncodings } from './RecommendedEncodings';
 import { RecommendedFilters } from './RecommendedFilters';
+import { Search } from './Search';
 
 import { FilterList, RecommendedFilter } from './Filter';
 import { FilterManager } from './FilterManager';
 import { MainPlotter } from './Plotter';
+import { Searcher } from './Searcher';
 
 import { FILTER_PANEL_WIDTH } from './commons/constants';
 import {
@@ -32,6 +34,7 @@ import {
   HandleHoverRecommendedFilter,
   HandlePickColor,
   HandleRemoveFilter,
+  HandleSearchChange,
   HandleSetFilter,
   MinimapScaleMap,
   PlotConfig,
@@ -63,10 +66,14 @@ interface AppState {
   readonly isHoveringFilterPanel: boolean,
   readonly recommendedFilters: ReadonlyArray<RecommendedFilter>
   
-  // Plotter knows the following but they need to be in the state to call render on change
+  // Plotter knows the following but they need to be in the state to trigger render on change
   readonly hasSelection: boolean,
   readonly hasActiveSelection: Readonly<{[VField.COLOR]: boolean, [VField.SIZE]: boolean}>,
   readonly recommendedEncodings: ReadonlyArray<RecommendedEncoding>,
+  
+  // readonly searchKeyword: string,
+  readonly searchResultsIdSet: ReadonlySet<number> | null, // null for empty keyword
+  readonly isSearchResultSelected: boolean;
 }
 
 class App extends React.Component<AppProps, AppState> {
@@ -74,6 +81,7 @@ class App extends React.Component<AppProps, AppState> {
   private d3ContainerRef: React.RefObject<HTMLDivElement> = React.createRef<HTMLDivElement>();
   private mp: MainPlotter;
   private fm: FilterManager;
+  private searcher: Searcher;
 
   constructor(props: AppProps) {
     super(props);
@@ -94,6 +102,8 @@ class App extends React.Component<AppProps, AppState> {
       hasSelection: false,
       hasActiveSelection: {[VField.COLOR]: false, [VField.SIZE]: false}, // i.e. has visuals set on user selection
       recommendedEncodings: [],
+      searchResultsIdSet: null,
+      isSearchResultSelected: false,
     }
   }
 
@@ -109,6 +119,7 @@ class App extends React.Component<AppProps, AppState> {
     this.updateHasSelection,
     this.updateHasActiveSelection,
     this.setIsDraggingPoints,
+    this.onSelectionChange,
   );
 
   private setupInitialPlot = () => {
@@ -131,6 +142,7 @@ class App extends React.Component<AppProps, AppState> {
     this.mp = this.createNewMainPlotter();
     this.setupInitialPlot();
     this.fm = new FilterManager(this.props.data, this.handleFilterListChange);
+    this.searcher = new Searcher(this.props.data, (id: number) => this.fm.getIsFiltered(id));
   };
 
   componentDidMount() {
@@ -328,6 +340,8 @@ class App extends React.Component<AppProps, AppState> {
       .map(d => d.__id_extra__)
     );
     this.cleanUpFilteredPoints(filteredIds);
+    // Update search using current keyword
+    this.updateSearchResult();
   };
 
   private handleAcceptRecommendedFilter: HandleAcceptRecommendedFilter = (filter) => {
@@ -423,6 +437,32 @@ class App extends React.Component<AppProps, AppState> {
     this.setState(() => ({minimapScaleMap}));
   };
 
+  private handleSearchChange: HandleSearchChange = (keyword) => {
+    this.updateSearchResult(keyword);
+    this.selectSearchResult();
+  };
+
+  private updateSearchResult = (keyword?: string) => {
+    // update with current keyword if not provided
+    const searchResultsIdSet = this.searcher.getSearchResultsIdSet(keyword);
+    this.setState(() => ({ searchResultsIdSet })); 
+  };
+
+  private selectSearchResult = () => {
+    this.mp.selectByIds(this.state.searchResultsIdSet);
+    this.setState(() => ({ isSearchResultSelected: true }));
+  };
+
+  private handleClickSelectSearchButton = () => {
+    this.selectSearchResult();
+  };
+
+  private onSelectionChange = () => {
+    this.setState(() => ({ isSearchResultSelected: false }));
+  }
+
+
+
   render() {
     return (
       <div className="app d-flex m-2">
@@ -433,6 +473,12 @@ class App extends React.Component<AppProps, AppState> {
           <Attributes 
             attributes={memoizedGetAttributes(this.props.data)}  
             activeEntry={this.state.activeEntry}
+          />
+          <Search
+            onSearchChange={this.handleSearchChange}
+            resultsIdSet={this.state.searchResultsIdSet}
+            shouldShowSelectButton={!this.state.isSearchResultSelected}
+            onClickSelectSearchButton={this.handleClickSelectSearchButton}
           />
           <Filters
             data={this.props.data}

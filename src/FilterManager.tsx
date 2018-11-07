@@ -39,6 +39,12 @@ class FilterManager {
 
   getFilterListCopy = () => [...this.filterList];
 
+  getFilteredIdSet = (): ReadonlySet<number> => new Set(
+    this.filterCntByPoint.filter(cnt => cnt > 0).map((d, i) => i)
+  );
+  getIsFiltered = (id: number) => this.filterCntByPoint[id] > 0;
+
+
   addFilter = (filter: Filter): this => {
     this.filterList.unshift({
       fid: this.fidCounter++,

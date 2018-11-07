@@ -9,11 +9,19 @@
 
 /* ---- Global overrides ---- */
 .app .btn {
+  display: flex;
+  align-items: center;
+  padding: .25em;
   font-size: 13px;
 }
 
+.app .btn-sm {
+  font-size: 11px;
+  height: 24px;
+}
+
 .app .card-header {
-  height:32px;
+  height: 32px;
   padding: 5px;
   display: flex;
   align-items: center;
@@ -204,27 +212,27 @@
   width: 256px;
 }
 
-.filter-card--header {
+.filter-card__header {
   background-color: rgba(0, 0, 0, 0.02);
   height: 24px;
 }
 
-.filter-card--string-item {
+.filter-card__string-item {
   cursor: pointer;
   font-size: 10px;
   height: 16px;
   margin-bottom: 1px;
 }
 
-.filter-card--string-item:hover {
+.filter-card__string-item:hover {
   background-color: rgba(0, 0, 0, 0.05);
 }
 
-.filter-card--string-item__incl {
+.filter-card__string-item--incl {
   background-color: rgba(0, 0, 0, 0.08);
 }
 
-.filter-card--string-item__excl {
+.filter-card__string-item--excl {
   background-color: rgba(0, 0, 0, 0);
 }
 
@@ -259,70 +267,74 @@
   stroke: rgba(153, 153, 153, 0.7);
 }
 
-.slider--container {
+.slider__container {
   position: relative;
   width: 100%;
   height: 50px;
   /* border: 1px solid; */
 }
 
-.slider--bg {
+.slider__bg {
   position: absolute;
   z-index: 5;
 }
 
-.slider--overlay-container {
+.slider__overlay-container {
   position: relative;
   height: 100%;
   z-index: 6;
 }
 
-.slider--overlay {
+.slider__overlay {
   position: absolute;
   height: 100%;
 }
 
-.slider--overlay__incl {
+.slider__overlay--incl {
   background-color: rgba(20, 116, 139, 0.5);
 }
 
-.slider--overlay__excl {
+.slider__overlay--excl {
   background-color: rgba(0, 0, 0, 0);
 }
 
 
-.slider--handle {
+.slider__handle {
   position: absolute;
   background-color: #eeeeee;
   box-shadow: 1px 1px 3px #cccccc;
   cursor: pointer;
 }
 
-.slider--handle:hover {
+.slider__handle:hover {
   box-shadow: 2px 2px 3px #cccccc;
 }
 
-.slider--handle-label {
+.slider__handle-label {
   position: relative;
   text-align: center;
   white-space: nowrap;
   font-size: 10px;
 }
 
-.slider--handle-label__left {
+.slider__handle-label--left {
   top: 20px;
 }
 
-.slider--handle-label__right {
+.slider__handle-label--right {
   top: -15px;
 }
 
-.slider--handle__left {
+.slider__handle__left {
   z-index: 10;
 }
 
-.slider--handle__right {
+.slider__handle__right {
   z-index: 11;
 }
+
+
+/* ---- Misc ---- */
+
 
 /* ---- Misc ---- */

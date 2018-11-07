@@ -55,8 +55,8 @@ class StringFilterItem extends React.PureComponent<StringFilterItemProps> {
   render() {
     return(
       <div
-        className={"d-flex align-items-center px-1 rounded filter-card--string-item" + 
-            " filter-card--string-item__" + (this.props.filtered ? 'excl' : 'incl')}
+        className={"d-flex align-items-center px-1 rounded filter-card__string-item" + 
+            " filter-card__string-item--" + (this.props.filtered ? 'excl' : 'incl')}
         onClick={this.toggleValue}
       >
         {this.props.str}

@@ -23,6 +23,7 @@ class MainPlotter {
     updateHasSelection,
     updateHasActiveSelection,
     setIsDraggingPoints,
+    onSelectionChange,
   ){
     this.data = data;
     this.container = container;
@@ -34,6 +35,7 @@ class MainPlotter {
     this.updateHasSelection = updateHasSelection;
     this.updateHasActiveSelection = updateHasActiveSelection;
     this.setIsDraggingPoints = setIsDraggingPoints;
+    this.onSelectionChange = onSelectionChange;
     
     this.activeSelections = new ActiveSelectionsWithRec(
       data, 
@@ -357,6 +359,7 @@ class MainPlotter {
   handleSelectionChange = (selectedIds) => {
     this.highlightDots(id => selectedIds.has(id));
     this.updateHasSelection(selectedIds.size > 0);
+    this.onSelectionChange();
   };
 
   highlightDots = (idFilter) => {
@@ -383,6 +386,8 @@ class MainPlotter {
       .classed('dim', shouldDimButNotHide)
       .classed('normal', d => !(shouldHide(d) || shouldDimButNotHide(d)));
   };
+
+  selectByIds = (idSet) => this.selector.selectByIds(idSet);
 
 }
 

@@ -130,7 +130,12 @@ class Selector {
     this.onSelectionChange();
   };
 
-  clearSelection = (idSet?: Set<number>) => {
+  selectByIds = (idSet: ReadonlySet<number>) => {
+    this.selectedIds = new Set(idSet);
+    this.onSelectionChange();
+  };
+
+  clearSelection = (idSet?: ReadonlySet<number>) => {
     // clear some: Called when some points are filtered out
     // clear all: Called when color the whole plot (with encoding or accepted recommendation)
     if (idSet) {

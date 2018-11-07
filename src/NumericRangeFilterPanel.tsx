@@ -77,11 +77,11 @@ class NumericRangeSlider extends React.PureComponent<NumericRangeSliderProps> {
       <div className="p-1">
         <div
           ref={this.sliderBoxRef}
-          className="slider--container"
+          className="slider__container"
           style={{ width: SLIDERW, }}
         >
           <div
-            className="slider--bg rounded border border-light"
+            className="slider__bg rounded border border-light"
             style={{
               width: '100%',
               height: SLIDERH,
@@ -90,7 +90,7 @@ class NumericRangeSlider extends React.PureComponent<NumericRangeSliderProps> {
             }}
           >
             <div 
-              className="slider--overlay-container rounded"
+              className="slider__overlay-container rounded"
             >
               {
                 [0, this.scale(lo), this.scale(hi), SLIDERW].map((d, i, arr) => {
@@ -98,7 +98,7 @@ class NumericRangeSlider extends React.PureComponent<NumericRangeSliderProps> {
                     return (
                       <div
                         key={i} // fixed array elements
-                        className={`slider--overlay slider--overlay__${(i === 1) === this.props.reversed ? 'incl' : 'excl'} rounded`}
+                        className={`slider__overlay slider__overlay--${(i === 1) === this.props.reversed ? 'incl' : 'excl'} rounded`}
                         style={{
                           width: arr[i+1] - d,
                           left: d,
@@ -114,7 +114,7 @@ class NumericRangeSlider extends React.PureComponent<NumericRangeSliderProps> {
           </div>
 
           <div
-            className="slider--handle slider--handle__left"
+            className="slider__handle slider__handle__left"
             style={{
               ...handleStyle,
               left: this.sliderX + this.scale(lo) - SLIDERHANDLESZIE / 2,
@@ -122,12 +122,12 @@ class NumericRangeSlider extends React.PureComponent<NumericRangeSliderProps> {
             }}
             onMouseDown={this.handleMouseDownLeft}
           >
-            <div className="slider--handle-label slider--handle-label__left">
+            <div className="slider__handle-label slider__handle-label--left">
               {Number(lo.toPrecision(3))}
             </div>
           </div>
           <div 
-            className="slider--handle slider--handle__right"
+            className="slider__handle slider__handle__right"
             style={{
               ...handleStyle,
               left: this.sliderX + this.scale(hi) - SLIDERHANDLESZIE / 2,
@@ -135,7 +135,7 @@ class NumericRangeSlider extends React.PureComponent<NumericRangeSliderProps> {
             }}
             onMouseDown={this.handleMouseDownRight}
           >
-            <div className="slider--handle-label slider--handle-label__right">
+            <div className="slider__handle-label slider__handle-label--right">
               {Number(hi.toPrecision(3))}
             </div>
           </div>

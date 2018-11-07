@@ -50,7 +50,7 @@ class FilterCard extends React.PureComponent<FilterCardProps, FilterCardState> {
   private renderHeader = () => {
     return (
       <div 
-        className='filter-card--header d-flex justify-content-between align-items-center p-1'
+        className='filter-card__header d-flex justify-content-between align-items-center p-1'
       >
           <div>
             <span className="pr-1">
@@ -88,10 +88,11 @@ class FilterCard extends React.PureComponent<FilterCardProps, FilterCardState> {
   }
   
   render() {
+    console.log('Filter card render');
     return (
       <div className="filter-card my-1 border border-light rounded">
         {this.renderHeader()}
-        <div className={this.state.expanded ? "filter-card--body p-1" : "d-none"}>
+        <div className={this.state.expanded ? "filter-card__body p-1" : "d-none"}>
           {this.props.children}
         </div>
       </div>

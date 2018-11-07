@@ -41,6 +41,8 @@ interface FiltersProps {
 
 class Filters extends React.PureComponent<FiltersProps> {
 
+  // TDOD: Prevent creating new objects as props
+
   private renderPanel(fid: number, filter: Filter) {
     if (filter instanceof StringFilter) {
       return (
@@ -140,6 +142,7 @@ class Filters extends React.PureComponent<FiltersProps> {
   };
 
   render() {
+    console.log('Filters panel render');
     return (
       <Panel
         heading="Filters"

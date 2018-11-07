@@ -81,8 +81,7 @@ class AttrTag extends React.PureComponent<AttrTagProps> {
       <div
         style={{ opacity: isDragging ? 0.5 : 1, flex: isCustom ? '0 0 180px' : undefined}}
         className={`attr__tag btn`
-          + ` btn-outline-${ type === 'number' ? 'info' : 'success'}`
-          + ` d-flex align-items-center p-1`} 
+          + ` btn-outline-${ type === 'number' ? 'info' : 'success'}`}
       >
         {name + (isCustom ? ' (custom) ' : '')}
       </div>
