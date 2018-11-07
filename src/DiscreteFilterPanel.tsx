@@ -30,15 +30,17 @@ class DiscreteFilterPanel extends React.PureComponent<DiscreteFilterPanelProps> 
     console.log('Discrete filter panel render');
     const {filter: {seed, reversed}} = this.props;
     return (
-      Array.from(this.props.values).map((value) => 
-        <DiscreteFilterItem
-          key={value}
-          value={value}
-          filtered={seed.has(value) !== reversed}
-          onToggleValue={this.onToggleValue}
-          reversed={reversed}
-        />
-      )
+      <div className="filter-card__discrete-panel">
+        {Array.from(this.props.values).map((value) => 
+          <DiscreteFilterItem
+            key={value}
+            value={value}
+            filtered={seed.has(value) !== reversed}
+            onToggleValue={this.onToggleValue}
+            reversed={reversed}
+          />
+        )}
+      </div>
     );
   }
 }

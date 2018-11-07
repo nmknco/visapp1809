@@ -193,7 +193,7 @@
 
 .filters__container {
   width: 100%;
-  max-height: 300px;
+  max-height: 320px;
   overflow-y: auto;
   overflow-x: hidden;
 }
@@ -215,6 +215,11 @@
 .filter-card__header {
   background-color: rgba(0, 0, 0, 0.02);
   height: 24px;
+}
+
+.filter-card__discrete-panel {
+  max-height: 180px;
+  overflow-y: auto;
 }
 
 .filter-card__discrete-item {
