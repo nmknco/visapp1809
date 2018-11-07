@@ -225,4 +225,4 @@ export type HandleInputChange = (
   value: string,
 ) => void;
 
-export type HandleSearchChange = HandleInputChange;
+export type HandleSearchInputChange = HandleInputChange;

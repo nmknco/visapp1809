@@ -4,12 +4,12 @@ import { Panel } from './Panel';
 
 import { 
   HandleInputChange,
-  HandleSearchChange,
+  HandleSearchInputChange,
 } from './commons/types';
 
 
 interface SearchProps {
-  readonly onSearchChange: HandleSearchChange,
+  readonly onSearchInputChange: HandleSearchInputChange,
   readonly resultsIdSet: ReadonlySet<number> | null,
   readonly shouldShowSelectButton: boolean,
   readonly onClickSelectSearchButton: () => void,
@@ -20,8 +20,8 @@ class Search extends React.PureComponent<SearchProps> {
     super(props);
   }
 
-  private handleSearchChange: HandleSearchChange = (keyword) => {
-    this.props.onSearchChange(keyword);
+  private handleSearchInputChange: HandleSearchInputChange = (keyword) => {
+    this.props.onSearchInputChange(keyword);
   }
 
   private renderResultText = (count: number) => {
@@ -39,13 +39,14 @@ class Search extends React.PureComponent<SearchProps> {
         <div>
           <div className="p-1">
             <Input 
-              onInputChange={this.handleSearchChange}
+              onInputChange={this.handleSearchInputChange}
             />
           </div>
           { (this.props.resultsIdSet) &&
           <div className="p-1 d-flex align-items-center">
             {this.renderResultText(this.props.resultsIdSet.size)}
-            {this.props.shouldShowSelectButton &&
+            {this.props.shouldShowSelectButton && 
+                this.props.resultsIdSet.size > 0 &&
               <button
                 className="btn btn-sm btn-outline-info ml-2"
                 type="button"

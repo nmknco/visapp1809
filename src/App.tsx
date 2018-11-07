@@ -34,7 +34,7 @@ import {
   HandleHoverRecommendedFilter,
   HandlePickColor,
   HandleRemoveFilter,
-  HandleSearchChange,
+  HandleSearchInputChange,
   HandleSetFilter,
   MinimapScaleMap,
   PlotConfig,
@@ -437,19 +437,25 @@ class App extends React.Component<AppProps, AppState> {
     this.setState(() => ({minimapScaleMap}));
   };
 
-  private handleSearchChange: HandleSearchChange = (keyword) => {
+  private handleSearchInputChange: HandleSearchInputChange = (keyword) => {
     this.updateSearchResult(keyword);
     this.selectSearchResult();
   };
 
   private updateSearchResult = (keyword?: string) => {
     // update with current keyword if not provided
-    const searchResultsIdSet = this.searcher.getSearchResultsIdSet(keyword);
+    const searchResultsIdSet = this.searcher.searchAndGetResultsIdSet(keyword);
     this.setState(() => ({ searchResultsIdSet })); 
   };
 
   private selectSearchResult = () => {
-    this.mp.selectByIds(this.state.searchResultsIdSet);
+    // Do not use the react component state: this is non-react-controlled
+    //  and takes effect outside render(), so state is not guaranteed to be updated
+    // Use the non-react state instead.
+    // Here's the ugly part: we have searchResultsIdSet in both the react
+    //    component state and the non-react Searcher state, as it is needed
+    //    in both rendering the react part and updating the non-react part (plot)
+    this.mp.selectByIds(this.searcher.getCurrentSearchResultsIdSet());
     this.setState(() => ({ isSearchResultSelected: true }));
   };
 
@@ -475,7 +481,7 @@ class App extends React.Component<AppProps, AppState> {
             activeEntry={this.state.activeEntry}
           />
           <Search
-            onSearchChange={this.handleSearchChange}
+            onSearchInputChange={this.handleSearchInputChange}
             resultsIdSet={this.state.searchResultsIdSet}
             shouldShowSelectButton={!this.state.isSearchResultSelected}
             onClickSelectSearchButton={this.handleClickSelectSearchButton}
