@@ -3,7 +3,7 @@ import { Selector } from './Selector';
 import { Resizer } from './Resizer';
 import { Dragger } from './Dragger';
 import { ActiveSelectionsWithRec } from './ActiveSelections';
-import { expandRange, SelUtil } from './util';
+import { expandRange, SelUtil } from './commons/util';
 import { CHARTCONFIG } from './commons/constants';
 
 const SVGATTR_BY_FIELD = {color: 'stroke', size: 'r'};

@@ -4,7 +4,7 @@ import { NumericRangeFilter } from './Filter';
 
 import { SLIDERH, SLIDERHANDLESZIE, SLIDERW } from './commons/constants';
 import { HandleSetFilter } from './commons/types';
-import { Pos, Rect, SelUtil } from './util';
+import { Pos, Rect, SelUtil } from './commons/util';
 
 
 interface NumericRangeFilterPanelProps {

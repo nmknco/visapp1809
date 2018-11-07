@@ -1,5 +1,5 @@
 import * as d3 from 'd3';
-import { ColorUtil, expandRange } from './util';
+import { ColorUtil, expandRange } from './commons/util';
 import { Classifier } from './Classifier';
 
 

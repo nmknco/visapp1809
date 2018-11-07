@@ -1,6 +1,7 @@
 // import * as d3 from 'd3';
 import { Filter } from '../Filter';
 import { FilterManager } from '../FilterManager';
+import { PlotConfigEntry } from '../PlotConfigEntry';
 
 export interface DataEntry {
   readonly __id_extra__: number,
@@ -10,15 +11,6 @@ export interface DataEntry {
 export type Data = Readonly<DataEntry[]>;
 
 export type AttrType = 'number' | 'string';
-
-export class Attribute {
-  readonly name: string;
-  readonly type: AttrType;
-  constructor(name: string, type: AttrType) {
-    this.name = name;
-    this.type = type;
-  }
-}
 
 export enum DraggableType {
   ATTRIBUTE = 'attribute',
@@ -69,15 +61,6 @@ export interface NumericRangeScale {
 
 export type StringRangeScale<Domain> = (val: Domain) => string;
 
-
-export class PlotConfigEntry {
-  readonly attribute: Attribute;
-  readonly useCustomScale?: boolean;
-  constructor(attribute: Attribute, useCustomScale: boolean = false) {
-    this.attribute = attribute;
-    this.useCustomScale = useCustomScale;
-  }
-}
 
 // Used as Readonly in props/states, but may be mutated in other context
 export interface PlotConfig {

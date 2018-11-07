@@ -1,20 +1,20 @@
 import * as d3 from 'd3'; 
 
-import { LIT, SAT } from './ColorPicker';
+import { LIT, SAT } from '../ColorPicker';
 
-import { Attribute } from './commons/types';
+import { Attribute } from '../Attributes';
 
 import { 
   InvalidHSLStringError,
   NoExtentError,
   NoMedianError,
-} from './commons/errors';
+} from './errors';
+import { memoizeLast } from './memoize';
 import {
   Data, 
   HSLColor,
   StringRangeScale,
-} from './commons/types';
-import { memoizeLast } from './memoize';
+} from './types';
 
 export class Pos {
   x: number;
@@ -256,6 +256,12 @@ export const expandRange = (extent: [number, number]) => {
   const len = hi - lo;
   return [lo - len * 0.05, hi + len * 0.05];
 };
+
+
+export const getDistinctValueCount = (data: Data, attrName: string) => {
+  return (new Set(data.map(d => d[attrName]))).size
+};
+
 
 const getAttributes = (data: Data) => {
   console.log('Recomputing attributes')

@@ -1,10 +1,10 @@
 import * as React from 'react';
 import { ConnectDragSource, DragSource, DragSourceConnector, DragSourceMonitor } from 'react-dnd';
 
+import { Attribute } from './Attribute';
 import { Panel } from './Panel';
 
 import {
-  Attribute,
   DataEntry,
   DraggableType,
   Field,

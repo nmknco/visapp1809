@@ -3,7 +3,7 @@ import * as React from 'react';
 import {
   HandleHoverDrop,
 } from './commons/types';
-import { getDropBackgroundColor } from './util';
+import { getDropBackgroundColor } from './commons/util';
 
 
 interface DropProps {

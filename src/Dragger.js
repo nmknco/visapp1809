@@ -1,7 +1,7 @@
 import * as d3 from 'd3';
 
 import { CHARTCONFIG } from './commons/constants';
-import { Pos } from './util';
+import { Pos } from './commons/util';
 
 class Dragger {
   constructor(plotter) {

@@ -2,7 +2,7 @@ import * as React from 'react';
 import { GithubPicker } from 'react-color';
 
 import { ColorPickerStyle, HandlePickColor } from './commons/types';
-import { ColorUtil } from './util';
+import { ColorUtil } from './commons/util';
 
 const HUES = [5, 35, 55, 110, 170, 200, 235, 275];
 const SAT = 0.9;

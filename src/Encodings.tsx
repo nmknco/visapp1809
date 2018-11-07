@@ -4,15 +4,15 @@ import { ConnectDropTarget, DropTarget, DropTargetConnector, DropTargetMonitor }
 import { AttrTag } from './Attributes';
 import { FAButton } from './FAButton';
 import { Panel } from './Panel';
+import { PlotConfigEntry } from './PlotConfigEntry';
 
 import { 
   DraggableType,
   Field,
   PlotConfig,
-  PlotConfigEntry,
   SetPlotConfig,
 } from './commons/types';
-import { getDropBackgroundColor } from './util';
+import { getDropBackgroundColor } from './commons/util';
 
 const DISPLAYNAME = {
   [Field.X]: 'X axis',

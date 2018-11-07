@@ -5,7 +5,7 @@ import {
   HandlePendingSelectionChange,
   HandleSelectionChange,
 } from './commons/types';
-import { Pos, Rect, SelUtil } from './util';
+import { Pos, Rect, SelUtil } from './commons/util';
 
 
 class Selector {

@@ -1,4 +1,4 @@
-import { Pos, SelUtil } from './util';
+import { Pos, SelUtil } from './commons/util';
 
 class Resizer {
   constructor(chartBoxNode, onResizing) {

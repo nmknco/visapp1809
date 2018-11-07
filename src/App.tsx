@@ -9,14 +9,15 @@ import { RecommendedEncodings } from './RecommendedEncodings';
 import { RecommendedFilters } from './RecommendedFilters';
 import { Search } from './Search';
 
+import { Attribute } from './Attribute';
 import { FilterList, RecommendedFilter } from './Filter';
 import { FilterManager } from './FilterManager';
+import { PlotConfigEntry } from './PlotConfigEntry'
 import { MainPlotter } from './Plotter';
 import { Searcher } from './Searcher';
 
 import { FILTER_PANEL_WIDTH } from './commons/constants';
 import {
-  Attribute,
   ColorPickerStyle, 
   Data,
   DataEntry,
@@ -38,14 +39,13 @@ import {
   HandleSetFilter,
   MinimapScaleMap,
   PlotConfig,
-  PlotConfigEntry,
   PointState,
   PointStateGetter,
   RecommendedEncoding,
   SetPlotConfig,
   VField,
 } from './commons/types';
-import { ColorUtil, memoizedGetAttributes } from './util';
+import { ColorUtil, memoizedGetAttributes } from './commons/util';
 
 
 interface AppProps {

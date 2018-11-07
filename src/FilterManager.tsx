@@ -1,5 +1,6 @@
 import * as d3 from 'd3';
 
+import { Attribute } from './Attribute';
 import { Classifier } from './Classifier';
 import {
   Filter,
@@ -12,7 +13,6 @@ import {
 
 import { FilterIdError } from './commons/errors';
 import {
-  Attribute,
   Data,
   DataEntry,
   HandleFilterListChange,

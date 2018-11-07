@@ -22,7 +22,7 @@ import {
   HandleSetFilter,
   MinimapScaleMap,
 } from './commons/types';
-import { getDropBackgroundColor } from './util';
+import { getDropBackgroundColor } from './commons/util';
 
 
 interface FiltersProps {
