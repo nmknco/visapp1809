@@ -126,8 +126,9 @@ class App extends React.Component<AppProps, AppState> {
     if (!this.props.data.length) {
       return
     };
-    const attrs = memoizedGetAttributes(this.props.data);
-    attrs.sort((a1: Attribute, a2: Attribute) => {
+    const attrs = [
+      ...memoizedGetAttributes(this.props.data)
+    ].sort((a1: Attribute, a2: Attribute) => {
       if (a1.type === a2.type || (a1.type !== 'number' && a2.type !== 'number')) {
         return -a1.name.localeCompare(a2.name)
       } else {
