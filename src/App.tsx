@@ -77,6 +77,8 @@ interface AppState {
   
   readonly searchResultsIdSet: ReadonlySet<number> | null, // null for empty keyword
   readonly isSearchResultSelected: boolean;
+
+  readonly shouldHideCustomAttrTag: Readonly<{[VField.COLOR]: boolean, [VField.SIZE]: boolean}>,
 }
 
 class App extends React.PureComponent<AppProps, AppState> {
@@ -107,6 +109,7 @@ class App extends React.PureComponent<AppProps, AppState> {
       recommendedEncodings: [],
       searchResultsIdSet: null,
       isSearchResultSelected: false,
+      shouldHideCustomAttrTag: {[VField.COLOR]: false, [VField.SIZE]: false}
     }
   }
 
@@ -265,15 +268,27 @@ class App extends React.PureComponent<AppProps, AppState> {
 
   private handleAcceptRecommendeedEncoding: HandleAcceptRecommendedEncoding = (field, attrName) => {
     this.mp.clearSelection();
-
+    this.setPlotConfig(
+      field, 
+      new PlotConfigEntry(new Attribute(attrName, 'number'), true)
+    );
+    this.hideCustomAttrTag(field, true);
+    
     DragAnimator.showDragAttrTagAnimation(
       field,
       attrName,
-    ).then(() => this.setPlotConfig(
-      field, 
-      new PlotConfigEntry(new Attribute(attrName, 'number'), true)
-    ));
+    ).then(
+      () => this.hideCustomAttrTag(field, false)
+    );
   };
+
+  private hideCustomAttrTag = (field: VField, shouldHide: boolean) => {
+    this.setState((prevState) => {
+      const shouldHideCustomAttrTag = { ...prevState.shouldHideCustomAttrTag };
+      shouldHideCustomAttrTag[field] = shouldHide;
+      return {shouldHideCustomAttrTag};
+    });
+  }
 
   private handleHoverRecommendedEncoding: HandleHoverRecommendedEncoding = (ev, field, attrName) => {
     if (!this.state.isDraggingPoints) {
@@ -514,6 +529,7 @@ class App extends React.PureComponent<AppProps, AppState> {
           <Encodings 
             setPlotConfig={this.setPlotConfig}
             plotConfig={this.state.plotConfig}
+            shouldHideCustomAttrTag={this.state.shouldHideCustomAttrTag}
           />
           <div ref={this.d3ContainerRef} className="main-plot-container">
             <div style={{height: 0}}>

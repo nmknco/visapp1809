@@ -11,6 +11,7 @@ import {
   Field,
   PlotConfig,
   SetPlotConfig,
+  VField,
 } from './commons/types';
 import { getDropBackgroundColor } from './commons/util';
 
@@ -24,24 +25,27 @@ const DISPLAYNAME = {
 interface EncodingsProps {
   readonly setPlotConfig: SetPlotConfig,
   readonly plotConfig: PlotConfig,
+  readonly shouldHideCustomAttrTag: Readonly<{[VField.COLOR]: boolean, [VField.SIZE]: boolean}>,
 }
 
 class Encodings extends React.PureComponent<EncodingsProps> {
+
   render() {
     console.log('Encodings panel render')
-    const { setPlotConfig, plotConfig } = this.props;
+    const { setPlotConfig, plotConfig, shouldHideCustomAttrTag } = this.props;
     return (
       <Panel 
         className="encoding_panel"
         heading="Encodings"
       >
         <div className="card-body d-flex flex-wrap p-0">
-          {Object.values(Field).map(field =>
+          {Object.values(Field).map((field: Field) =>
             <DroppableEncodingField
               key={field}
               field={field}
               plotConfigEntry={plotConfig[field]}
               setPlotConfig={setPlotConfig}
+              shouldHideTag={shouldHideCustomAttrTag[field]}
             />
           )}
         </div>
@@ -90,6 +94,7 @@ interface EncodingFieldProps {
   readonly field: Field,
   readonly setPlotConfig: SetPlotConfig,
   readonly plotConfigEntry?: PlotConfigEntry,
+  readonly shouldHideTag: boolean,
   readonly connectDropTarget?: ConnectDropTarget,
   readonly isOver?: boolean,
   readonly canDrop?: boolean,
@@ -104,10 +109,11 @@ class EncodingField extends React.PureComponent<EncodingFieldProps> {
     () => this.props.setPlotConfig(this.props.field, undefined);
 
   renderContent = () => {
-    const { plotConfigEntry, field } = this.props;
+    const { plotConfigEntry, field, shouldHideTag } = this.props;
     if (plotConfigEntry) {
       const {attribute, useCustomScale} = plotConfigEntry
       return (
+        !shouldHideTag &&
         <div className="d-flex justify-content-between align-items-center" style={{width: '100%'}}>
           <DraggableAttrTag
             attribute={attribute}

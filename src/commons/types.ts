@@ -134,7 +134,7 @@ export type HandleAcceptRecommendedEncoding = (
 ) => void;
 
 export type HandleDismissRecommendedEncoding = (
-  filed: VField,
+  field: VField,
   attrName: string,
 ) => void;
 

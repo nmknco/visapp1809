@@ -55,7 +55,7 @@ class DragAnimator {
 
     setTimeout(() => {
       const genFrame = () => {
-        console.log(currentPos.distTo(end))
+        // console.log(currentPos.distTo(end));
         if (currentPos.distTo(end) < threshold) {
           clearInterval(anim);
           setTimeout(() => {
