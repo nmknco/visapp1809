@@ -74,7 +74,6 @@ interface AppState {
   readonly hasActiveSelection: Readonly<{[VField.COLOR]: boolean, [VField.SIZE]: boolean}>,
   readonly recommendedEncodings: ReadonlyArray<RecommendedEncoding>,
   
-  // readonly searchKeyword: string,
   readonly searchResultsIdSet: ReadonlySet<number> | null, // null for empty keyword
   readonly isSearchResultSelected: boolean;
 }

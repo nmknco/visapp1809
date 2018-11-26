@@ -65,6 +65,10 @@ class NumericRangeSlider extends React.PureComponent<NumericRangeSliderProps> {
     this.setUpDragListeners();
   }
 
+  componentWillUnmount() {
+    this.cleanUpDragListeners();
+  }
+
   render() {
     const [lo, hi] = this.props.range;
     
@@ -216,6 +220,7 @@ class NumericRangeSlider extends React.PureComponent<NumericRangeSliderProps> {
   };
 
   private handleMouseUp = (ev: MouseEvent) => {
+    console.log('mouseup event for filter - this should be cleaned up')
     if (this.isSliding) {
       this.initializeStates();
     }
@@ -226,7 +231,10 @@ class NumericRangeSlider extends React.PureComponent<NumericRangeSliderProps> {
     document.addEventListener('mouseup', this.handleMouseUp);
   };
 
-  // private resetDragListeners = () => {}
+  private cleanUpDragListeners = () => {
+    document.removeEventListener('mousemove', this.handleMouseMove);
+    document.removeEventListener('mouseup', this.handleMouseUp);
+  }
 
 }
 
