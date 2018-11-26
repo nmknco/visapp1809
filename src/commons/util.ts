@@ -14,8 +14,8 @@ import {
 } from './types';
 
 export class Pos {
-  x: number;
-  y: number;
+  readonly x: number;
+  readonly y: number;
   
   constructor(x: number, y: number) {
     this.x = x;

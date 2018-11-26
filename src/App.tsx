@@ -10,6 +10,7 @@ import { RecommendedFilters } from './RecommendedFilters';
 import { Search } from './Search';
 
 import { Attribute } from './Attribute';
+import { DragAnimator } from './DragAnimator';
 import { FilterList, RecommendedFilter } from './Filter';
 import { FilterManager } from './FilterManager';
 import { PlotConfigEntry } from './PlotConfigEntry'
@@ -264,10 +265,14 @@ class App extends React.PureComponent<AppProps, AppState> {
 
   private handleAcceptRecommendeedEncoding: HandleAcceptRecommendedEncoding = (field, attrName) => {
     this.mp.clearSelection();
-    this.setPlotConfig(
+
+    DragAnimator.showDragAttrTagAnimation(
+      field,
+      attrName,
+    ).then(() => this.setPlotConfig(
       field, 
       new PlotConfigEntry(new Attribute(attrName, 'number'), true)
-    );
+    ));
   };
 
   private handleHoverRecommendedEncoding: HandleHoverRecommendedEncoding = (ev, field, attrName) => {
@@ -479,15 +484,15 @@ class App extends React.PureComponent<AppProps, AppState> {
           className="left-panel"
         >
           <FileSelector />
-          <Attributes 
-            attributes={memoizedGetAttributes(this.props.data)}  
-            activeEntry={this.state.activeEntry}
-          />
           <Search
             onSearchInputChange={this.handleSearchInputChange}
             resultsIdSet={this.state.searchResultsIdSet}
             shouldShowSelectButton={!this.state.isSearchResultSelected}
             onClickSelectSearchButton={this.handleClickSelectSearchButton}
+          />
+          <Attributes 
+            attributes={memoizedGetAttributes(this.props.data)}  
+            activeEntry={this.state.activeEntry}
           />
           <Filters
             data={this.props.data}
@@ -566,6 +571,7 @@ class App extends React.PureComponent<AppProps, AppState> {
             );
           })}
         </div>
+        <div className="drag-animation-container"/>
       </div>
     )
   }

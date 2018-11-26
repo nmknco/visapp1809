@@ -44,11 +44,33 @@ class Attributes extends React.PureComponent<AttributesProps> {
   }
 }
 
-interface AttrSourceProps {
+interface AttrTagProps {
   readonly attribute: Attribute,
-  readonly field?: Field,
   readonly isCustom?: boolean,
 }
+
+class AttrTag extends React.PureComponent<AttrTagProps> {
+  // AttrTag is a representational component
+  // AttrTag knows some extra info that Attribute does not: 
+  //  (1) if it's using custom color/size scale (from recommendation)
+  render() {
+    const { attribute: {name, type}, isCustom } = this.props;
+    return (
+      <div
+        style={{width: isCustom ? 180 : 120 }}
+        className={`attr__tag btn`
+          + ` btn-outline-${ type === 'number' ? 'info' : 'success'}`}
+        id={'attr-' + name}
+      >
+        {name + (isCustom ? ' (custom) ' : '')}
+      </div>
+    );
+  }
+}
+
+interface AttrSourceProps extends AttrTagProps {
+  readonly field?: Field,
+} 
 
 const attrSource = {
   beginDrag(props: AttrSourceProps) {
@@ -65,30 +87,31 @@ const collect = (connect: DragSourceConnector, monitor: DragSourceMonitor) => ({
   isDragging: monitor.isDragging(),
 });
 
-interface AttrTagProps extends AttrSourceProps {
+interface DraggableAttrTagProps extends AttrSourceProps {
   connectDragSource?: ConnectDragSource,
   isDragging?: boolean,
 }
 
-class AttrTag extends React.PureComponent<AttrTagProps> {
-  // AttrTag knows some extra info that Attribute does not: 
-  //  (1) if it's in an encoding field (for drag-swapping)
-  //  (2) if it's using custom color/size scale (from recommendation)
+class DraggableAttrTagBare extends React.PureComponent<DraggableAttrTagProps> {
+  // this component knows additional info that Attribute and AttrTag does not: 
+  //  (2) if it's in an encoding field (for drag-swapping)
   render() {
     console.log('Attribute tags render')
-    const { connectDragSource, isDragging, attribute: {name, type}, isCustom } = this.props;
+    const { connectDragSource, isDragging, attribute, isCustom } = this.props;
     return connectDragSource!(
       <div
-        style={{ opacity: isDragging ? 0.5 : 1, flex: isCustom ? '0 0 180px' : undefined}}
-        className={`attr__tag btn`
-          + ` btn-outline-${ type === 'number' ? 'info' : 'success'}`}
+        style={{
+          opacity: isDragging ? 0.5 : 1,
+        }}
       >
-        {name + (isCustom ? ' (custom) ' : '')}
+        <AttrTag
+          {...{attribute, isCustom}}
+        />
       </div>
     );
   }
 }
 
-const DraggableAttrTag = DragSource(DraggableType.ATTRIBUTE, attrSource, collect)(AttrTag)
+const DraggableAttrTag = DragSource(DraggableType.ATTRIBUTE, attrSource, collect)(DraggableAttrTagBare)
 
-export { Attribute, Attributes, DraggableAttrTag as AttrTag};
+export { Attribute, Attributes, AttrTag, DraggableAttrTag};

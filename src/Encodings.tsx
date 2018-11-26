@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { ConnectDropTarget, DropTarget, DropTargetConnector, DropTargetMonitor } from 'react-dnd';
 
-import { AttrTag } from './Attributes';
+import { DraggableAttrTag } from './Attributes';
 import { FAButton } from './FAButton';
 import { Panel } from './Panel';
 import { PlotConfigEntry } from './PlotConfigEntry';
@@ -109,7 +109,11 @@ class EncodingField extends React.PureComponent<EncodingFieldProps> {
       const {attribute, useCustomScale} = plotConfigEntry
       return (
         <div className="d-flex justify-content-between align-items-center" style={{width: '100%'}}>
-          <AttrTag attribute={attribute} field={field} isCustom={useCustomScale} />
+          <DraggableAttrTag
+            attribute={attribute}
+            field={field}
+            isCustom={useCustomScale}
+          />
           <FAButton
             faName="times"
             onClick={this.removeAttribute}
@@ -133,7 +137,8 @@ class EncodingField extends React.PureComponent<EncodingFieldProps> {
         <div className="encode-field__header border border-light rounded-left d-flex align-items-center justify-content-end px-2 bg-secondary text-white">
           {DISPLAYNAME[field]}
         </div>
-        <div 
+        <div
+          id={'encoding-' + field}
           className="encode-field__content border border-light rounded-right d-flex align-items-center px-1 text-muted"
           style={{ backgroundColor: getDropBackgroundColor(isOver, canDrop) }}
         >

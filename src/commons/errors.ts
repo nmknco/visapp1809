@@ -36,3 +36,10 @@ export class FilterIdError extends CustomError {
     this.name = 'FilterIdError';
   }
 }
+
+export class ElementNotFoundError extends CustomError {
+  constructor(message?: string) {
+    super(message || 'Cannot find the html element');
+    this.name = 'ElementNotFoundError';
+  }
+}
