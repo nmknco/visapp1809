@@ -272,8 +272,9 @@ class App extends React.PureComponent<AppProps, AppState> {
       field, 
       new PlotConfigEntry(new Attribute(attrName, 'number'), true)
     );
+
+    // Drag Animation
     this.hideCustomAttrTag(field, true);
-    
     DragAnimator.showDragAttrTagAnimation(
       field,
       attrName,
@@ -365,6 +366,11 @@ class App extends React.PureComponent<AppProps, AppState> {
     this.cleanUpFilteredPoints(filteredIds);
     // Update search using current keyword
     this.updateSearchResult();
+
+    // Show drag animations
+    DragAnimator.showDragFilteredPointsAnimation(
+      fm.getNewFilteredIds()
+    ).then(() => console.log('finished!'));
   };
 
   private handleAcceptRecommendedFilter: HandleAcceptRecommendedFilter = (filter) => {

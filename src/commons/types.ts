@@ -209,3 +209,9 @@ export type HandleInputChange = (
 ) => void;
 
 export type HandleSearchInputChange = HandleInputChange;
+
+export interface AnimationConfig {
+  readonly dragSpeed: number,
+  readonly startDelay: number,
+  readonly endDelay: number,
+}

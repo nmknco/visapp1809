@@ -28,15 +28,18 @@ class FilterManager {
   private readonly onFilterListChange?: HandleFilterListChange;
   private readonly filterList: FilterList;
   private readonly filterCntByPoint: number[];
+  private newFilteredIds: number[];
 
   private fidCounter: number;
 
   constructor(data: Data, onFilterListChange?: HandleFilterListChange) {
     this.data = data;
     this.onFilterListChange = onFilterListChange;
+    
     this.filterList = [];
     this.filterCntByPoint = (new Array(data.length)).fill(0);
     this.fidCounter = 0;
+    this.newFilteredIds = [];
   }
 
   getFilterListCopy = () => [...this.filterList];
@@ -46,6 +49,8 @@ class FilterManager {
   );
   getIsFiltered = (id: number) => this.filterCntByPoint[id] > 0;
 
+  getNewFilteredIds = () => this.newFilteredIds;
+
 
   addFilter = (filter: Filter): this => {
     filter = this.convertToDiscreteIfNecessary(filter);
@@ -54,6 +59,7 @@ class FilterManager {
       filter,
     });
     this.countFilter(filter);
+    this.updateNewFilteredIds(filter);
     if (this.onFilterListChange) {
       this.onFilterListChange(this);
     }
@@ -69,6 +75,7 @@ class FilterManager {
     entry.filter = filter;
     this.countFilter(oldFilter, -1);
     this.countFilter(filter);
+    this.updateNewFilteredIds(filter, oldFilter);
     if (this.onFilterListChange) {
       this.onFilterListChange(this);
     }
@@ -83,6 +90,7 @@ class FilterManager {
     const oldFilter = this.filterList[iToRemove].filter;
     this.filterList.splice(iToRemove, 1);
     this.countFilter(oldFilter, -1);
+    this.newFilteredIds = [];
     if (this.onFilterListChange) {
       this.onFilterListChange(this);
     }
@@ -115,6 +123,12 @@ class FilterManager {
         this.filterCntByPoint[d.__id_extra__] += delta;
       }
     }
+  };
+
+  private updateNewFilteredIds = (newFilter: Filter, oldFilter?: Filter) => {
+    this.newFilteredIds = this.data.filter(d => 
+      newFilter.filterFn(d) && (!oldFilter || !oldFilter.filterFn(d))
+    ).map(d => d.__id_extra__);
   };
 
   private getPointState = (

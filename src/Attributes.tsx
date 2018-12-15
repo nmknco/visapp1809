@@ -18,7 +18,7 @@ interface AttributesProps {
 
 class Attributes extends React.PureComponent<AttributesProps> {
   render() {
-    console.log('Attributes panel render');
+    // console.log('Attributes panel render');
     return (
       <Panel 
         className="attributes-panel"

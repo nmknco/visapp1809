@@ -69,6 +69,7 @@ class MainPlotter {
       .append('svg')
       .attr('width', svgW)
       .attr('height', svgH)
+      .attr('id', 'main-plot')
       .on('mousedown', this._closeColorPicker);
     const chart = canvas.append('g')
       .attr('transform', `translate(${l}, ${t})`);
@@ -178,6 +179,7 @@ class MainPlotter {
       .append('g')
       .classed('dot', true)
       .classed('normal', true)
+      .attr('id', d => `point-${d.__id_extra__}`)
       .on('click', d => {
         // console.log('click!');
         const id = d.__id_extra__
@@ -364,7 +366,8 @@ class MainPlotter {
   };
 
   highlightDots = (idFilter) => {
-    d3.selectAll('.dot')
+    d3.select('#main-plot')
+      .selectAll('.dot')
       .classed('selected', d => idFilter(d.__id_extra__));
   };
 

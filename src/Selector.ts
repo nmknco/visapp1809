@@ -77,7 +77,8 @@ class Selector {
         }
 
 
-        d3.selectAll('.dot:not(.hidden)') // prevent selecting filtered-out points
+        d3.select('#main-plot')
+          .selectAll('.dot:not(.hidden)') // prevent selecting filtered-out points
           .each(function(d: DataEntry) {
           // Not using arrow func to void `this` binding
           // d3 convention is that the node itself is `this`

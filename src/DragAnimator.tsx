@@ -5,24 +5,28 @@ import { Attribute } from './Attribute';
 import { AttrTag } from './Attributes';
 
 import { ElementNotFoundError } from './commons/errors';
-import { VField } from './commons/types';
+import { 
+  AnimationConfig,
+  VField,
+} from './commons/types';
 import { Pos } from './commons/util';
 
 const FRAME_INTV = 10;
-const DRAGSPEED = 500;
-const START_DELAY = 1000;
-const END_DELAY = 1000;
-
-const threshold = (FRAME_INTV / 1000) * DRAGSPEED
 
 class DragAnimator {
-
+  
   static showDragAnimation = (
     element: HTMLElement,
     start: Pos,
     end: Pos,
+    animationConfig: AnimationConfig,
+    showPointer: boolean,
   ) => new Promise((resolve, reject) => {
     console.log('creating dragging animation');
+    
+    const {dragSpeed, startDelay, endDelay} = animationConfig;
+    const threshold = (FRAME_INTV / 1000) * dragSpeed;
+
     const dragContainer = document.querySelector('.drag-animation-container')!;
     dragContainer.appendChild(element);
     element.style.position = 'absolute';
@@ -38,45 +42,50 @@ class DragAnimator {
     setPosition(element, currentPos);
     let t = 0;
 
-    const pointer = document.createElement('i');
-    pointer.className = 'far fa-hand-paper';
-    Object.assign(pointer.style, {
-      position: 'absolute',
-      left: '20px',
-      top: '20px',
-    });
-    // const handGrab = document.createElement('i');
-    // handGrab.className = 'far fa-hand-rock';
-    element.appendChild(pointer);
-    
-    setTimeout(() => {
-      pointer.className = 'far fa-hand-rock';
-    }, START_DELAY / 2);
+    let pointer: HTMLElement;
+    if (showPointer) {
+      pointer = document.createElement('i');
+      pointer.className = 'far fa-hand-paper';
+      Object.assign(pointer.style, {
+        position: 'absolute',
+        left: '20px',
+        top: '20px',
+      });
+      // const handGrab = document.createElement('i');
+      // handGrab.className = 'far fa-hand-rock';
+      element.appendChild(pointer);
+      
+      setTimeout(() => {
+        pointer.className = 'far fa-hand-rock';
+      }, startDelay / 2);
+    }
 
     setTimeout(() => {
       const genFrame = () => {
         // console.log(currentPos.distTo(end));
         if (currentPos.distTo(end) < threshold) {
           clearInterval(anim);
-          setTimeout(() => {
-            pointer.className = 'far fa-hand-paper';
-          }, END_DELAY / 2);
+          if (showPointer) {
+            setTimeout(() => {
+              pointer.className = 'far fa-hand-paper';
+            }, endDelay / 2);
+          }
           setTimeout(() => {
             dragContainer.removeChild(element);
             resolve();
-          }, END_DELAY);
+          }, endDelay);
         } else {
           t += FRAME_INTV;
           // console.log(currentPos.x, currentPos.y)
           currentPos = new Pos(
-            x0 + xRate * (t / 1000) * DRAGSPEED,
-            y0 + yRate * (t / 1000) * DRAGSPEED,
+            x0 + xRate * (t / 1000) * dragSpeed,
+            y0 + yRate * (t / 1000) * dragSpeed,
           );
           setPosition(element, currentPos);
         }
       };
       const anim = setInterval(genFrame, FRAME_INTV);
-    }, START_DELAY);
+    }, startDelay);
   });
 
   static showDragAttrTagAnimation = (
@@ -85,15 +94,6 @@ class DragAnimator {
   ) => {
     console.log('creating dragging attribute tag animation');
 
-    const originalEl: HTMLElement | null = document.querySelector('#attr-' + attrName);
-    const destEl: HTMLElement | null = document.querySelector('#encoding-' + field);
-    if (!originalEl || !destEl) {
-      throw new ElementNotFoundError('Cannot find origin or destination element for dragging animation.');
-    }
-    const start = getPos(originalEl);
-    const end = getPos(destEl);
-    const endPadded = new Pos(end.x + 5, end.y + 5);
-    
     const dragged = document.createElement('div');
     ReactDOM.render(
       <AttrTag 
@@ -102,7 +102,63 @@ class DragAnimator {
       dragged,
     );
 
-    return DragAnimator.showDragAnimation(dragged, start, endPadded);
+    const start = getPosBySelector('#attr-' + attrName);
+    const end = getPosBySelector('#encoding-' + field);
+    const endPadded = new Pos(end.x + 5, end.y + 5);
+    const animConfig = {
+      dragSpeed: 500,
+      startDelay: 1000,
+      endDelay: 1000,
+    }
+
+    return DragAnimator.showDragAnimation(dragged, start, endPadded, animConfig, true);
+  };
+
+  static showDragFilteredPointsAnimation = (
+    filteredIds: number[],
+  ) => {
+    // console.log('creating drag animation for filtered points');
+    // console.log(filteredIds);
+    
+    
+
+    const containerSize = 20;
+
+    const animationPromises: Array<Promise<{}>> = [];
+    for (const id of filteredIds) {
+      
+
+      const point: HTMLElement | null = document.querySelector('#point-' + id);
+      if (!point) {
+        throw new ElementNotFoundError(`Cannot find point`);
+      }
+      const pointCopy = point.cloneNode(true) as HTMLElement;
+      pointCopy.id += '-copy';
+      pointCopy.classList.remove('hidden');
+      pointCopy.setAttribute('transform', `translate(${containerSize/2}, ${containerSize/2})`);
+
+      const pointCopyDiv = document.createElement('div');
+      const pointCopySvg = document.createElementNS(
+        'http://www.w3.org/2000/svg', 'svg');
+      pointCopySvg.setAttribute('width', containerSize + 'px');
+      pointCopySvg.setAttribute('height', containerSize + 'px');
+      pointCopySvg.appendChild(pointCopy);
+      pointCopyDiv.appendChild(pointCopySvg);
+      
+      const start = getPosBySelector('#point-' + id);
+      const end = new Pos(200, 500);
+      const animConfig = {
+        dragSpeed: 1200,
+        startDelay: 0,
+        endDelay: 0,
+      }
+
+      animationPromises.push(
+        DragAnimator.showDragAnimation(pointCopyDiv, start, end, animConfig, false)
+      );
+    }
+
+    return Promise.all(animationPromises);
   };
 
 }
@@ -123,6 +179,14 @@ const getPos = (element: HTMLElement) => {
     rect.left + scrollLeft,
     rect.top + scrollTop,
   );
+}
+
+const getPosBySelector = (selector: string) => {
+  const el: HTMLElement | null = document.querySelector(selector);
+  if (!el) {
+    throw new ElementNotFoundError(`Cannot find element "${selector}"`);
+  }
+  return getPos(el);
 }
 
 export { DragAnimator };
