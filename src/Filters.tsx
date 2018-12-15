@@ -5,7 +5,7 @@ import { DiscreteFilterPanel } from './DiscreteFilterPanel';
 import { Drop } from './Drop';
 import { DiscreteFilter, Filter, FilterList, IdFilter, NumericRangeFilter } from './Filter';
 import { FilterCard } from './FilterCard';
-import { Minimap } from './Minimap';
+import { Minimap, PointFilterMinimap } from './Minimap';
 import { NumericRangeFilterPanel } from './NumericRangeFilterPanel';
 import { Panel } from './Panel';
 
@@ -26,7 +26,8 @@ import { getDropBackgroundColor } from './commons/util';
 
 interface FiltersProps {
   readonly data: Data,
-  readonly filterList: Readonly<FilterList>
+  readonly filterList: Readonly<FilterList>,
+  readonly filteredIds: ReadonlySet<number>,
   readonly onAddFilter: HandleAddFilter,
   readonly onSetFilter: HandleSetFilter,
   readonly onRemoveFilter: HandleRemoveFilter,
@@ -43,7 +44,7 @@ class Filters extends React.PureComponent<FiltersProps> {
 
   // TDOD: Prevent creating new objects as props
 
-  private renderPanel(fid: number, filter: Filter) {
+  private renderValueFilterPanel(fid: number, filter: Filter) {
     if (filter instanceof DiscreteFilter) {
       return (
         <DiscreteFilterPanel
@@ -65,19 +66,40 @@ class Filters extends React.PureComponent<FiltersProps> {
     }
   };
 
-  private renderMinimaps = (idFilterList: FilterList) => (
+  private renderValueFilterPanels = (valueFilterList: FilterList) => (
+    <div>
+      {valueFilterList.length > 0 && 
+        <div className="p-1">Value filters: </div>
+      }
+      <div className="filters__filterlist filters__filterlist--value">
+        {valueFilterList.map(({fid, filter}) =>
+          <FilterCard
+            key={fid}
+            { ...{fid, filter}}
+            onSetFilter={this.props.onSetFilter}
+            onRemoveFilter={this.props.onRemoveFilter}
+            onHoverFilter={this.props.onHoverFilter}
+          >
+            {this.renderValueFilterPanel(fid, filter)}
+          </FilterCard>
+        )}
+      </div>
+    </div>
+  )
+
+  private renderIdFilterMinimaps = (idFilterList: FilterList) => (
     <div>
       {idFilterList.length > 0 && 
-        <div className="p-1">Filtered points: </div>
+        <div className="p-1">Custom point-filters: </div>
       }
-      <div className="idfilter-container d-flex flex-wrap">
+      <div className="filters__filterlist filters__filterlist--id d-flex flex-wrap">
         {
           idFilterList.map(({fid, filter}) => 
-            <Minimap
+            <PointFilterMinimap
               key={fid}
+              data={this.props.data}
               fid={fid}
               filter={filter}
-              data={this.props.data}
               onRemove={this.props.onRemoveFilter}
               onHover={this.props.onHoverFilter}
               scales={this.props.minimapScaleMap}
@@ -90,32 +112,34 @@ class Filters extends React.PureComponent<FiltersProps> {
     </div>
   );
 
+  private renderFilteredPointsMinimap = (filteredIds: ReadonlySet<number>) => (
+    <div className="flex">
+      <div id="filtered-point-minimap" className="d-flex justify-content-center">
+        <Minimap
+          filteredData={this.props.data.filter(d => this.props.filteredIds.has(d.__id_extra__))}
+          scales={this.props.minimapScaleMap}
+          xAttrName={this.props.xAttrName}
+          yAttrName={this.props.yAttrName}
+        />
+      </div>
+    </div>
+  );
+
   private renderContent = () => {
     const idFilterList = this.props.filterList.filter(d => (d.filter instanceof IdFilter))
     const valueFilterList = this.props.filterList.filter(d => !(d.filter instanceof IdFilter))
-    
+
     return (
       <div className="filters__container">
         <div className="filters__container-inner p-1">
-          <div className="mx-3 pb-1 border-bottom text-center">
-            Drag points or attributes here to filter
+          <div className="d-flex align-items-center mx-3 pb-1 border-bottom">
+            {this.renderFilteredPointsMinimap(this.props.filteredIds)}
+            <div className="text-center p-2">Drag points or attributes here to filter</div>
           </div>
 
-          {this.renderMinimaps(idFilterList)}
-
-          <div className="filter-list">
-            {valueFilterList.map(({fid, filter}) =>
-              <FilterCard
-                key={fid}
-                { ...{fid, filter}}
-                onSetFilter={this.props.onSetFilter}
-                onRemoveFilter={this.props.onRemoveFilter}
-                onHoverFilter={this.props.onHoverFilter}
-              >
-                {this.renderPanel(fid, filter)}
-              </FilterCard>
-            )}
-          </div>
+          {this.renderIdFilterMinimaps(idFilterList)}
+          {this.renderValueFilterPanels(valueFilterList)}
+          
         </div>
       </div>
     );

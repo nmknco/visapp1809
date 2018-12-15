@@ -196,20 +196,27 @@
 
 .filters__container {
   width: 100%;
-  max-height: 320px;
-  overflow-y: auto;
+  overflow-y: hidden;
   overflow-x: hidden;
 }
 
 .filters__container-inner {
-  width: 264px; /* leave soem space for scroll bar */
+  width: 100%;
 }
 
-.idfilter-container {
-  width: 100%;
+.filters__filterlist {
   overflow-y: auto;
   overflow-x: hidden;
 }
+
+.filters__filterlist--value {
+  max-height: 200px;
+}
+
+.filters__filterlist--id {
+  max-height: 100px;
+}
+
 
 .filter-card {
   width: 256px;

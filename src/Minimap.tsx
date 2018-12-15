@@ -16,42 +16,31 @@ import {
 } from './commons/types';
 import { FAButton } from './FAButton';
 
-interface MinimapProps {
-  readonly fid: number,
-  readonly filter: Filter,
-  
-  // passing data instead of filtered ones to avoid unnecessary rerender
-  readonly data: Data,
- 
-  readonly onRemove: HandleRemoveFilter,
-  readonly onHover: HandleHoverFilter,
+interface MinimapPropsWithoutFilteredData {
   readonly scales: Readonly<MinimapScaleMap>,
   readonly xAttrName?: string,
   readonly yAttrName?: string,
   readonly dimension?: number,
   readonly isPreview?: boolean,
+  readonly overlay?: JSX.Element,
+}
+
+interface MinimapProps extends MinimapPropsWithoutFilteredData {
+  readonly filteredData: Data,
 }
 
 class Minimap extends React.PureComponent<MinimapProps> {
-
-  private handleRemove = () =>
-    this.props.onRemove(this.props.fid);
-
-  private handleHover = (ev: React.MouseEvent<Element>) =>
-    this.props.onHover(ev, this.props.filter);
-
+  
   private getDimension = () => 
-    this.props.dimension || this.props.isPreview ? MINIMAP_D_PREVIEW : MINIMAP_D;
-
-
+  this.props.dimension || this.props.isPreview ? MINIMAP_D_PREVIEW : MINIMAP_D;
+  
   private renderDots = () => {
-    const { data, filter, xAttrName, yAttrName } = this.props;
-    const filteredData = data.filter(filter.filterFn)
-
+    const { filteredData, xAttrName, yAttrName } = this.props;
+    
     // const r = this.props.isPreview ? 1 : 2;
     const r = 1;
     const dimension = this.getDimension();
-
+    
     let {scales: {xScale, yScale}} = this.props;
     xScale = xScale && xScale.copy().range([MINIMAP_PAD, dimension - MINIMAP_PAD]);
     yScale = yScale && yScale.copy().range([dimension - MINIMAP_PAD, MINIMAP_PAD]);
@@ -59,13 +48,13 @@ class Minimap extends React.PureComponent<MinimapProps> {
     if (xAttrName && yAttrName && xScale && yScale) {
       return filteredData.map(d => 
         <circle
-              key={d.__id_extra__}
-              className="minimap__dot"
-              cx={xScale!(d[xAttrName])} 
-              cy={yScale!(d[yAttrName])} 
-              r={r}
+          key={d.__id_extra__}
+          className="minimap__dot"
+          cx={xScale!(d[xAttrName])} 
+          cy={yScale!(d[yAttrName])} 
+          r={r}
         />
-      )
+      );
     } else {
       return null;
     }
@@ -74,49 +63,91 @@ class Minimap extends React.PureComponent<MinimapProps> {
   render() {
     console.log('Minimap render');
     const dimension = this.getDimension();
-
+    
     return (
       <div
         className="minimap"
-        style={{padding: `${MINIMAP_MAR}px 0`, flex: `0 0 ${dimension + MINIMAP_MAR * 2}px`}}
+        style={{
+          padding: `${MINIMAP_MAR}px 0`,
+          flex: `0 0 ${dimension + MINIMAP_MAR * 2}px`
+        }}
       >
         <svg 
           className="minimap__svg" 
           width={dimension}
           height={dimension}
-        >
+          >
           {this.renderDots()}
         </svg>
-        {!this.props.isPreview &&
-          <div 
-            className="minimap__overlay"
-            style={{
-              top: MINIMAP_MAR,
-              width: dimension,
-              height: dimension,
-            }}
-            onMouseEnter={this.handleHover}
-            onMouseLeave={this.handleHover}
-          >
-            <div 
-              className="minimap__overlay--buttons px-1"
-            > 
-              <FAButton
-                faName="times"
-                onClick={this.handleRemove}
-                hoverEffect={true}
-                title="Remove"
-              />
-              <FAButton
-                faName="filter"
-                title="Toggle on/off"
-              />
-            </div>
-          </div>
-        }
+        <div
+          className="minimap__overlay"
+          style={{
+            top: MINIMAP_MAR,
+            width: dimension,
+            height: dimension,
+          }}
+        >
+          {this.props.overlay}
+        </div>
       </div>
     );
   }
 }
 
-export { Minimap };
+
+interface PointFilterMinimapProps extends MinimapPropsWithoutFilteredData {
+  // passing data instead of filtered ones to avoid unnecessary rerender
+  // will recompute filtered data only if props change
+  readonly data: Data,
+  readonly fid: number,
+  readonly filter: Filter,
+  readonly onRemove: HandleRemoveFilter,
+  readonly onHover: HandleHoverFilter,
+}
+
+class PointFilterMinimap extends React.PureComponent<PointFilterMinimapProps> {
+
+  private handleRemove = () =>
+    this.props.onRemove(this.props.fid);
+
+  private handleHover = (ev: React.MouseEvent<Element>) =>
+    this.props.onHover(ev, this.props.filter);
+
+  private renderOverlay = () => (
+    <div 
+      style={{
+        width: '100%',
+        height: '100%',
+      }}
+      onMouseEnter={this.handleHover}
+      onMouseLeave={this.handleHover}
+    >
+      <div 
+        className="minimap__overlay--buttons px-1"
+      > 
+        <FAButton
+          faName="times"
+          onClick={this.handleRemove}
+          hoverEffect={true}
+          title="Remove"
+        />
+        <FAButton
+          faName="filter"
+          title="Toggle on/off"
+        />
+      </div>
+    </div>
+  );
+
+  render() {
+    return (
+      <Minimap
+        {...this.props}
+        filteredData={this.props.data.filter(this.props.filter.filterFn)}
+        overlay={this.renderOverlay()}
+      />
+    )
+  }
+}
+
+export { Minimap, PointFilterMinimap };

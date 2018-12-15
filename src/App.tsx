@@ -65,6 +65,7 @@ interface AppState {
   readonly colorPickerStyle: Readonly<ColorPickerStyle>,
   readonly plotConfig: Readonly<PlotConfig>,
   readonly filterList: Readonly<FilterList>,
+  readonly filteredIds: ReadonlySet<number>,
   readonly minimapScaleMap: Readonly<MinimapScaleMap>,
   readonly isDraggingPoints: boolean,
   readonly isHoveringFilterPanel: boolean,
@@ -100,6 +101,7 @@ class App extends React.PureComponent<AppProps, AppState> {
       colorPickerStyle: {left: 0, top: 0, display: 'none'},
       plotConfig: {},
       filterList: [],
+      filteredIds: new Set(),
       minimapScaleMap: {xScale: null, yScale: null},
       isDraggingPoints: false,
       isHoveringFilterPanel: false,
@@ -273,23 +275,23 @@ class App extends React.PureComponent<AppProps, AppState> {
       new PlotConfigEntry(new Attribute(attrName, 'number'), true)
     );
 
-    // Drag Animation
-    this.hideCustomAttrTag(field, true);
-    DragAnimator.showDragAttrTagAnimation(
-      field,
-      attrName,
-    ).then(
-      () => this.hideCustomAttrTag(field, false)
-    );
+    // // Drag Animation
+    // this.hideCustomAttrTag(field, true);
+    // DragAnimator.showDragAttrTagAnimation(
+    //   field,
+    //   attrName,
+    // ).then(
+    //   () => this.hideCustomAttrTag(field, false)
+    // );
   };
 
-  private hideCustomAttrTag = (field: VField, shouldHide: boolean) => {
-    this.setState((prevState) => {
-      const shouldHideCustomAttrTag = { ...prevState.shouldHideCustomAttrTag };
-      shouldHideCustomAttrTag[field] = shouldHide;
-      return {shouldHideCustomAttrTag};
-    });
-  }
+  // private hideCustomAttrTag = (field: VField, shouldHide: boolean) => {
+  //   this.setState((prevState) => {
+  //     const shouldHideCustomAttrTag = { ...prevState.shouldHideCustomAttrTag };
+  //     shouldHideCustomAttrTag[field] = shouldHide;
+  //     return {shouldHideCustomAttrTag};
+  //   });
+  // }
 
   private handleHoverRecommendedEncoding: HandleHoverRecommendedEncoding = (ev, field, attrName) => {
     if (!this.state.isDraggingPoints) {
@@ -358,19 +360,18 @@ class App extends React.PureComponent<AppProps, AppState> {
     // Draw
     const getState = fm.getStateGetterOnNoPreview();
     this.hideOrDimPointsByState(getState);
+    // Update filtered id list
+    const filteredIds = this.fm.getFilteredIdSet();
+    this.setState(() => ({ filteredIds }));
     // Clean up selections
-    const filteredIds = new Set(this.props.data
-      .filter(d => getState(d) === PointState.FILTERED)
-      .map(d => d.__id_extra__)
-    );
-    this.cleanUpFilteredPoints(filteredIds);
+    this.cleanUpFilteredPoints(filteredIds)
     // Update search using current keyword
     this.updateSearchResult();
 
     // Show drag animations
     DragAnimator.showDragFilteredPointsAnimation(
       fm.getNewFilteredIds()
-    ).then(() => console.log('finished!'));
+    ).then(() => console.log('Points drag animation finished'));
   };
 
   private handleAcceptRecommendedFilter: HandleAcceptRecommendedFilter = (filter) => {
@@ -515,9 +516,17 @@ class App extends React.PureComponent<AppProps, AppState> {
             attributes={memoizedGetAttributes(this.props.data)}  
             activeEntry={this.state.activeEntry}
           />
+        </div>
+
+        
+        <div
+          className="right-panel"
+          style={{flex: `0 0 ${FILTER_PANEL_WIDTH}px`}}
+        >
           <Filters
             data={this.props.data}
             filterList={this.state.filterList}
+            filteredIds={this.state.filteredIds}
             minimapScaleMap={this.state.minimapScaleMap}
             xAttrName={this.state.plotConfig[Field.X] && this.state.plotConfig[Field.X]!.attribute.name}
             yAttrName={this.state.plotConfig[Field.Y] && this.state.plotConfig[Field.Y]!.attribute.name}
@@ -529,28 +538,6 @@ class App extends React.PureComponent<AppProps, AppState> {
             isDraggingPoints={this.state.isDraggingPoints}
             random={Math.random()}
           />
-        </div>
-
-        <div className="mid-panel">
-          <Encodings 
-            setPlotConfig={this.setPlotConfig}
-            plotConfig={this.state.plotConfig}
-            shouldHideCustomAttrTag={this.state.shouldHideCustomAttrTag}
-          />
-          <div ref={this.d3ContainerRef} className="main-plot-container">
-            <div style={{height: 0}}>
-              <ColorPicker 
-                style={this.state.colorPickerStyle} 
-                onChangeComplete={this.handlePickColor}
-              />
-            </div>
-          </div>
-        </div>
-        
-        <div
-          className="right-panel"
-          style={{flex: `0 0 ${FILTER_PANEL_WIDTH}px`}}
-        >
           <RecommendedFilters
             recommendedFilters={this.state.recommendedFilters}
             onAcceptRecommendedFilter={this.handleAcceptRecommendedFilter}
@@ -593,6 +580,24 @@ class App extends React.PureComponent<AppProps, AppState> {
             );
           })}
         </div>
+
+
+        <div className="mid-panel">
+          <Encodings 
+            setPlotConfig={this.setPlotConfig}
+            plotConfig={this.state.plotConfig}
+            shouldHideCustomAttrTag={this.state.shouldHideCustomAttrTag}
+          />
+          <div ref={this.d3ContainerRef} className="main-plot-container">
+            <div style={{height: 0}}>
+              <ColorPicker 
+                style={this.state.colorPickerStyle} 
+                onChangeComplete={this.handlePickColor}
+              />
+            </div>
+          </div>
+        </div>
+
         <div className="drag-animation-container"/>
       </div>
     )

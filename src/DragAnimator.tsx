@@ -4,6 +4,7 @@ import * as ReactDOM from 'react-dom';
 import { Attribute } from './Attribute';
 import { AttrTag } from './Attributes';
 
+import { MINIMAP_D } from './commons/constants';
 import { ElementNotFoundError } from './commons/errors';
 import { 
   AnimationConfig,
@@ -146,7 +147,8 @@ class DragAnimator {
       pointCopyDiv.appendChild(pointCopySvg);
       
       const start = getPosBySelector('#point-' + id);
-      const end = new Pos(200, 500);
+      const end = getPosBySelector('#filtered-point-minimap');
+      const endPadded = new Pos(end.x + MINIMAP_D/2, end.y + MINIMAP_D/2);
       const animConfig = {
         dragSpeed: 1200,
         startDelay: 0,
@@ -154,7 +156,7 @@ class DragAnimator {
       }
 
       animationPromises.push(
-        DragAnimator.showDragAnimation(pointCopyDiv, start, end, animConfig, false)
+        DragAnimator.showDragAnimation(pointCopyDiv, start, endPadded, animConfig, false)
       );
     }
 

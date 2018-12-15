@@ -42,10 +42,15 @@ class FilterManager {
     this.newFilteredIds = [];
   }
 
+  getFilterByFid = (fid: number) => {
+    const filter = this.filterList.find(f => f.fid === fid);
+    return filter && filter.filter;
+  }
+
   getFilterListCopy = () => [...this.filterList];
 
   getFilteredIdSet = (): ReadonlySet<number> => new Set(
-    this.filterCntByPoint.filter(cnt => cnt > 0).map((d, i) => i)
+    this.filterCntByPoint.map((d, i) => i).filter(i => this.filterCntByPoint[i] > 0)
   );
   getIsFiltered = (id: number) => this.filterCntByPoint[id] > 0;
 
