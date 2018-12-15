@@ -5,6 +5,7 @@ import { ColorPicker } from './ColorPicker';
 import { Encodings } from './Encodings';
 import { FileSelector } from './FileSelector';
 import { Filters } from './Filters';
+import { Legends } from './Legends';
 import { RecommendedEncodings } from './RecommendedEncodings';
 import { RecommendedFilters } from './RecommendedFilters';
 import { Search } from './Search';
@@ -48,6 +49,7 @@ import {
   RecommendedEncoding,
   SetPlotConfig,
   VField,
+  VisualScaleMap,
 } from './commons/types';
 import { ColorUtil } from './commons/util';
 
@@ -67,6 +69,7 @@ interface AppState {
   readonly filterList: Readonly<FilterList>,
   readonly filteredIds: ReadonlySet<number>,
   readonly minimapScaleMap: Readonly<MinimapScaleMap>,
+  readonly visualScaleMap: Readonly<VisualScaleMap>,
   readonly isDraggingPoints: boolean,
   readonly isHoveringFilterPanel: boolean,
   readonly recommendedFilters: ReadonlyArray<RecommendedFilter>
@@ -103,6 +106,7 @@ class App extends React.PureComponent<AppProps, AppState> {
       filterList: [],
       filteredIds: new Set(),
       minimapScaleMap: {xScale: null, yScale: null},
+      visualScaleMap: {[VField.COLOR]: null, [VField.SIZE]: null},
       isDraggingPoints: false,
       isHoveringFilterPanel: false,
       recommendedFilters: [],
@@ -124,6 +128,7 @@ class App extends React.PureComponent<AppProps, AppState> {
     this.handleChangeVisualByUser, // for resizer, which needs direct interaction with plot
     this.handleDragPointsEnd,
     this.setMinimapScales,
+    this.setVisualScales,
     this.updateHasSelection,
     this.updateHasActiveSelection,
     this.setIsDraggingPoints,
@@ -467,6 +472,15 @@ class App extends React.PureComponent<AppProps, AppState> {
     this.setState(() => ({minimapScaleMap}));
   };
 
+  private setVisualScales = (visualScaleMap: VisualScaleMap = {[VField.COLOR]: null, [VField.SIZE]: null}) => {
+    this.setState((prevState) => ({
+      visualScaleMap: Object.assign(
+        {...prevState.visualScaleMap},
+        visualScaleMap
+      )
+    }));
+  }
+
   private handleSearchInputChange: HandleSearchInputChange = (keyword) => {
     this.updateSearchResult(keyword);
     this.selectSearchResult();
@@ -596,6 +610,14 @@ class App extends React.PureComponent<AppProps, AppState> {
               />
             </div>
           </div>
+        </div>
+
+        <div className="panel-4">
+          <Legends
+            data={this.props.data}
+            visualScaleMap={this.state.visualScaleMap}
+            plotConfig={this.state.plotConfig}
+          />
         </div>
 
         <div className="drag-animation-container"/>

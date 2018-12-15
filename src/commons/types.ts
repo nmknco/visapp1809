@@ -89,6 +89,12 @@ export interface MinimapScaleMap {
   yScale: NumericRangeScale | null,
 }
 
+export interface VisualScaleMap {
+  [VField.COLOR]: StringRangeScale<string | number> | null,
+  [VField.SIZE]: NumericRangeScale | null,
+}
+
+
 
 export interface ColorObj {
   // only need hsl field

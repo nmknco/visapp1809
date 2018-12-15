@@ -81,18 +81,36 @@ export const memoizedGetExtent: (
   }
 );
 
+export const memoizedGetValueList: (
+  data: Data,
+  attrName: string,
+) => ReadonlyArray<number | string> = memoizePureDataFn(
+  (data: Data, attrName: string): ReadonlyArray<number|string> => {
+    console.log('computing value list for: ', attrName);
+    return data.map(d => d[attrName])
+          .sort((a, b) => (a === b) ? 0 :(a < b) ? -1 : 1);
+  }
+);
+
 export const memoizedGetValueSet: (
   data: Data,
   attrName: string,
-) => ReadonlySet<number|string> = memoizePureDataFn(
+) => ReadonlySet<number | string> = memoizePureDataFn(
   (data: Data, attrName: string): ReadonlySet<number|string> => {
-    console.log('computing value set for: ', attrName);
     return new Set(
-      data.map(d => d[attrName])
-          .sort((a, b) => (a === b) ? 0 :(a < b) ? -1 : 1)
-    )
+      memoizedGetValueList(data, attrName)
+    );
   }
-)
+);
+
+export const memoizedGetUniqueValueList: (
+  data: Data,
+  attrName: string,
+) => ReadonlyArray<number | string> = memoizePureDataFn(
+  (data: Data, attrName: string): ReadonlyArray<number|string> => {
+    return Array.from(memoizedGetValueSet(data, attrName));
+  }
+);
 
 export const memoizedGetAttributes = memoizeLast(
   (data: Data) => {

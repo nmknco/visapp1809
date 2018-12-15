@@ -353,3 +353,18 @@
 
 
 /* ---- Misc ---- */
+
+.panel-4 {
+  flex: 0 0 216px;
+}
+
+
+
+.legends__container {
+  font-size: 12px;
+  overflow-y: auto;
+}
+
+.legends__container--color {
+  max-height: 300px;
+}

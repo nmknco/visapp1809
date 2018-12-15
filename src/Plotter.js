@@ -21,6 +21,7 @@ class MainPlotter {
     handleChangeVisualByUser,
     handleDragPointsEnd,
     setMinimapScales,
+    setVisualScales,
     updateHasSelection,
     updateHasActiveSelection,
     setIsDraggingPoints,
@@ -33,6 +34,7 @@ class MainPlotter {
     this.handleChangeVisualByUser = handleChangeVisualByUser;
     this.handleDragPointsEnd = handleDragPointsEnd;
     this.setMinimapScales = setMinimapScales;
+    this.setVisualScales = setVisualScales;
     this.updateHasSelection = updateHasSelection;
     this.updateHasActiveSelection = updateHasActiveSelection;
     this.setIsDraggingPoints = setIsDraggingPoints;
@@ -280,13 +282,15 @@ class MainPlotter {
           this.scales[field] = visualScale;
           this.customScales[field] = null;
         }
+        this.setVisualScales({[field]: visualScale})
       } else {
         // reset visual upon empty plotConfig entry
         visualScale = () => DEFAULT_BY_FIELD[field];
         this.customScales[field] = null;
+        this.setVisualScales({[field]: null});
       }
 
-      // Clear both colored groups and selection, then applying visual
+      // Clear both colored groups and selection, then apply visual
       if (!keepSelection) { this.clearSelection(); }
       this.activeSelections.resetValue(field);
       
