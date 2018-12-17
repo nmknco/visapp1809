@@ -10,7 +10,7 @@ import { NumericRangeFilterPanel } from './NumericRangeFilterPanel';
 import { Panel } from './Panel';
 
 
-import { memoizedGetExtent, memoizedGetValueSet } from './commons/memoized';
+import { memoizedGetExtent, memoizedGetValueSet, memoizeLast } from './commons/memoized';
 import {
   Data,
   DraggableType,
@@ -112,11 +112,16 @@ class Filters extends React.PureComponent<FiltersProps> {
     </div>
   );
 
+  // This must be memoized to prevent unnecessary rerender
+  private memoizedGetFilteredData = memoizeLast((filteredIds: ReadonlySet<number>) => 
+    this.props.data.filter(d => filteredIds.has(d.__id_extra__)));
+
+
   private renderFilteredPointsMinimap = (filteredIds: ReadonlySet<number>) => (
     <div className="flex">
       <div id="filtered-point-minimap" className="d-flex justify-content-center">
         <Minimap
-          filteredData={this.props.data.filter(d => this.props.filteredIds.has(d.__id_extra__))}
+          filteredData={this.memoizedGetFilteredData(filteredIds)}
           scales={this.props.minimapScaleMap}
           xAttrName={this.props.xAttrName}
           yAttrName={this.props.yAttrName}
