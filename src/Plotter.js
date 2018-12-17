@@ -49,7 +49,8 @@ class MainPlotter {
       this.handleActiveSelectionChange,
     );
 
-    this.scales = {x:{}, y:{}, color:{}, size: {}};
+    this.scales = {x:{}, y:{}}; // color/size removed since changes are too frequent.
+                                // Maybe get rid of xand y later too.
     this.customScales = {color: null, size: null}; // preserve this for toggle on and off x/y axis 
                                          // (as active selection is cleared and can't be used for restoration)
 
@@ -273,16 +274,16 @@ class MainPlotter {
           this.customScales[field] = visualScale;
         } else {
           if (field === 'color') {
-            visualScale = this.scales.color[attrName] || (
-              (entry.attribute.type === 'number') ?
+            visualScale = (entry.attribute.type === 'number') ?
                 d3.scaleSequential(t => (d3['interpolate' + this.getVisualScaleRange('color_num')])(d3.scaleLinear().domain([0,1]).range([0.1, 1])(t))).domain(memoizedGetExtent(data, attrName)) :
                 d3.scaleOrdinal(d3['scheme' + this.getVisualScaleRange('color_ord')]).domain(d3.map(data, d => d[attrName]).keys())
-            );
           } else if (field === 'size') {
-            visualScale = this.scales.size[attrName] ||
-              d3.scaleLinear().domain(expandRange(memoizedGetExtent(data, attrName))).range(this.getVisualScaleRange('size'));
+            visualScale = d3.scaleLinear().domain(expandRange(memoizedGetExtent(data, attrName))).range(this.getVisualScaleRange('size'));
           }
-          this.scales[field] = visualScale;
+          // Nullify the custom scale cache - may be ok not doing so here, 
+          // but done for consistency: The assumption is that
+          // the cache is only used for restoring after removing x/y encoding, 
+          // so cache is kept only as long as custom scale is on
           this.customScales[field] = null;
         }
         this.setVisualScales({[field]: visualScale})
