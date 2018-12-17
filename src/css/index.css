@@ -368,3 +368,34 @@
 .legends__container--color {
   max-height: 300px;
 }
+
+
+.overlay-menu__container {
+  position: fixed;
+  z-index: 100;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.2);
+}
+
+.overlay-menu__content {
+  background-color: white;
+}
+
+.om-color-num__palatte-item {
+  cursor: pointer;
+}
+
+.chart-selector__item {
+  cursor: pointer;
+  opacity: 0.3;
+}
+
+.chart-selector__item:hover {
+  opacity: 1;
+}
+
+.chart-selector__item.chart-selector__item--selected {
+  opacity: 1;
+}

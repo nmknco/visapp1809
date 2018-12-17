@@ -13,7 +13,3 @@ export const CHARTCONFIG = {
   svgW: 720,
   svgH: 720
 };
-
-export const SLIDERW = 200;
-export const SLIDERH = 8;
-export const SLIDERHANDLESZIE = 16;

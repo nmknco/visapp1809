@@ -1,11 +1,17 @@
 import * as React from 'react';
 
 import { Attributes } from './Attributes';
+import { ChartSelector } from './ChartSelector';
 import { ColorPicker } from './ColorPicker';
 import { Encodings } from './Encodings';
 import { FileSelector } from './FileSelector';
 import { Filters } from './Filters';
 import { Legends } from './Legends';
+import {
+  OverlayMenuColorNumPage,
+  OverlayMenuContainer,
+  OverlayMenuSizePage,
+} from './OverlayMenus';
 import { RecommendedEncodings } from './RecommendedEncodings';
 import { RecommendedFilters } from './RecommendedFilters';
 import { Search } from './Search';
@@ -23,7 +29,10 @@ import {
   memoizedGetAttributes,
 } from './commons/memoized';
 import {
+  ChartType,
   ColorPickerStyle, 
+  D3Interpolate,
+  D3Scheme,
   Data,
   DataEntry,
   Field, 
@@ -43,6 +52,7 @@ import {
   HandleSearchInputChange,
   HandleSetFilter,
   MinimapScaleMap,
+  OverlayMenu,
   PlotConfig,
   PointState,
   PointStateGetter,
@@ -50,6 +60,8 @@ import {
   SetPlotConfig,
   VField,
   VisualScaleMap,
+  VisualScaleRanges,
+  VisualScaleType,
 } from './commons/types';
 import { ColorUtil } from './commons/util';
 
@@ -70,9 +82,13 @@ interface AppState {
   readonly filteredIds: ReadonlySet<number>,
   readonly minimapScaleMap: Readonly<MinimapScaleMap>,
   readonly visualScaleMap: Readonly<VisualScaleMap>,
+  readonly visualScaleRanges: Readonly<VisualScaleRanges>,
   readonly isDraggingPoints: boolean,
   readonly isHoveringFilterPanel: boolean,
   readonly recommendedFilters: ReadonlyArray<RecommendedFilter>
+
+  readonly activeOverlayMenu: OverlayMenu | null,
+  readonly selectedChartType: ChartType,
   
   // Plotter knows the following but they need to be in the state to trigger render on change
   readonly hasSelection: boolean,
@@ -107,9 +123,16 @@ class App extends React.PureComponent<AppProps, AppState> {
       filteredIds: new Set(),
       minimapScaleMap: {xScale: null, yScale: null},
       visualScaleMap: {[VField.COLOR]: null, [VField.SIZE]: null},
+      visualScaleRanges: {
+        [VisualScaleType.COLOR_NUM]: D3Interpolate.INFERNO,
+        [VisualScaleType.COLOR_ORD]: D3Scheme.CATEGORY10,
+        [VisualScaleType.SIZE]: [3, 15],
+      },
       isDraggingPoints: false,
       isHoveringFilterPanel: false,
       recommendedFilters: [],
+      activeOverlayMenu: null,
+      selectedChartType: ChartType.SCATTER_PLOT,
       hasSelection: false,
       hasActiveSelection: {[VField.COLOR]: false, [VField.SIZE]: false}, // i.e. has visuals set on user selection
       recommendedEncodings: [],
@@ -133,6 +156,7 @@ class App extends React.PureComponent<AppProps, AppState> {
     this.updateHasActiveSelection,
     this.setIsDraggingPoints,
     this.onSelectionChange,
+    this.getVisualScaleRange,
   );
 
   private setupInitialPlot = () => {
@@ -509,118 +533,201 @@ class App extends React.PureComponent<AppProps, AppState> {
 
   private onSelectionChange = () => {
     this.setState(() => ({ isSearchResultSelected: false }));
+  };
+
+  private getVisualScaleRange = (type: VisualScaleType) =>
+    this.state.visualScaleRanges[type];
+
+  private handleSetVisualScaleRange = (
+    type: VisualScaleType,
+    range: D3Interpolate | D3Scheme | Readonly<[number, number]>,
+    shouldCloseMenu?: boolean
+  ) => {
+    const field = (type === VisualScaleType.SIZE ? VField.SIZE : VField.COLOR);
+    this.setState(
+      (prevState) => ({
+        visualScaleRanges: Object.assign(
+          {...prevState.visualScaleRanges},
+          {[type]: range},
+        )
+      }),
+      () => this.mp.updateVisual([field,], this.state.plotConfig, true)
+    );
+    
+    if (shouldCloseMenu) {
+      this.closeOverlayMenu();
+    }
   }
 
+  private handleSetColorNumRange = (palette: D3Interpolate) => 
+    this.handleSetVisualScaleRange(VisualScaleType.COLOR_NUM, palette, true);
+
+  private handleSetSizeRange = (range: Readonly<[number, number]>) =>
+    this.handleSetVisualScaleRange(VisualScaleType.SIZE, range);
+
+
+  private showOverlayMenu = (overlayMenu: OverlayMenu | null) => 
+    this.setState(() => ({activeOverlayMenu: overlayMenu}));
+
+  private closeOverlayMenu = () => this.showOverlayMenu(null);
+
+  private handleOpenColorNumMenu = () => this.showOverlayMenu(OverlayMenu.COLOR_NUM);
+
+  private handleOpenColorOrdMenu = () => this.showOverlayMenu(OverlayMenu.COLOR_ORD);
+
+  private handleOpenSizeMenu = () => this.showOverlayMenu(OverlayMenu.SIZE);
+
+  private renderOverlayMenu = () => {
+    switch(this.state.activeOverlayMenu) {
+      case OverlayMenu.COLOR_NUM:
+        return (
+          <OverlayMenuColorNumPage
+            onSetColorNumRange={this.handleSetColorNumRange}
+          />
+        );
+      case OverlayMenu.COLOR_ORD:
+        return (<div>color menu ordinal</div>);
+      case OverlayMenu.SIZE:
+        return (
+          <OverlayMenuSizePage
+            onSetSizeRange={this.handleSetSizeRange}
+            currentRange={this.state.visualScaleRanges[VisualScaleType.SIZE]}
+          />
+        );
+      default:
+        return;
+    }
+  };
 
 
   render() {
     return (
-      <div className="app d-flex m-2">
-        <div
-          className="left-panel"
-        >
-          <FileSelector />
-          <Search
-            onSearchInputChange={this.handleSearchInputChange}
-            resultsIdSet={this.state.searchResultsIdSet}
-            shouldShowSelectButton={!this.state.isSearchResultSelected}
-            onClickSelectSearchButton={this.handleClickSelectSearchButton}
-          />
-          <Attributes 
-            attributes={memoizedGetAttributes(this.props.data)}  
-            activeEntry={this.state.activeEntry}
-          />
-        </div>
+      <div className="app">
+        <div className="d-flex m-2">
+          <div
+            className="left-panel"
+          >
+            <FileSelector />
+            <ChartSelector 
+              selectedChartType={this.state.selectedChartType}
+            />
+            <Search
+              onSearchInputChange={this.handleSearchInputChange}
+              resultsIdSet={this.state.searchResultsIdSet}
+              shouldShowSelectButton={!this.state.isSearchResultSelected}
+              onClickSelectSearchButton={this.handleClickSelectSearchButton}
+            />
+            <Attributes 
+              attributes={memoizedGetAttributes(this.props.data)}  
+              activeEntry={this.state.activeEntry}
+            />
+          </div>
 
-        
-        <div
-          className="right-panel"
-          style={{flex: `0 0 ${FILTER_PANEL_WIDTH}px`}}
-        >
-          <Filters
-            data={this.props.data}
-            filterList={this.state.filterList}
-            filteredIds={this.state.filteredIds}
-            minimapScaleMap={this.state.minimapScaleMap}
-            xAttrName={this.state.plotConfig[Field.X] && this.state.plotConfig[Field.X]!.attribute.name}
-            yAttrName={this.state.plotConfig[Field.Y] && this.state.plotConfig[Field.Y]!.attribute.name}
-            onAddFilter={this.handleAddFilter}
-            onSetFilter={this.handleSetFilter}
-            onRemoveFilter={this.handleRemoveFilter}
-            onHoverFilter={this.handleHoverFilter}
-            onHoverDrop={this.handleHoverDrop}
-            isDraggingPoints={this.state.isDraggingPoints}
-            random={Math.random()}
-          />
-          <RecommendedFilters
-            recommendedFilters={this.state.recommendedFilters}
-            onAcceptRecommendedFilter={this.handleAcceptRecommendedFilter}
-            onDismissRecommendedFilter={this.handleDismissRecommendedFilter}
-            onHoverRecommendedFilter={this.handleHoverRecommendedFilter}
-            onDismissAllRecommendedFilter={this.handleDismissAllRecommendedFilters}
-          />
-          <RecommendedEncodings
-            recommendedEncodings={this.state.recommendedEncodings}
-            onAcceptRecommendedEncoding={this.handleAcceptRecommendeedEncoding}
-            onDismissRecommendedEncoding={this.handleDismissRecommendedEncoding}
-            onHoverRecommendedEncoding={this.handleHoverRecommendedEncoding}
-            onDismissAllRecommendedEncodings={this.handleDismissAllRecommendedEncodings}
-          />
+          
+          <div
+            className="right-panel"
+            style={{flex: `0 0 ${FILTER_PANEL_WIDTH}px`}}
+          >
+            <Filters
+              data={this.props.data}
+              filterList={this.state.filterList}
+              filteredIds={this.state.filteredIds}
+              minimapScaleMap={this.state.minimapScaleMap}
+              xAttrName={this.state.plotConfig[Field.X] && this.state.plotConfig[Field.X]!.attribute.name}
+              yAttrName={this.state.plotConfig[Field.Y] && this.state.plotConfig[Field.Y]!.attribute.name}
+              onAddFilter={this.handleAddFilter}
+              onSetFilter={this.handleSetFilter}
+              onRemoveFilter={this.handleRemoveFilter}
+              onHoverFilter={this.handleHoverFilter}
+              onHoverDrop={this.handleHoverDrop}
+              isDraggingPoints={this.state.isDraggingPoints}
+              random={Math.random()}
+            />
+            <RecommendedFilters
+              recommendedFilters={this.state.recommendedFilters}
+              onAcceptRecommendedFilter={this.handleAcceptRecommendedFilter}
+              onDismissRecommendedFilter={this.handleDismissRecommendedFilter}
+              onHoverRecommendedFilter={this.handleHoverRecommendedFilter}
+              onDismissAllRecommendedFilter={this.handleDismissAllRecommendedFilters}
+            />
+            <RecommendedEncodings
+              recommendedEncodings={this.state.recommendedEncodings}
+              onAcceptRecommendedEncoding={this.handleAcceptRecommendeedEncoding}
+              onDismissRecommendedEncoding={this.handleDismissRecommendedEncoding}
+              onHoverRecommendedEncoding={this.handleHoverRecommendedEncoding}
+              onDismissAllRecommendedEncodings={this.handleDismissAllRecommendedEncodings}
+            />
 
-          {/* for debugging only */}
-          {Object.values(VField).map(field => {
-            const handleClickClearSelected = () => 
-              this.unVisualSelected(field)
-            const handleClikcClearAll = () => 
-              this.unVisualAll(field)
-            return (
-              <div key={`clear_${field}`} className="d-flex m-1 py-1">
-                <div className="m-1 text-right"> {`Clear my assigned ${field} for`} </div>
-                <button
-                  disabled={!this.shouldEnableUnVisualSelected(field)}
-                  className="btn btn-sm btn-outline-danger m-1"
-                  onClick={handleClickClearSelected}
-                >
-                  {`Selected points`}
-                </button>
-                <button 
-                  disabled={!this.shouldEnableUnVisualAll(field)}
-                  className="btn btn-sm btn-outline-danger m-1"
-                  onClick={handleClikcClearAll}
-                >
-                  {`All`}
-                </button>
+            {/* for debugging only */}
+            {Object.values(VField).map(field => {
+              const handleClickClearSelected = () => 
+                this.unVisualSelected(field)
+              const handleClikcClearAll = () => 
+                this.unVisualAll(field)
+              return (
+                <div key={`clear_${field}`} className="d-flex m-1 py-1">
+                  <div className="m-1 text-right"> {`Clear my assigned ${field} for`} </div>
+                  <button
+                    disabled={!this.shouldEnableUnVisualSelected(field)}
+                    className="btn btn-sm btn-outline-danger m-1"
+                    onClick={handleClickClearSelected}
+                  >
+                    {`Selected points`}
+                  </button>
+                  <button 
+                    disabled={!this.shouldEnableUnVisualAll(field)}
+                    className="btn btn-sm btn-outline-danger m-1"
+                    onClick={handleClikcClearAll}
+                  >
+                    {`All`}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+
+
+          <div className="mid-panel">
+            <Encodings 
+              setPlotConfig={this.setPlotConfig}
+              plotConfig={this.state.plotConfig}
+              shouldHideCustomAttrTag={this.state.shouldHideCustomAttrTag}
+            />
+            <div ref={this.d3ContainerRef} className="main-plot-container">
+              <div style={{height: 0}}>
+                <ColorPicker 
+                  style={this.state.colorPickerStyle} 
+                  onChangeComplete={this.handlePickColor}
+                />
               </div>
-            );
-          })}
-        </div>
-
-
-        <div className="mid-panel">
-          <Encodings 
-            setPlotConfig={this.setPlotConfig}
-            plotConfig={this.state.plotConfig}
-            shouldHideCustomAttrTag={this.state.shouldHideCustomAttrTag}
-          />
-          <div ref={this.d3ContainerRef} className="main-plot-container">
-            <div style={{height: 0}}>
-              <ColorPicker 
-                style={this.state.colorPickerStyle} 
-                onChangeComplete={this.handlePickColor}
-              />
             </div>
           </div>
+
+          <div className="panel-4">
+            <Legends
+              data={this.props.data}
+              visualScaleMap={this.state.visualScaleMap}
+              plotConfig={this.state.plotConfig}
+              maxRadius={this.state.visualScaleRanges[VisualScaleType.SIZE][1]}
+              onOpenColorNumMenu={this.handleOpenColorNumMenu}
+              onOpenColorOrdMenu={this.handleOpenColorOrdMenu}
+              onOpenSizeMenu={this.handleOpenSizeMenu}
+            />
+          </div>
+
+
         </div>
 
-        <div className="panel-4">
-          <Legends
-            data={this.props.data}
-            visualScaleMap={this.state.visualScaleMap}
-            plotConfig={this.state.plotConfig}
-          />
-        </div>
+        <div className="drag-animation-container" />
 
-        <div className="drag-animation-container"/>
+        <OverlayMenuContainer
+          isHidden={this.state.activeOverlayMenu === null}
+          onClose={this.closeOverlayMenu}
+        >
+          {this.state.activeOverlayMenu !== null &&
+              this.renderOverlayMenu()}
+        </OverlayMenuContainer>
+
       </div>
     )
   }

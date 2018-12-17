@@ -43,6 +43,23 @@ export enum PointState {
   TO_RESTORE,
 }
 
+export enum ChartType {
+  BAR_CHART = 'Bar Chart',
+  SCATTER_PLOT = 'Scatter Plot',
+}
+
+export enum OverlayMenu {
+  COLOR_NUM,
+  COLOR_ORD,
+  SIZE,
+}
+
+export enum VisualScaleType {
+  COLOR_NUM = 'color_num',
+  COLOR_ORD = 'color_ord',
+  SIZE = 'size',
+}
+
 // Can't call range() on this type as there's no common signature.
 // See Issue#7294 https://github.com/Microsoft/TypeScript/issues/7294
 // export type NumericRangeScaleNative = 
@@ -94,6 +111,35 @@ export interface VisualScaleMap {
   [VField.SIZE]: NumericRangeScale | null,
 }
 
+export enum D3Interpolate {
+  VIRIDIS = 'Viridis',
+  INFERNO = 'Inferno',
+  WARM = 'Warm',
+  COOL = 'Cool',
+  REDS = 'Reds',
+  BLUES = 'Blues',
+  GREENS = 'Greens',
+  GREYS = 'Greys',
+  PUBUGN = 'PuBuGn',
+  RDPU = 'RdPu',
+  YLGRBU = 'YlGnBu',
+  YLORRD = 'YlOrRd',
+};
+
+export enum D3Scheme {
+  CATEGORY10 = 'Category10',
+  SET1 = 'Set1',
+  SET2 = 'Set2',
+  ACCENT = 'Accent',
+  DARK2 = 'Dark2',
+  PASTEL1 = 'Pastel1',
+};
+
+export interface VisualScaleRanges {
+  [VisualScaleType.COLOR_NUM]: D3Interpolate, // the d3 interplotates
+  [VisualScaleType.COLOR_ORD]: D3Scheme, // d3.schemeCategory10, etc.
+  [VisualScaleType.SIZE]: [number, number],
+}
 
 
 export interface ColorObj {
@@ -215,6 +261,20 @@ export type HandleInputChange = (
 ) => void;
 
 export type HandleSearchInputChange = HandleInputChange;
+
+
+export type HandleSetColorNumRange = (
+  palette: D3Interpolate,
+) => void;
+
+export type HandleSetColorOrdRange = (
+  palette: D3Scheme,
+) => void;
+
+export type HandleSetSizeRange = (
+  range: [number, number],
+) => void;
+
 
 export interface AnimationConfig {
   readonly dragSpeed: number,

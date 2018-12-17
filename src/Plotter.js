@@ -26,6 +26,7 @@ class MainPlotter {
     updateHasActiveSelection,
     setIsDraggingPoints,
     onSelectionChange,
+    getVisualScaleRange,
   ){
     this.data = data;
     this.container = container;
@@ -39,6 +40,7 @@ class MainPlotter {
     this.updateHasActiveSelection = updateHasActiveSelection;
     this.setIsDraggingPoints = setIsDraggingPoints;
     this.onSelectionChange = onSelectionChange;
+    this.getVisualScaleRange = getVisualScaleRange;
     
     this.activeSelections = new ActiveSelectionsWithRec(
       data, 
@@ -272,12 +274,12 @@ class MainPlotter {
           if (field === 'color') {
             visualScale = this.scales[field][attrName] || (
               (entry.attribute.type === 'number') ?
-                d3.scaleSequential(t => d3.interpolateInferno(d3.scaleLinear().domain([0,1]).range([0.92,0])(t))).domain(memoizedGetExtent(data, attrName)) :
-                d3.scaleOrdinal(d3.schemeCategory10).domain(d3.map(data, d => d[attrName]).keys())
+                d3.scaleSequential(t => (d3['interpolate' + this.getVisualScaleRange('color_num')])(d3.scaleLinear().domain([0,1]).range([0.1, 1])(t))).domain(memoizedGetExtent(data, attrName)) :
+                d3.scaleOrdinal(d3['scheme' + this.getVisualScaleRange('color_ord')]).domain(d3.map(data, d => d[attrName]).keys())
             );
           } else if (field === 'size') {
             visualScale = this.scales.size[attrName] ||
-              d3.scaleLinear().domain(expandRange(memoizedGetExtent(data, attrName))).range([3, 15]);
+              d3.scaleLinear().domain(expandRange(memoizedGetExtent(data, attrName))).range(this.getVisualScaleRange('size'));
           }
           this.scales[field] = visualScale;
           this.customScales[field] = null;

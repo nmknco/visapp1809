@@ -121,18 +121,17 @@ class DragAnimator {
     // console.log('creating drag animation for filtered points');
     // console.log(filteredIds);
     
-    
-
-    const containerSize = 20;
-
     const animationPromises: Array<Promise<{}>> = [];
     for (const id of filteredIds) {
       
-
-      const point: HTMLElement | null = document.querySelector('#point-' + id);
+      // only copy the ring
+      const point: HTMLElement | null = document.querySelector(`#point-${id}>.circle-ring`);
       if (!point) {
         throw new ElementNotFoundError(`Cannot find point`);
       }
+      const r = point.getAttribute('r');
+      if (!r) { continue; }
+      const containerSize = Number(r) * 2 + 2;
       const pointCopy = point.cloneNode(true) as HTMLElement;
       pointCopy.id += '-copy';
       pointCopy.classList.remove('hidden');
@@ -140,7 +139,7 @@ class DragAnimator {
 
       const pointCopyDiv = document.createElement('div');
       const pointCopySvg = document.createElementNS(
-        'http://www.w3.org/2000/svg', 'svg');
+        'http://www.w3.org/2000/svg', 'svg'); // seems to has transparent-background by default
       pointCopySvg.setAttribute('width', containerSize + 'px');
       pointCopySvg.setAttribute('height', containerSize + 'px');
       pointCopySvg.appendChild(pointCopy);

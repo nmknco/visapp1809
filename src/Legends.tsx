@@ -17,9 +17,13 @@ import {
 const NUMERIC_W = 144;
 
 interface LegendsProps {
-  data: Data,
-  visualScaleMap: VisualScaleMap,
-  plotConfig: PlotConfig,
+  readonly data: Data,
+  readonly visualScaleMap: VisualScaleMap,
+  readonly plotConfig: PlotConfig,
+  readonly maxRadius: number,
+  readonly onOpenColorNumMenu: () => void,
+  readonly onOpenColorOrdMenu: () => void,
+  readonly onOpenSizeMenu: () => void,
 }
 
 class Legends extends React.PureComponent<LegendsProps> {
@@ -52,42 +56,49 @@ class Legends extends React.PureComponent<LegendsProps> {
         <div className="py-1">{cAttrName}</div>
         {valueType === 'number' ?
           (
-            <svg width={NUMERIC_W + 40} height="60">
-              <g transform="translate(16, 4)">
-                <defs>
-                  <linearGradient id="color-scale-gradient">
-                    {cTicks.map((t, i) => (
-                      <stop
-                        key={'tick-' + t}
-                        offset={i*100/(NCTick - 1) + '%'}
-                        stopColor={cScale(t)}
-                      />
-                    ))}
-                  </linearGradient>
-                </defs>
-                <rect x="0" y="0" width={NUMERIC_W} height="20" 
-                  fill="url(#color-scale-gradient)"
-                />
-                <g transform="translate(0, 36)">
-                  {cTicks
-                    .map((t, i) => {
-                      if (i % 2 === 0) {
-                        return (
-                          <text
-                            key={'tick-text-'+t}
-                            x={NUMERIC_W * i/(NCTick - 1)}
-                            textAnchor="middle"
-                          >
-                            {typeof t === 'number' && Number(t.toPrecision(3))}
-                          </text>
-                        );
+            <div>
+              <div>
+                <svg width={NUMERIC_W + 40} height="60">
+                  <g transform="translate(16, 4)">
+                    <defs>
+                      <linearGradient id="color-scale-gradient">
+                        {cTicks.map((t, i) => (
+                          <stop
+                            key={'tick-' + t}
+                            offset={i*100/(NCTick - 1) + '%'}
+                            stopColor={cScale(t)}
+                          />
+                        ))}
+                      </linearGradient>
+                    </defs>
+                    <rect x="0" y="0" width={NUMERIC_W} height="20" 
+                      fill="url(#color-scale-gradient)"
+                    />
+                    <g transform="translate(0, 36)">
+                      {cTicks
+                        .map((t, i) => {
+                          if (i % 2 === 0) {
+                            return (
+                              <text
+                                key={'tick-text-'+t}
+                                x={NUMERIC_W * i/(NCTick - 1)}
+                                textAnchor="middle"
+                              >
+                                {typeof t === 'number' && Number(t.toPrecision(3))}
+                              </text>
+                            );
+                          }
+                          return;
+                        })
                       }
-                      return;
-                    })
-                  }
-                </g>
-              </g>
-            </svg>
+                    </g>
+                  </g>
+                </svg>
+              </div>
+              <button className="btn btn-sm btn-outline-secondary px-1" onClick={this.props.onOpenColorNumMenu}>
+                Change Palette
+              </button>
+            </div>
           ) : (
             <div>
               {cTicks.map((v) =>(
@@ -134,45 +145,52 @@ class Legends extends React.PureComponent<LegendsProps> {
     }
     zTicks = Ticks;
 
+    const maxr = this.props.maxRadius;
+
     return (
-      <div className="legend__box legend__box--color">
+      <div className="legend__box legend__box--size">
         <div className="py-1">{zAttrName}</div>
-        <svg width="184" height="100">
-          <g transform="translate(16, 16)">
-            <g>
-              {zTicks.map((t, i) => (
-                <g
-                  key={'tick-' + t}
-                  transform={`translate(${NUMERIC_W * i/(NZTick - 1)}, 0)`}
-                >
-                  <circle
-                    className="circle circle-ring"
-                    stroke="#999999"
-                    r={zScale(t)}
-                  />
-                </g>
-              ))}
+        <div>
+          <svg width="184" height={maxr * 2 + 48}>
+            <g transform={`translate(16, ${maxr + 8})`}>
+              <g>
+                {zTicks.map((t, i) => (
+                  <g
+                    key={'tick-' + t}
+                    transform={`translate(${(NUMERIC_W - 12) * i/(NZTick - 1)}, 0)`}
+                  >
+                    <circle
+                      className="circle circle-ring"
+                      stroke="#999999"
+                      r={zScale(t)}
+                    />
+                  </g>
+                ))}
+              </g>
+              <g transform={`translate(0, ${maxr + 16})`}>
+                {zTicks
+                  .map((t, i) => {
+                    if (i % 1 === 0) {
+                      return (
+                        <text
+                          key={'tick-text-'+t}
+                          x={(NUMERIC_W - 12) * i/(NZTick - 1)}
+                          textAnchor="middle"
+                        >
+                          {Number(t.toPrecision(3))}
+                        </text>
+                      );
+                    }
+                    return;
+                  })
+                }
+              </g>
             </g>
-            <g transform="translate(0, 32)">
-              {zTicks
-                .map((t, i) => {
-                  if (i % 1 === 0) {
-                    return (
-                      <text
-                        key={'tick-text-'+t}
-                        x={NUMERIC_W * i/(NZTick - 1)}
-                        textAnchor="middle"
-                      >
-                        {Number(t.toPrecision(3))}
-                      </text>
-                    );
-                  }
-                  return;
-                })
-              }
-            </g>
-          </g>
-        </svg>
+          </svg>
+        </div>
+        <button className="btn btn-sm btn-outline-secondary px-1" onClick={this.props.onOpenSizeMenu}>
+          Change Size
+        </button>
       </div>
     );
   }
