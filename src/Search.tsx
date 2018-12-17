@@ -81,7 +81,7 @@ class Input extends React.PureComponent<InputProps, InputState>{
   }
 
   private handleInputChange = (ev: React.FormEvent<HTMLInputElement>) => {
-    const value = ev.currentTarget.value
+    const value = ev.currentTarget.value;
     this.setState(() => ({ value }));
     this.props.onInputChange(value);
   };

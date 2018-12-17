@@ -141,6 +141,11 @@ export interface VisualScaleRanges {
   [VisualScaleType.SIZE]: [number, number],
 }
 
+export interface DefaultVisualValues {
+  [VField.COLOR]: string,
+  [VField.SIZE]: number,
+}
+
 
 export interface ColorObj {
   // only need hsl field

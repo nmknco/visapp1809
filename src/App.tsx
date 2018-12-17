@@ -15,6 +15,7 @@ import {
 import { RecommendedEncodings } from './RecommendedEncodings';
 import { RecommendedFilters } from './RecommendedFilters';
 import { Search } from './Search';
+import { VisualAllPanel } from './VisualAllPanel';
 
 import { Attribute } from './Attribute';
 import { DragAnimator } from './DragAnimator';
@@ -24,7 +25,11 @@ import { PlotConfigEntry } from './PlotConfigEntry'
 import { MainPlotter } from './Plotter';
 import { Searcher } from './Searcher';
 
-import { FILTER_PANEL_WIDTH } from './commons/constants';
+import {
+  DEFAULT_DOT_COLOR,
+  DEFAULT_DOT_SIZE,
+  FILTER_PANEL_WIDTH,
+} from './commons/constants';
 import {
   memoizedGetAttributes,
 } from './commons/memoized';
@@ -35,6 +40,7 @@ import {
   D3Scheme,
   Data,
   DataEntry,
+  DefaultVisualValues,
   Field, 
   HandleAcceptRecommendedEncoding,
   HandleAcceptRecommendedFilter,
@@ -89,6 +95,7 @@ interface AppState {
 
   readonly activeOverlayMenu: OverlayMenu | null,
   readonly selectedChartType: ChartType,
+  readonly defaultVisualValues: DefaultVisualValues
   
   // Plotter knows the following but they need to be in the state to trigger render on change
   readonly hasSelection: boolean,
@@ -133,6 +140,7 @@ class App extends React.PureComponent<AppProps, AppState> {
       recommendedFilters: [],
       activeOverlayMenu: null,
       selectedChartType: ChartType.SCATTER_PLOT,
+      defaultVisualValues: {[VField.COLOR]: DEFAULT_DOT_COLOR, [VField.SIZE]: DEFAULT_DOT_SIZE},
       hasSelection: false,
       hasActiveSelection: {[VField.COLOR]: false, [VField.SIZE]: false}, // i.e. has visuals set on user selection
       recommendedEncodings: [],
@@ -157,6 +165,7 @@ class App extends React.PureComponent<AppProps, AppState> {
     this.setIsDraggingPoints,
     this.onSelectionChange,
     this.getVisualScaleRange,
+    this.getDefaultVisualValue,
   );
 
   private setupInitialPlot = () => {
@@ -498,10 +507,10 @@ class App extends React.PureComponent<AppProps, AppState> {
 
   private setVisualScales = (visualScaleMap: VisualScaleMap = {[VField.COLOR]: null, [VField.SIZE]: null}) => {
     this.setState((prevState) => ({
-      visualScaleMap: Object.assign(
-        {...prevState.visualScaleMap},
-        visualScaleMap
-      )
+      visualScaleMap: {
+        ...prevState.visualScaleMap,
+        ...visualScaleMap
+      },
     }));
   }
 
@@ -543,15 +552,26 @@ class App extends React.PureComponent<AppProps, AppState> {
     range: D3Interpolate | D3Scheme | Readonly<[number, number]>,
     shouldCloseMenu?: boolean
   ) => {
-    const field = (type === VisualScaleType.SIZE ? VField.SIZE : VField.COLOR);
+    const vfield = (type === VisualScaleType.SIZE ? VField.SIZE : VField.COLOR);
     this.setState(
       (prevState) => ({
-        visualScaleRanges: Object.assign(
-          {...prevState.visualScaleRanges},
-          {[type]: range},
-        )
+        visualScaleRanges: {
+          ...prevState.visualScaleRanges,
+          [type]: range,
+        },
       }),
-      () => this.mp.updateVisual([field,], this.state.plotConfig, true)
+      () => {
+        // Use setPlotConfig to update the visual - otherwise need
+        //   to reset custom encodings before update visual
+        const currentEntry = this.state.plotConfig[vfield]
+        if (currentEntry) {
+          this.setPlotConfig(
+            vfield,
+            new PlotConfigEntry(currentEntry.attribute), 
+            true,
+          );
+        }
+      }
     );
     
     if (shouldCloseMenu) {
@@ -598,6 +618,40 @@ class App extends React.PureComponent<AppProps, AppState> {
         return;
     }
   };
+
+
+  private getDefaultVisualValue = (vfield: VField) => this.state.defaultVisualValues[vfield];
+
+  private handlePickVisualAll = (vfield: VField, value: number | string) => {
+    // console.log(value);
+
+    // set default color/size and update plot
+    this.setState(
+      (prevState) => ({
+        defaultVisualValues: {
+          ...prevState.defaultVisualValues,
+          [vfield]: value,
+        },
+      }),
+      // use SetPlotConfig to update visual - this clears
+      //    existing encoding and user assigned visuals
+      // Otherwise has to clear both manually before updating visual
+      () => this.setPlotConfig(vfield, undefined, true)
+    );
+  };
+
+  private handlePickColorAll: HandlePickColor = (colorObj) => {
+    this.handlePickVisualAll(
+      VField.COLOR,
+      ColorUtil.hslToString(colorObj.hsl)
+    );
+    // this.updateColorPicker({display: 'none'});
+  };
+
+  private handlePickSizeAll = (size: number) =>
+    this.handlePickVisualAll(VField.SIZE, size);
+
+
 
 
   render() {
@@ -662,7 +716,7 @@ class App extends React.PureComponent<AppProps, AppState> {
             {Object.values(VField).map(field => {
               const handleClickClearSelected = () => 
                 this.unVisualSelected(field)
-              const handleClikcClearAll = () => 
+              const handleClickClearAll = () => 
                 this.unVisualAll(field)
               return (
                 <div key={`clear_${field}`} className="d-flex m-1 py-1">
@@ -677,7 +731,7 @@ class App extends React.PureComponent<AppProps, AppState> {
                   <button 
                     disabled={!this.shouldEnableUnVisualAll(field)}
                     className="btn btn-sm btn-outline-danger m-1"
-                    onClick={handleClikcClearAll}
+                    onClick={handleClickClearAll}
                   >
                     {`All`}
                   </button>
@@ -712,6 +766,11 @@ class App extends React.PureComponent<AppProps, AppState> {
               onOpenColorNumMenu={this.handleOpenColorNumMenu}
               onOpenColorOrdMenu={this.handleOpenColorOrdMenu}
               onOpenSizeMenu={this.handleOpenSizeMenu}
+            />
+            <VisualAllPanel
+              onPickColor={this.handlePickColorAll}
+              onPickSize={this.handlePickSizeAll}
+              currentSize={this.state.defaultVisualValues[VField.SIZE]}
             />
           </div>
 

@@ -13,3 +13,6 @@ export const CHARTCONFIG = {
   svgW: 720,
   svgH: 720
 };
+
+export const DEFAULT_DOT_COLOR = 'hsl(0, 0%, 60%)'; // #999999
+export const DEFAULT_DOT_SIZE = 7;

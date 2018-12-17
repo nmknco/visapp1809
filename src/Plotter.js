@@ -4,11 +4,10 @@ import { Resizer } from './Resizer';
 import { Dragger } from './Dragger';
 import { ActiveSelectionsWithRec } from './ActiveSelections';
 import { expandRange, SelUtil } from './commons/util';
-import { CHARTCONFIG } from './commons/constants';
+import { CHARTCONFIG, DEFAULT_DOT_COLOR, DEFAULT_DOT_SIZE } from './commons/constants';
 import { memoizedGetExtent } from './commons/memoized';
 
 const SVGATTR_BY_FIELD = {color: 'stroke', size: 'r'};
-const DEFAULT_BY_FIELD = {color: '#999999', size: 7};
 
 
 class MainPlotter {
@@ -27,6 +26,7 @@ class MainPlotter {
     setIsDraggingPoints,
     onSelectionChange,
     getVisualScaleRange,
+    getDefaultVisualValue,
   ){
     this.data = data;
     this.container = container;
@@ -41,6 +41,7 @@ class MainPlotter {
     this.setIsDraggingPoints = setIsDraggingPoints;
     this.onSelectionChange = onSelectionChange;
     this.getVisualScaleRange = getVisualScaleRange;
+    this.getDefaultVisualValue = getDefaultVisualValue;
     
     this.activeSelections = new ActiveSelectionsWithRec(
       data, 
@@ -220,13 +221,13 @@ class MainPlotter {
     
     newDots.append('circle')
       .classed('circle circle-bg', true)
-      .attr('r', DEFAULT_BY_FIELD.size)
+      .attr('r', this.getDefaultVisualValue('size'))
       .call(this.dragger.getDragger());
 
     newDots.append('circle')
       .classed('circle circle-ring', true)
-      .attr('r', DEFAULT_BY_FIELD.size)
-      .attr('stroke', DEFAULT_BY_FIELD.color)
+      .attr('r', this.getDefaultVisualValue('size'))
+      .attr('stroke', this.getDefaultVisualValue('color'))
       .on('mousedown', d => {
         if (this.selector.getIsSelected(d.__id_extra__)) {
           this.resizer.handleMouseDown(d3.event);
@@ -272,7 +273,7 @@ class MainPlotter {
           this.customScales[field] = visualScale;
         } else {
           if (field === 'color') {
-            visualScale = this.scales[field][attrName] || (
+            visualScale = this.scales.color[attrName] || (
               (entry.attribute.type === 'number') ?
                 d3.scaleSequential(t => (d3['interpolate' + this.getVisualScaleRange('color_num')])(d3.scaleLinear().domain([0,1]).range([0.1, 1])(t))).domain(memoizedGetExtent(data, attrName)) :
                 d3.scaleOrdinal(d3['scheme' + this.getVisualScaleRange('color_ord')]).domain(d3.map(data, d => d[attrName]).keys())
@@ -287,7 +288,7 @@ class MainPlotter {
         this.setVisualScales({[field]: visualScale})
       } else {
         // reset visual upon empty plotConfig entry
-        visualScale = () => DEFAULT_BY_FIELD[field];
+        visualScale = () => this.getDefaultVisualValue(field);
         this.customScales[field] = null;
         this.setVisualScales({[field]: null});
       }
@@ -327,7 +328,7 @@ class MainPlotter {
     // Displayed visual (color, size, etc.) is sync-ed with active groups
     this._getD3SelectionByField(field).attr(
       SVGATTR_BY_FIELD[field], 
-      d => this.activeSelections.getValue(field, d.__id_extra__) || DEFAULT_BY_FIELD[field]
+      d => this.activeSelections.getValue(field, d.__id_extra__) || this.getDefaultVisualValue(field)
     );
   };
 
