@@ -2,6 +2,7 @@ import * as d3 from 'd3';
 
 import { Classifier } from './Classifier';
 
+import { DEFAULT_DOT_SIZE_RANGE } from './commons/constants';
 import { memoizedGetExtent } from './commons/memoized';
 import { ColorUtil, expandRange } from './commons/util';
 
@@ -101,7 +102,7 @@ class ActiveSelectionsWithRec {
     let scale;
     for (let attrName of this.recommendedAttrListsByField[field]) {
       if (field === 'color') {
-        scale = ColorUtil.interpolateColorScale(
+        scale = ColorUtil.interpolateColorScaleWithData(
           this.as.getAllGroupsWithValue('color'),
           this.data,
           attrName,
@@ -109,7 +110,7 @@ class ActiveSelectionsWithRec {
       } else if (field === 'size') {
         // We do not actually interpolate size scales. Using the generic one instead
         scale = d3.scaleLinear()
-        .domain(expandRange(memoizedGetExtent(this.data, attrName))).range([3, 15]);
+        .domain(expandRange(memoizedGetExtent(this.data, attrName))).range(DEFAULT_DOT_SIZE_RANGE);
       }
       this.interpolatedScales[field][attrName] = scale;
     }

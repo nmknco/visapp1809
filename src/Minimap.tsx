@@ -1,3 +1,4 @@
+import * as d3 from 'd3';
 import * as React from 'react';
 
 import { Filter } from './Filter';
@@ -41,17 +42,20 @@ class Minimap extends React.PureComponent<MinimapProps> {
     const r = 1;
     const dimension = this.getDimension();
     
-    let {scales: {xScale, yScale}} = this.props;
-    xScale = xScale && xScale.copy().range([MINIMAP_PAD, dimension - MINIMAP_PAD]);
-    yScale = yScale && yScale.copy().range([dimension - MINIMAP_PAD, MINIMAP_PAD]);
+    const {scales: {xScale, yScale}} = this.props;
+    if (!xScale || !yScale) {
+      return;
+    }
+    const xMiniScale = d3.scaleLinear().domain(xScale.range()).range([MINIMAP_PAD, dimension - MINIMAP_PAD]);
+    const yMiniScale = d3.scaleLinear().domain(xScale.range()).range([dimension - MINIMAP_PAD, MINIMAP_PAD]);
     
     if (xAttrName && yAttrName && xScale && yScale) {
       return filteredData.map(d => 
         <circle
           key={d.__id_extra__}
           className="minimap__dot"
-          cx={xScale!(d[xAttrName])} 
-          cy={yScale!(d[yAttrName])} 
+          cx={xMiniScale(xScale(d[xAttrName]))} 
+          cy={yMiniScale(yScale(d[yAttrName]))} 
           r={r}
         />
       );

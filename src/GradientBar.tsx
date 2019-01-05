@@ -1,27 +1,24 @@
 import * as d3 from 'd3';
 import * as React from 'react';
 
-import {
-  D3Interpolate,
-} from './commons/types';
+import { StringRangeScale } from './commons/types';
 
 
 const NTICK = 10;
 
 interface GradientBarProps {
-  readonly palette: D3Interpolate,
+  readonly scale: StringRangeScale<number>,
   readonly width: number,
   readonly height: number,
-  readonly range?: Readonly<[number, number]>
 }
 
 class GradientBar extends React.PureComponent<GradientBarProps> {
 
   render() {
-    const {palette, width, height} = this.props;
-    const adjustingScale = d3.scaleLinear()
-        .domain([0,1]).range(this.props.range || [0, 1]);
-    const colorScale = d3['interpolate' + palette];
+    const {scale, width, height} = this.props;
+    const convertingScale = d3.scaleLinear()
+        .domain([0, 1]).range(scale.domain());
+    const id = Math.random() + '';
 
     return (
       <div
@@ -29,17 +26,17 @@ class GradientBar extends React.PureComponent<GradientBarProps> {
       >
         <svg width="100%" height="100%">
           <defs>
-            <linearGradient id={'gradient-bar-' + palette}>
+            <linearGradient id={'gradient-bar-' + id}>
               {(new Array(NTICK)).fill(0).map((d, i) => (
                 <stop
-                  key={`tick-${palette}-${i}`}
+                  key={`tick-${i}`}
                   offset={i*100/(NTICK - 1) + '%'}
-                  stopColor={colorScale(adjustingScale(i/(NTICK-1)))}
+                  stopColor={scale(convertingScale(i/(NTICK-1)))}
                 />
               ))}
             </linearGradient>
           </defs>
-          <rect width="100%" height="100%" fill={`url(#gradient-bar-${palette})`} />
+          <rect width="100%" height="100%" fill={`url(#gradient-bar-${id})`} />
         </svg>
       </div>
     );

@@ -2,7 +2,7 @@ import * as React from 'react';
 
 import { Panel } from './Panel';
 
-import { ChartType } from './commons/types';
+import { ChartType, HandleSelectChartType } from './commons/types';
 
 
 const IMAGE_SOURCES = {
@@ -12,6 +12,7 @@ const IMAGE_SOURCES = {
 
 interface ChartSelectorProps {
   readonly selectedChartType: ChartType,
+  readonly onSelectChartType: HandleSelectChartType,
 }
 
 class ChartSelector extends React.PureComponent<ChartSelectorProps> {
@@ -22,6 +23,7 @@ class ChartSelector extends React.PureComponent<ChartSelectorProps> {
     return (
       <Panel
         heading="Show Me"
+        noMargin={true}
       >
         <div className="p-1 d-flex flex-wrap">
           {Object.values(ChartType).map((type) => (
@@ -35,6 +37,7 @@ class ChartSelector extends React.PureComponent<ChartSelectorProps> {
               <ChartSelectorItem
                 imageSrc={this.getImageSrc(type)}
                 chartType={type}
+                onSelect={this.props.onSelectChartType}
               />
             </div>
           ))}
@@ -47,13 +50,19 @@ class ChartSelector extends React.PureComponent<ChartSelectorProps> {
 interface ChartSelectorItemProps {
   readonly imageSrc: string,
   readonly chartType: ChartType,
+  readonly onSelect: HandleSelectChartType,
 }
 
 class ChartSelectorItem extends React.PureComponent<ChartSelectorItemProps> {
+  private handleSelect = (ev: React.MouseEvent<Element>) =>
+    this.props.onSelect(this.props.chartType);
+
   render() {
     console.log('Chart selector item render');
     return (
-      <div>
+      <div
+        onClick={this.handleSelect}
+      >
         <div>
           <img
             className="chart-selector__item-image border border-secaondary rounded"

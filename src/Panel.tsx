@@ -5,6 +5,7 @@ import { FAButton } from './FAButton';
 interface PanelProps {
   readonly heading: string | JSX.Element,
   readonly noPadding?: boolean,
+  readonly noMargin?: boolean
 }
 
 class Panel extends React.Component<PanelProps & React.HTMLAttributes<HTMLDivElement>> {
@@ -13,7 +14,7 @@ class Panel extends React.Component<PanelProps & React.HTMLAttributes<HTMLDivEle
   render() {
     // console.log('Panel render');
     return (
-      <div className={"card border-light m-1 " + this.props.className}>
+      <div className={`card border-light m-${this.props.noMargin ? 0 : 1} ${this.props.className}`}>
         <div className="card-header"> {this.props.heading} </div>
         <div className={"card-body" + (this.props.noPadding ? " p-0" : " p-1")}>
           {this.props.children}

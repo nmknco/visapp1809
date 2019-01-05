@@ -4,10 +4,26 @@ class CustomError extends Error {
   }
 }
 
-// TODO: Use a factory, use object 
+// TODO: Either get rid of all these or 
+//        Use a factory, use object 
 // const CreateCustomErrorClass = {
  
 // }
+
+
+export class NoStatError extends CustomError {
+  constructor(attrName: string, statName: 'median' | 'average' | 'extent', message?: string) {
+    super(message || `Can't find ${statName} for attribute ${attrName}. (d3.mean() returns undefined)`);
+    this.name = 'NoStatError';
+  }
+}
+
+export class NoMeanError extends CustomError {
+  constructor(attrName: string, message?: string) {
+    super(message || `Can't find mean for attribute ${attrName}. (d3.mean() returns undefined)`);
+    this.name = 'NoMeanError';
+  }
+}
 
 export class NoMedianError extends CustomError {
   constructor(attrName: string, message?: string) {

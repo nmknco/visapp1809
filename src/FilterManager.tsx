@@ -66,7 +66,7 @@ class FilterManager {
     this.countFilter(filter);
     this.updateNewFilteredIds(filter);
     if (this.onFilterListChange) {
-      this.onFilterListChange(this);
+      this.onFilterListChange();
     }
     return this;
   }
@@ -82,7 +82,7 @@ class FilterManager {
     this.countFilter(filter);
     this.updateNewFilteredIds(filter, oldFilter);
     if (this.onFilterListChange) {
-      this.onFilterListChange(this);
+      this.onFilterListChange();
     }
     return this;
   };
@@ -97,7 +97,7 @@ class FilterManager {
     this.countFilter(oldFilter, -1);
     this.newFilteredIds = [];
     if (this.onFilterListChange) {
-      this.onFilterListChange(this);
+      this.onFilterListChange();
     }
     return this;
   };
@@ -108,7 +108,7 @@ class FilterManager {
     }
     this.filterCntByPoint.fill(0);
     if (this.onFilterListChange) {
-      this.onFilterListChange(this);
+      this.onFilterListChange();
     }
     return this;
   }

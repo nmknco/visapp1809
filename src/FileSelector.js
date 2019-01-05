@@ -8,6 +8,7 @@ class FileSelector extends Component {
       <Panel 
         className="file_selector"
         heading="Data"
+        noMargin={true}
       >
         <div>cars.json</div>
       </Panel>

@@ -1,6 +1,6 @@
 import * as React from 'react';
 
-import { ColorPicker } from './ColorPicker';
+import { RectPopupColorPicker } from './ColorPicker';
 import { Panel } from './Panel';
 
 import { DEFAULT_DOT_COLOR } from './commons/constants';
@@ -13,25 +13,29 @@ import { ColorUtil } from './commons/util';
 interface VisualAllPanelProps {
   readonly onPickColor: HandlePickColor,
   readonly onPickSize: (size: number) => void,
-  readonly currentSize: number,
+  readonly currentDefaultSize: number,
+  readonly currentDefaultColor: string,
 }
 
-interface VisualAllPanelState {
-  size: number,
-}
-
-class VisualAllPanel extends React.PureComponent<VisualAllPanelProps, VisualAllPanelState> {
+class VisualAllPanel extends React.PureComponent<VisualAllPanelProps> {
   constructor(props: VisualAllPanelProps) {
     super(props);
+    this.state = {
+      useInitialColor: true,
+    };
   }
 
   private handleSizeSliderChange = (ev: React.FormEvent<HTMLInputElement>) => {
     const size = Number(ev.currentTarget.value);
     this.props.onPickSize(size);
   }
+  
+  private handleResetColor = () => {
+    // Reset to the "default default"
+    this.props.onPickColor({hsl: ColorUtil.stringToHSL(DEFAULT_DOT_COLOR)});
+    this.setState(() => ({useInitialColor: true}));
+  }
 
-  private handleResetColor = () => 
-    this.props.onPickColor({hsl: ColorUtil.stringToHSL(DEFAULT_DOT_COLOR)})
   
   render() {
     return (
@@ -46,15 +50,13 @@ class VisualAllPanel extends React.PureComponent<VisualAllPanelProps, VisualAllP
             <div
               className="d-flex justify-content-center p-1"
               style={{
-                height: 88,
               }}
             >
-              <ColorPicker
-                style={{
-                  top: 10,
-                  left: 0,
-                }} 
-                onChangeComplete={this.props.onPickColor}
+              <RectPopupColorPicker
+                width={25}
+                height={25}
+                currentColor={this.props.currentDefaultColor}
+                onPickColor={this.props.onPickColor}
               />
             </div>
             <div className="d-flex justify-content-center">
@@ -76,10 +78,10 @@ class VisualAllPanel extends React.PureComponent<VisualAllPanelProps, VisualAllP
                 type="range"
                 min="2"
                 max="30"
-                value={this.props.currentSize}
+                value={this.props.currentDefaultSize}
                 onChange={this.handleSizeSliderChange}
               />
-              <div className="p-1">{this.props.currentSize}</div>
+              <div className="p-1">{this.props.currentDefaultSize}</div>
             </div>
           </div>
 

@@ -16,3 +16,10 @@ export const CHARTCONFIG = {
 
 export const DEFAULT_DOT_COLOR = 'hsl(0, 0%, 60%)'; // #999999
 export const DEFAULT_DOT_SIZE = 7;
+export const DEFAULT_DOT_SIZE_RANGE: Readonly<[number, number]> = [3, 15];
+export const MAX_DOT_SIZE_RANGE: Readonly<[number, number]> = [2, 30];
+export const DEFAULT_BAR_COLOR = 'hsl(0, 0%, 60%)';
+export const DEFAULT_BAR_SIZE = 30;
+export const DEFAULT_BAR_SIZE_RANGE: Readonly<[number, number]> = [10, 64];
+export const MAX_BAR_SIZE_RANGE: Readonly<[number, number]> = [5, 128];
+export const BAR_PADDING = 20;

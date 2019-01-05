@@ -2,7 +2,7 @@ import * as React from 'react';
 
 import { Attributes } from './Attributes';
 import { ChartSelector } from './ChartSelector';
-import { ColorPicker } from './ColorPicker';
+import { ColorPicker, LIT, SAT } from './ColorPicker';
 import { Encodings } from './Encodings';
 import { FileSelector } from './FileSelector';
 import { Filters } from './Filters';
@@ -18,6 +18,7 @@ import { Search } from './Search';
 import { VisualAllPanel } from './VisualAllPanel';
 
 import { Attribute } from './Attribute';
+import { BarPlotter } from './BarPlotter';
 import { DragAnimator } from './DragAnimator';
 import { FilterList, RecommendedFilter } from './Filter';
 import { FilterManager } from './FilterManager';
@@ -26,17 +27,24 @@ import { MainPlotter } from './Plotter';
 import { Searcher } from './Searcher';
 
 import {
+  DEFAULT_BAR_COLOR,
+  DEFAULT_BAR_SIZE,
+  DEFAULT_BAR_SIZE_RANGE,
   DEFAULT_DOT_COLOR,
   DEFAULT_DOT_SIZE,
+  DEFAULT_DOT_SIZE_RANGE,
   FILTER_PANEL_WIDTH,
+  MAX_BAR_SIZE_RANGE,
+  MAX_DOT_SIZE_RANGE,
 } from './commons/constants';
+import { ElementNotFoundError } from './commons/errors';
 import {
   memoizedGetAttributes,
 } from './commons/memoized';
 import {
   ChartType,
+  ColorNumRange,
   ColorPickerStyle, 
-  D3Interpolate,
   D3Scheme,
   Data,
   DataEntry,
@@ -56,6 +64,7 @@ import {
   HandlePickColor,
   HandleRemoveFilter,
   HandleSearchInputChange,
+  HandleSelectChartType,
   HandleSetFilter,
   MinimapScaleMap,
   OverlayMenu,
@@ -64,12 +73,14 @@ import {
   PointStateGetter,
   RecommendedEncoding,
   SetPlotConfig,
+  SetVisualScales,
   VField,
   VisualScaleMap,
   VisualScaleRanges,
   VisualScaleType,
 } from './commons/types';
-import { ColorUtil } from './commons/util';
+import { ColorUtil, HSLColor } from './commons/util';
+import { Dropdown } from './DropDown';
 
 
 interface AppProps {
@@ -94,7 +105,7 @@ interface AppState {
   readonly recommendedFilters: ReadonlyArray<RecommendedFilter>
 
   readonly activeOverlayMenu: OverlayMenu | null,
-  readonly selectedChartType: ChartType,
+  readonly chartType: ChartType,
   readonly defaultVisualValues: DefaultVisualValues
   
   // Plotter knows the following but they need to be in the state to trigger render on change
@@ -115,6 +126,10 @@ class App extends React.PureComponent<AppProps, AppState> {
   private fm: FilterManager;
   private searcher: Searcher;
 
+  private bp: BarPlotter;
+
+  private plt: MainPlotter | BarPlotter;
+
   constructor(props: AppProps) {
     super(props);
     this.state = this.createInitialState();
@@ -129,17 +144,24 @@ class App extends React.PureComponent<AppProps, AppState> {
       filterList: [],
       filteredIds: new Set(),
       minimapScaleMap: {xScale: null, yScale: null},
-      visualScaleMap: {[VField.COLOR]: null, [VField.SIZE]: null},
+      visualScaleMap: {
+        [VisualScaleType.COLOR_NUM]: null,
+        [VisualScaleType.COLOR_ORD]: null,
+        [VisualScaleType.SIZE]: null,
+      },
       visualScaleRanges: {
-        [VisualScaleType.COLOR_NUM]: D3Interpolate.INFERNO,
+        [VisualScaleType.COLOR_NUM]: [
+          ColorUtil.hslToString(new HSLColor(5, SAT, LIT)), 
+          ColorUtil.hslToString(new HSLColor(275, SAT, LIT))
+        ],
         [VisualScaleType.COLOR_ORD]: D3Scheme.CATEGORY10,
-        [VisualScaleType.SIZE]: [3, 15],
+        [VisualScaleType.SIZE]: DEFAULT_DOT_SIZE_RANGE,
       },
       isDraggingPoints: false,
       isHoveringFilterPanel: false,
       recommendedFilters: [],
       activeOverlayMenu: null,
-      selectedChartType: ChartType.SCATTER_PLOT,
+      chartType: ChartType.SCATTER_PLOT,
       defaultVisualValues: {[VField.COLOR]: DEFAULT_DOT_COLOR, [VField.SIZE]: DEFAULT_DOT_SIZE},
       hasSelection: false,
       hasActiveSelection: {[VField.COLOR]: false, [VField.SIZE]: false}, // i.e. has visuals set on user selection
@@ -168,9 +190,22 @@ class App extends React.PureComponent<AppProps, AppState> {
     this.getDefaultVisualValue,
   );
 
-  private setupInitialPlot = () => {
+  private createNewBarPlotter = (): BarPlotter => {
+    if (!this.d3ContainerRef.current) {
+      throw new ElementNotFoundError();
+    }
+    return new BarPlotter(
+      this.props.data,
+      this.d3ContainerRef.current,
+      this.setVisualScales,
+      this.getVisualScaleRange,
+      this.getDefaultVisualValue,
+    )
+  };
+
+  private setupInitialMainPlot = () => {
     if (!this.props.data.length) {
-      return
+      return;
     };
     const attrs = [
       ...memoizedGetAttributes(this.props.data)
@@ -181,29 +216,101 @@ class App extends React.PureComponent<AppProps, AppState> {
         return a1.type === 'number' ? -1 : 1; 
       } 
     });
+    this.setPlotConfig(VField.COLOR, undefined);
+    this.setPlotConfig(VField.SIZE, undefined);
     this.setPlotConfig(Field.X, new PlotConfigEntry(attrs[0]));
     this.setPlotConfig(Field.Y, new PlotConfigEntry(attrs[attrs.length ? 1 : 0]));
   };
 
-  private initialize = () => {
+  private setupAndRedrawMainPlot = () => {
+    this.setState(
+      prevState => ({
+        visualScaleRanges: {
+          ...prevState.visualScaleRanges,
+          [VisualScaleType.SIZE]: DEFAULT_DOT_SIZE_RANGE,
+        },
+        defaultVisualValues: {
+          [VField.COLOR]: DEFAULT_DOT_COLOR, 
+          [VField.SIZE]: DEFAULT_DOT_SIZE,
+        },
+      }),
+      () => this.mp.redrawAll(this.state.plotConfig),
+    );
+  }
+
+  private initializeMainPlot = (initializePlotConfig: boolean = false) => {
     this.mp = this.createNewMainPlotter();
-    this.setupInitialPlot();
-    this.fm = new FilterManager(this.props.data, this.handleFilterListChange);
+    this.plt = this.mp;
+    
     this.searcher = new Searcher(this.props.data, (id: number) => this.fm.getIsFiltered(id));
+
+    // TODO: reset all filter and search states??
+
+    if (initializePlotConfig) {
+      this.setupInitialMainPlot();
+    } else {
+      this.setupAndRedrawMainPlot();
+      // this.mp.redrawAll(this.state.plotConfig);
+    }
+
+    this.updateScatterPlotOnFilter(this.state.filteredIds);
+  };
+
+  private setupAndRedrawBarChart = () => {
+    //  (1) replace X attr with ordinal if current is numeric
+    //  (2) drop custom status of color/size if present
+    //  (3) change default size ranges to bar sizes
+    //  (4) change default size/color to bar size/color defaults
+
+    const {x, color, size} = this.state.plotConfig;
+    if (x && x.attribute.type === 'number') {
+      this.setPlotConfig(Field.X, new PlotConfigEntry(new Attribute('Year', 'string')));
+    }
+    if (color && color.useCustomScale) {
+      this.setPlotConfig(Field.COLOR, {...color, useCustomScale: false});
+    }
+    if (size && size.useCustomScale) {
+      this.setPlotConfig(Field.SIZE, {...size, useCustomScale: false});
+    }
+    this.setState(
+      prevState => ({
+        visualScaleRanges: {
+          ...prevState.visualScaleRanges,
+          [VisualScaleType.SIZE]: DEFAULT_BAR_SIZE_RANGE,
+        },
+        defaultVisualValues: {
+          [VField.COLOR]: DEFAULT_BAR_COLOR, 
+          [VField.SIZE]: DEFAULT_BAR_SIZE,
+        },
+      }),
+      () => this.bp.redrawAll(this.state.plotConfig),
+    );
+  };
+  
+  
+  private initializeBarChart = () => {
+    this.bp = this.createNewBarPlotter();
+    this.plt = this.bp;
+    
+    this.bp.setFilteredData(this.state.filteredIds);
+    
+    this.setupAndRedrawBarChart();
   };
 
   componentDidMount() {
     if (this.props.data) {
-      this.initialize();
+      this.fm = new FilterManager(this.props.data, this.handleFilterListChange);
+      this.initializeMainPlot(true);
     }
   }
 
   componentDidUpdate(prevProps: AppProps) {
     if (prevProps.data !== this.props.data) {
       console.log('App received processed new data');
+      this.fm = new FilterManager(this.props.data, this.handleFilterListChange);
       this.setState(
         () => this.createInitialState(),
-        this.initialize,
+        () => this.initializeMainPlot(true),
       );
     }
   }
@@ -214,10 +321,8 @@ class App extends React.PureComponent<AppProps, AppState> {
   setPlotConfig : SetPlotConfig = (
     field, 
     plotConfigEntry,
-    keepSelection, 
-    callback,
+    callback?,
   ) => {
-    const { [Field.X]: prevX, [Field.Y]: prevY } = this.state.plotConfig;
 
     this.setState((prevState) => ({
       plotConfig: {
@@ -225,21 +330,29 @@ class App extends React.PureComponent<AppProps, AppState> {
         [field]: plotConfigEntry,
       }
     }), () => {
-      const plotConfig = this.state.plotConfig;
-      if (field === Field.X || field === Field.Y) {
-        const { [Field.X]: x, [Field.X]: y } = plotConfig;
-        this.mp.updatePosition(plotConfig); // updateXY() clears plot if x or y is undefined
-        if (!x || !y) {
-          this.removeAllFilters();
-        }
-        if (!(prevX && prevY) && x && y) {
-          this.mp.updateVisual(Object.values(VField), plotConfig); // restore color and size
-        }
-      }
       
-      if (field === Field.COLOR || field === Field.SIZE) {
-        this.mp.updateVisual([field,], plotConfig, keepSelection);
-      }
+      // const plotConfig = this.state.plotConfig;
+      // if (field === Field.X || field === Field.Y) {
+      //   const { [Field.X]: x, [Field.X]: y } = plotConfig;
+      //   // @ts-ignore
+      //   this.plt.updatePosition(plotConfig); // This clears plot if x or y is undefined
+   
+      //   if (!x || !y) {
+      //     this.removeAllFilters();
+      //   }
+      //   if (!(prevX && prevY) && x && y) {
+      //     // @ts-ignore
+      //     this.plt.updateVisual(Object.values(VField), plotConfig); // restore color and size
+      //   }
+      // }
+      
+      // if (field === Field.COLOR || field === Field.SIZE) {
+      //   // @ts-ignore
+      //   this.plt.updateVisual([field,], plotConfig, keepSelection);
+      // }
+
+      // @ts-ignore
+      this.plt.redrawAll(this.state.plotConfig);
 
       if (callback) {
         callback();
@@ -257,9 +370,14 @@ class App extends React.PureComponent<AppProps, AppState> {
   // as recommendations are sync-ed in ActiveSelectionsWithRec
   private handleChangeVisualByUser = (field: VField, value: string | number) => {
     if (this.state.plotConfig[field]) {
-      this.setPlotConfig(field, undefined, true); // note this now always updates(clears) color
+      this.setPlotConfig(
+        field, 
+        undefined,
+        () => this.mp.assignVisual(field, value),
+      ); // note this now always updates(clears) color
+    } else {
+      this.mp.assignVisual(field, value);
     }
-    this.mp.assignVisual(field, value);
   };
 
   private handlePickColor: HandlePickColor = (colorObj) => {
@@ -393,23 +511,36 @@ class App extends React.PureComponent<AppProps, AppState> {
   };
 
 
-  private handleFilterListChange: HandleFilterListChange = (fm) => {
-    this.setState(() => ({ filterList: fm.getFilterListCopy() }));
-    // Draw
-    const getState = fm.getStateGetterOnNoPreview();
+  private updateScatterPlotOnFilter = (filteredIds: ReadonlySet<number>) => {
+    // This draws plot only and does not clean up, animation, etc.
+    // Use this for initializing plot with filters
+    const getState = this.fm.getStateGetterOnNoPreview();
     this.hideOrDimPointsByState(getState);
-    // Update filtered id list
-    const filteredIds = this.fm.getFilteredIdSet();
-    this.setState(() => ({ filteredIds }));
-    // Clean up selections
-    this.cleanUpFilteredPoints(filteredIds)
-    // Update search using current keyword
-    this.updateSearchResult();
+  };
 
-    // Show drag animations
-    DragAnimator.showDragFilteredPointsAnimation(
-      fm.getNewFilteredIds()
-    ).then(() => console.log('Points drag animation finished'));
+  private handleFilterListChange: HandleFilterListChange = () => {
+    // Update states
+    const filteredIds = this.fm.getFilteredIdSet();
+    this.setState(() => ({
+      filterList: this.fm.getFilterListCopy(),
+      filteredIds,
+    }));
+
+    if (this.state.chartType === ChartType.SCATTER_PLOT) {
+      // Draw
+      this.updateScatterPlotOnFilter(filteredIds);
+      // Clean up selections
+      this.cleanUpFilteredPoints(filteredIds)
+      // Update search using current keyword
+      this.updateSearchResult();
+      // Show drag animations
+      DragAnimator.showDragFilteredPointsAnimation(
+        this.fm.getNewFilteredIds()
+      ).then(() => console.log('Points drag animation finished'));
+    }
+    if (this.state.chartType === ChartType.BAR_CHART) {
+      this.bp.updateDataAndPlot(filteredIds, this.state.plotConfig);
+    }
   };
 
   private handleAcceptRecommendedFilter: HandleAcceptRecommendedFilter = (filter) => {
@@ -471,11 +602,11 @@ class App extends React.PureComponent<AppProps, AppState> {
     }
   };
 
-  private removeAllFilters = () => {
-    // used to clear filters when plot is cleared (e.g. removing X/Y)
-    this.fm.removeAllFilter();
-    this.clearAllRecommendedFilters();
-  };
+  // private removeAllFilters = () => {
+  //   // used to clear filters when plot is cleared (e.g. removing X/Y)
+  //   this.fm.removeAllFilter();
+  //   this.clearAllRecommendedFilters();
+  // };
 
   private hideOrDimPointsByState = (getState: PointStateGetter) => {
     const shouldHide = (d: DataEntry) => getState(d) === PointState.FILTERED;
@@ -505,13 +636,25 @@ class App extends React.PureComponent<AppProps, AppState> {
     this.setState(() => ({minimapScaleMap}));
   };
 
-  private setVisualScales = (visualScaleMap: VisualScaleMap = {[VField.COLOR]: null, [VField.SIZE]: null}) => {
+  private setVisualScales: SetVisualScales = (
+    visualScaleType,
+    scale,
+    updateRangeFromScale?,
+  ) => {
     this.setState((prevState) => ({
       visualScaleMap: {
         ...prevState.visualScaleMap,
-        ...visualScaleMap
+        [visualScaleType]: scale,
       },
     }));
+    if (updateRangeFromScale && scale) {
+      this.setState((prevState) => ({
+        visualScaleRanges: {
+          ...prevState.visualScaleRanges,
+          [visualScaleType]: scale.range()
+        },
+      }));
+    }
   }
 
   private handleSearchInputChange: HandleSearchInputChange = (keyword) => {
@@ -549,7 +692,7 @@ class App extends React.PureComponent<AppProps, AppState> {
 
   private handleSetVisualScaleRange = (
     type: VisualScaleType,
-    range: D3Interpolate | D3Scheme | Readonly<[number, number]>,
+    range: ColorNumRange | D3Scheme | Readonly<[number, number]>,
     shouldCloseMenu?: boolean
   ) => {
     const vfield = (type === VisualScaleType.SIZE ? VField.SIZE : VField.COLOR);
@@ -567,8 +710,7 @@ class App extends React.PureComponent<AppProps, AppState> {
         if (currentEntry) {
           this.setPlotConfig(
             vfield,
-            new PlotConfigEntry(currentEntry.attribute), 
-            true,
+            new PlotConfigEntry(currentEntry.attribute)
           );
         }
       }
@@ -579,8 +721,8 @@ class App extends React.PureComponent<AppProps, AppState> {
     }
   }
 
-  private handleSetColorNumRange = (palette: D3Interpolate) => 
-    this.handleSetVisualScaleRange(VisualScaleType.COLOR_NUM, palette, true);
+  private handleSetColorNumRange = (range: ColorNumRange) => 
+    this.handleSetVisualScaleRange(VisualScaleType.COLOR_NUM, range);
 
   private handleSetSizeRange = (range: Readonly<[number, number]>) =>
     this.handleSetVisualScaleRange(VisualScaleType.SIZE, range);
@@ -600,8 +742,14 @@ class App extends React.PureComponent<AppProps, AppState> {
   private renderOverlayMenu = () => {
     switch(this.state.activeOverlayMenu) {
       case OverlayMenu.COLOR_NUM:
+        const cScale = this.state.visualScaleMap[VisualScaleType.COLOR_NUM]
+        if (!cScale) {
+          return;
+        }
         return (
           <OverlayMenuColorNumPage
+            range={this.state.visualScaleRanges[VisualScaleType.COLOR_NUM]}
+            scale={cScale}
             onSetColorNumRange={this.handleSetColorNumRange}
           />
         );
@@ -612,6 +760,7 @@ class App extends React.PureComponent<AppProps, AppState> {
           <OverlayMenuSizePage
             onSetSizeRange={this.handleSetSizeRange}
             currentRange={this.state.visualScaleRanges[VisualScaleType.SIZE]}
+            maxRange={this.state.chartType === ChartType.SCATTER_PLOT ? MAX_DOT_SIZE_RANGE : MAX_BAR_SIZE_RANGE}
           />
         );
       default:
@@ -636,7 +785,7 @@ class App extends React.PureComponent<AppProps, AppState> {
       // use SetPlotConfig to update visual - this clears
       //    existing encoding and user assigned visuals
       // Otherwise has to clear both manually before updating visual
-      () => this.setPlotConfig(vfield, undefined, true)
+      () => this.setPlotConfig(vfield, undefined)
     );
   };
 
@@ -651,26 +800,70 @@ class App extends React.PureComponent<AppProps, AppState> {
   private handlePickSizeAll = (size: number) =>
     this.handlePickVisualAll(VField.SIZE, size);
 
+  
+  private handleSelectChartType: HandleSelectChartType = (chartType) => {
+    console.log('Switching chart to: ' + chartType);
+    this.setState(
+      () => ({chartType}),
+    );
+    if (chartType === ChartType.SCATTER_PLOT) {
+      this.initializeMainPlot();
+    } else if (chartType === ChartType.BAR_CHART) {
+      this.initializeBarChart();
+    }
+  }
+
 
 
 
   render() {
     return (
       <div className="app">
+        <nav
+          className="navbar navbar-expand-lg navbar-light bg-light"
+        >
+          <div className="collapse navbar-collapse">
+            <ul className="navbar-nav">
+              <li className="nav-item mx-2">
+                <Dropdown
+                  text="Data"
+                  width={240}
+                >
+                  <FileSelector />
+                </Dropdown>
+              </li>
+              <li className="nav-item mx-2">
+                <Dropdown
+                  text="Show Me"
+                  width={240}
+                >
+                  <ChartSelector 
+                    selectedChartType={this.state.chartType}
+                    onSelectChartType={this.handleSelectChartType}
+                  />
+                </Dropdown>
+              </li>
+              <li className="nav-item mx-2">
+                <Dropdown
+                  text="Search"
+                  width={240}
+                >
+                  <Search
+                    onSearchInputChange={this.handleSearchInputChange}
+                    resultsIdSet={this.state.searchResultsIdSet}
+                    shouldShowSelectButton={!this.state.isSearchResultSelected}
+                    onClickSelectSearchButton={this.handleClickSelectSearchButton}
+                  />
+                </Dropdown>
+              </li>
+            </ul>
+          </div>
+        </nav>
+        
         <div className="d-flex m-2">
           <div
             className="left-panel"
           >
-            <FileSelector />
-            <ChartSelector 
-              selectedChartType={this.state.selectedChartType}
-            />
-            <Search
-              onSearchInputChange={this.handleSearchInputChange}
-              resultsIdSet={this.state.searchResultsIdSet}
-              shouldShowSelectButton={!this.state.isSearchResultSelected}
-              onClickSelectSearchButton={this.handleClickSelectSearchButton}
-            />
             <Attributes 
               attributes={memoizedGetAttributes(this.props.data)}  
               activeEntry={this.state.activeEntry}
@@ -747,12 +940,14 @@ class App extends React.PureComponent<AppProps, AppState> {
               plotConfig={this.state.plotConfig}
               shouldHideCustomAttrTag={this.state.shouldHideCustomAttrTag}
             />
-            <div ref={this.d3ContainerRef} className="main-plot-container">
-              <div style={{height: 0}}>
-                <ColorPicker 
-                  style={this.state.colorPickerStyle} 
-                  onChangeComplete={this.handlePickColor}
-                />
+            <div className="plot-container">
+              <div ref={this.d3ContainerRef} className="plot-container__scroll">
+                <div style={{height: 0}}>
+                  <ColorPicker 
+                    style={this.state.colorPickerStyle} 
+                    onChangeComplete={this.handlePickColor}
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -762,7 +957,7 @@ class App extends React.PureComponent<AppProps, AppState> {
               data={this.props.data}
               visualScaleMap={this.state.visualScaleMap}
               plotConfig={this.state.plotConfig}
-              maxRadius={this.state.visualScaleRanges[VisualScaleType.SIZE][1]}
+              chartType={this.state.chartType}
               onOpenColorNumMenu={this.handleOpenColorNumMenu}
               onOpenColorOrdMenu={this.handleOpenColorOrdMenu}
               onOpenSizeMenu={this.handleOpenSizeMenu}
@@ -770,7 +965,8 @@ class App extends React.PureComponent<AppProps, AppState> {
             <VisualAllPanel
               onPickColor={this.handlePickColorAll}
               onPickSize={this.handlePickSizeAll}
-              currentSize={this.state.defaultVisualValues[VField.SIZE]}
+              currentDefaultSize={this.state.defaultVisualValues[VField.SIZE]}
+              currentDefaultColor={this.state.defaultVisualValues[VField.COLOR]}
             />
           </div>
 

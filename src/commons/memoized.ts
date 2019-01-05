@@ -2,7 +2,7 @@ import * as d3 from 'd3';
 
 import { Attribute } from '../Attribute';
 
-import { NoExtentError } from './errors';
+import { NoStatError } from './errors';
 import { Data } from './types';
 
 const arrSame = (arr1: any[], arr2: any[]) => {
@@ -75,7 +75,7 @@ export const memoizedGetExtent: (
     console.log('computing extent for: ', attrName);
     const [min, max] = d3.extent(data, d => d[attrName] as number);
     if (min === undefined || max === undefined) {
-      throw new NoExtentError(attrName);
+      throw new NoStatError(attrName, 'extent');
     }
     return [min, max];
   }

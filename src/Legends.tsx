@@ -2,17 +2,19 @@ import * as React from 'react';
 
 import { Panel } from './Panel';
 
-import { PlotConfigEntry } from './PlotConfigEntry';
+import { Attribute } from './Attribute';
 
-import { memoizedGetExtent, memoizedGetUniqueValueList } from './commons/memoized';
 import {
+  ChartType,
   Data,
   NumericRangeScale,
   PlotConfig,
   StringRangeScale,
   VField,
   VisualScaleMap,
+  VisualScaleType,
 } from './commons/types';
+import { sumTo } from './commons/util';
 
 const NUMERIC_W = 144;
 
@@ -20,187 +22,226 @@ interface LegendsProps {
   readonly data: Data,
   readonly visualScaleMap: VisualScaleMap,
   readonly plotConfig: PlotConfig,
-  readonly maxRadius: number,
+  readonly chartType: ChartType,
   readonly onOpenColorNumMenu: () => void,
   readonly onOpenColorOrdMenu: () => void,
   readonly onOpenSizeMenu: () => void,
 }
 
+
 class Legends extends React.PureComponent<LegendsProps> {
 
-  private renderColorLegend = (
-    cScale: StringRangeScale<number | string>,
-    cEntry: PlotConfigEntry,
+  private renderColorNumLegend = (
+    cScale: StringRangeScale<number>,
+    cAttr: Attribute,
   ) => {
-    if (!cScale || !cEntry) { return; }
 
-
-    const data = this.props.data;
-    let cTicks: ReadonlyArray<number | string> = [];
+    let cTicks: ReadonlyArray<number> = [];
     const NCTick = 9;
-    const cAttrName = cEntry.attribute.name;
-    const valueType = typeof data[0][cAttrName];
-    if (valueType === 'number') {
-      const Ticks = [];
-      const [min, max] = memoizedGetExtent(data, cAttrName);
-      for (let i = 0; i < NCTick; i++) {
-        Ticks.push(min + (max-min)*i/(NCTick-1));
-      }
-      cTicks = Ticks;
-    } else {
-      cTicks = memoizedGetUniqueValueList(data, cAttrName);
+    const cName = cAttr.name;
+    const Ticks = [];
+    const [min, max] = cScale.domain();
+    for (let i = 0; i < NCTick; i++) {
+      Ticks.push(min + (max-min)*i/(NCTick-1));
     }
+    cTicks = Ticks;
 
     return (
       <div className="legend__box legend__box--color">
-        <div className="py-1">{cAttrName}</div>
-        {valueType === 'number' ?
-          (
-            <div>
-              <div>
-                <svg width={NUMERIC_W + 40} height="60">
-                  <g transform="translate(16, 4)">
-                    <defs>
-                      <linearGradient id="color-scale-gradient">
-                        {cTicks.map((t, i) => (
-                          <stop
-                            key={'tick-' + t}
-                            offset={i*100/(NCTick - 1) + '%'}
-                            stopColor={cScale(t)}
-                          />
-                        ))}
-                      </linearGradient>
-                    </defs>
-                    <rect x="0" y="0" width={NUMERIC_W} height="20" 
-                      fill="url(#color-scale-gradient)"
-                    />
-                    <g transform="translate(0, 36)">
-                      {cTicks
-                        .map((t, i) => {
-                          if (i % 2 === 0) {
-                            return (
-                              <text
-                                key={'tick-text-'+t}
-                                x={NUMERIC_W * i/(NCTick - 1)}
-                                textAnchor="middle"
-                              >
-                                {typeof t === 'number' && Number(t.toPrecision(3))}
-                              </text>
-                            );
-                          }
-                          return;
-                        })
+        <div className="py-1">{cName}</div>
+        <div>
+          <div>
+            <svg width={NUMERIC_W + 40} height="60">
+              <g transform="translate(16, 4)">
+                <defs>
+                  <linearGradient id="color-scale-gradient">
+                    {cTicks.map((t, i) => (
+                      <stop
+                        key={'tick-' + t}
+                        offset={i*100/(NCTick - 1) + '%'}
+                        stopColor={cScale(t)}
+                      />
+                    ))}
+                  </linearGradient>
+                </defs>
+                <rect x="0" y="0" width={NUMERIC_W} height="20" 
+                  fill="url(#color-scale-gradient)"
+                />
+                <g transform="translate(0, 36)">
+                  {cTicks
+                    .map((t, i) => {
+                      if (i % 2 === 0) {
+                        return (
+                          <text
+                            key={'tick-text-'+t}
+                            x={NUMERIC_W * i/(NCTick - 1)}
+                            textAnchor="middle"
+                          >
+                            {typeof t === 'number' && Number(t.toPrecision(3))}
+                          </text>
+                        );
                       }
-                    </g>
+                      return;
+                    })
+                  }
+                </g>
+              </g>
+            </svg>
+          </div>
+          <button className="btn btn-sm btn-outline-secondary px-1" onClick={this.props.onOpenColorNumMenu}>
+            Change Palette
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  private renderColorOrdLegend = (
+    cScale: StringRangeScale<string>,
+    cAttr: Attribute,
+  ) => {
+
+    return (
+      <div className="legend__box legend__box--color">
+        <div className="py-1">{cAttr.name}</div>
+        <div>
+          {cScale.domain().map((v) =>(
+            <div
+              key={'tick-v-' + v}
+              className="d-flex"
+            >
+              <div style={{minWidth: 20}}>
+                <svg width="20" height="20">
+                  <g>
+                    <rect
+                      y="2"
+                      width="15"
+                      height="15"
+                      fill={cScale(v)} 
+                    />
                   </g>
                 </svg>
               </div>
-              <button className="btn btn-sm btn-outline-secondary px-1" onClick={this.props.onOpenColorNumMenu}>
-                Change Palette
-              </button>
+              <div className='px-1'>{v}</div>
             </div>
-          ) : (
-            <div>
-              {cTicks.map((v) =>(
-                <div
-                  key={'tick-v-' + v}
-                  className="d-flex"
-                >
-                  <div style={{minWidth: 20}}>
-                    <svg width="20" height="20">
-                      <g>
-                        <rect
-                          y="2"
-                          width="15"
-                          height="15"
-                          fill={cScale(v)} 
-                        />
-                      </g>
-                    </svg>
-                  </div>
-                  <div className='px-1'>{v}</div>
-                </div>
-              ))}
-            </div>
-          )
-        }
+          ))}
+        </div>
       </div>
     );
   }
 
   private renderSizeLegend = (
-    zScale: NumericRangeScale,
-    zEntry: PlotConfigEntry,
+    zScale: NumericRangeScale<number>,
+    zAttr: Attribute,
+    chartType: ChartType,
   ) => {
-    if (!zScale || !zEntry) { return; }
 
-    const data = this.props.data;
-    let zTicks: ReadonlyArray<number> = [];
     const NZTick = 5;
-    const zAttrName = zEntry.attribute.name;
-    const Ticks = [];
-    const [min, max] = memoizedGetExtent(data, zAttrName);
+    const zName = zAttr.name;
+    const zTicks = [];
+    const [min, max] = zScale.domain();
     for (let i = 0; i < NZTick; i++) {
-      Ticks.push(min + (max-min)*i/(NZTick-1));
+      zTicks.push(min + (max-min)*i/(NZTick-1));
     }
-    zTicks = Ticks;
+    const zValues = zTicks.map(zScale)
+    const [minr, maxr] = zScale.range();
 
-    const maxr = this.props.maxRadius;
+    const padding = 10;
 
-    return (
-      <div className="legend__box legend__box--size">
-        <div className="py-1">{zAttrName}</div>
-        <div>
-          <svg width="184" height={maxr * 2 + 48}>
-            <g transform={`translate(16, ${maxr + 8})`}>
-              <g>
-                {zTicks.map((t, i) => (
-                  <g
-                    key={'tick-' + t}
-                    transform={`translate(${(NUMERIC_W - 12) * i/(NZTick - 1)}, 0)`}
-                  >
-                    <circle
-                      className="circle circle-ring"
-                      stroke="#999999"
-                      r={zScale(t)}
-                    />
-                  </g>
-                ))}
+    if (chartType === ChartType.SCATTER_PLOT) {
+      return (
+        <div className="legend__box legend__box--size">
+          <div className="py-1">{zName}</div>
+          <div>
+            <svg width="184" height={(minr + maxr + padding) * 5 + 24}>
+              <g transform={`translate(32, ${16 + minr / 2})`}>
+                {zTicks.map((t, i) => {
+                  return (
+                    <g
+                      key={'tick-' + t}
+                      transform={`translate(0, ${sumTo(zValues, i + 1)*2 - zValues[i] + padding*i})`}
+                    >
+                      <text
+                        key={'tick-text-'+t}
+                        y={2}
+                        textAnchor="end"
+                        alignmentBaseline="middle"
+                      >
+                        {Number(t.toPrecision(3))}
+                      </text>
+                      <circle
+                        className="circle circle-ring"
+                        stroke="#999999"
+                        cx={zScale(t) + 10}
+                        r={zScale(t)}
+                      />
+                    </g>
+                  );
+                })}
               </g>
-              <g transform={`translate(0, ${maxr + 16})`}>
-                {zTicks
-                  .map((t, i) => {
-                    if (i % 1 === 0) {
-                      return (
+            </svg>
+          </div>
+          <button className="btn btn-sm btn-outline-secondary px-1" onClick={this.props.onOpenSizeMenu}>
+            Change Size
+          </button>
+        </div>
+      );
+    } else if (chartType === ChartType.BAR_CHART) {
+      const barH = 24;
+      return (
+        <div className="legend__box legend__box--size">
+          <div className="py-1">{zName}</div>
+          <div>
+            <svg width="184" height={(barH + padding) * 5 + 24}>
+              <g transform={`translate(32, 16)`}>
+                  {zTicks.map((t, i) => {
+                    return (
+                      <g
+                        key={'tick-' + t}
+                        transform={`translate(0, ${(barH + padding) * i})`}
+                      >
                         <text
                           key={'tick-text-'+t}
-                          x={(NUMERIC_W - 12) * i/(NZTick - 1)}
-                          textAnchor="middle"
+                          y={barH / 2}
+                          textAnchor="end"
+                          alignmentBaseline="middle"
                         >
                           {Number(t.toPrecision(3))}
                         </text>
-                      );
-                    }
-                    return;
-                  })
-                }
+                        <rect
+                          className="circle circle-ring"
+                          stroke="#999999"
+                          height={barH}
+                          x={16}
+                          width={zScale(t)}
+                        />
+                      </g>
+                    );
+                  })}
               </g>
-            </g>
-          </svg>
+            </svg>
+          </div>
+          <button className="btn btn-sm btn-outline-secondary px-1" onClick={this.props.onOpenSizeMenu}>
+            Change Size
+          </button>
         </div>
-        <button className="btn btn-sm btn-outline-secondary px-1" onClick={this.props.onOpenSizeMenu}>
-          Change Size
-        </button>
-      </div>
-    );
+      );     
+    }
+    return;
   }
+
   
   render() {
     const {visualScaleMap: vs, plotConfig: pc} = this.props;
-    const cScale = vs[VField.COLOR];
+    const cnScale = vs[VisualScaleType.COLOR_NUM];
+    const coScale = vs[VisualScaleType.COLOR_ORD];
     const cEntry = pc[VField.COLOR];
+    const cType = cEntry && cEntry.attribute.type === 'number' ?
+      VisualScaleType.COLOR_NUM : VisualScaleType.COLOR_ORD
+
     const zScale = vs[VField.SIZE];
     const zEntry = pc[VField.SIZE];
+
 
     return (
       <Panel
@@ -210,13 +251,18 @@ class Legends extends React.PureComponent<LegendsProps> {
         <div className="">
           <div className="p-1">{}</div>
           <div className="p-1 legends__container legends__container--color">
-            {cScale && cEntry &&
-              this.renderColorLegend(cScale, cEntry)
+            {
+              cType === VisualScaleType.COLOR_NUM && cEntry && cnScale && 
+                this.renderColorNumLegend(cnScale, cEntry.attribute)
+            }
+            {
+              cType === VisualScaleType.COLOR_ORD && cEntry && coScale && 
+                this.renderColorOrdLegend(coScale, cEntry.attribute)
             }
           </div>
           <div className="p-1 legends__container legends__container--size">
             {zScale && zEntry &&
-              this.renderSizeLegend(zScale, zEntry)
+              this.renderSizeLegend(zScale, zEntry.attribute, this.props.chartType)
             }
           </div>
         </div>

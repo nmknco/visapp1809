@@ -3,7 +3,7 @@ import { Selector } from './Selector';
 import { Resizer } from './Resizer';
 import { Dragger } from './Dragger';
 import { ActiveSelectionsWithRec } from './ActiveSelections';
-import { expandRange, SelUtil } from './commons/util';
+import { expandRange, SelUtil, ColorUtil } from './commons/util';
 import { CHARTCONFIG, DEFAULT_DOT_COLOR, DEFAULT_DOT_SIZE } from './commons/constants';
 import { memoizedGetExtent } from './commons/memoized';
 
@@ -75,7 +75,7 @@ class MainPlotter {
       .append('svg')
       .attr('width', svgW)
       .attr('height', svgH)
-      .attr('id', 'main-plot')
+      .attr('id', 'plot')
       .on('mousedown', this._closeColorPicker);
     const chart = canvas.append('g')
       .attr('transform', `translate(${l}, ${t})`);
@@ -107,16 +107,24 @@ class MainPlotter {
     chart.append('g')
       .attr('transform', `translate(0, ${svgH - t - b})`)
       .classed('x-axis', true)
+      .classed('axis-container', true)
       .append('text')
       .attr('x', 250).attr('y', 80)
       .classed('label', true);
     chart.append('g')
       .classed('y-axis', true)
+      .classed('axis-container', true)
       .append('text')
       .attr('x', -200).attr('y', -80)
       .attr('transform', 'rotate(-90)')
       .classed('label', true);
 
+  };
+
+
+  redrawAll = (plotConfig) => {
+    this.updatePosition(plotConfig);
+    this.updateVisual(['color', 'size'], plotConfig);
   };
 
   updatePosition = (plotConfig) => {
@@ -129,6 +137,7 @@ class MainPlotter {
 
     if (!x || !y) {
       this.chart.selectAll('.dot').remove();
+      this.chart.selectAll('.axis-container').selectAll('*').remove();
       this.clearSelection();
       for (let field of ['color', 'size']) {
         this.activeSelections.resetValue(field);
@@ -258,27 +267,41 @@ class MainPlotter {
 
   };
 
-  updateVisual = (fields, plotConfig, keepSelection) => {
+  updateVisual = (fields, plotConfig) => {
     console.log('update visual called');
 
     const data = this.data;
 
     for (let field of fields) {
       const entry = plotConfig[field];
-      let attrName, visualScale;
+      let attrName, visualScale, scaleType;
+      let shouldUpdateRange = false;
       
       if (entry) {
         attrName = entry.attribute.name;
         if (entry.useCustomScale) {
+          scaleType = field === 'size' ? 'size' : 'color_num';
           visualScale = this.customScales[field] || this.activeSelections.getInterpolatedScale(field, attrName);
           this.customScales[field] = visualScale;
+          shouldUpdateRange = true;
         } else {
           if (field === 'color') {
-            visualScale = (entry.attribute.type === 'number') ?
-                d3.scaleSequential(t => (d3['interpolate' + this.getVisualScaleRange('color_num')])(d3.scaleLinear().domain([0,1]).range([0.1, 1])(t))).domain(memoizedGetExtent(data, attrName)) :
-                d3.scaleOrdinal(d3['scheme' + this.getVisualScaleRange('color_ord')]).domain(d3.map(data, d => d[attrName]).keys())
+            if (entry.attribute.type === 'number') {
+              scaleType = 'color_num';
+              const [hslStr1, hslStr2] = this.getVisualScaleRange(scaleType);
+              const domain = memoizedGetExtent(data, attrName);
+              visualScale = ColorUtil.interpolateColorScale(domain, domain,
+                [ColorUtil.stringToHSL(hslStr1), ColorUtil.stringToHSL(hslStr2)]);
+            } else {
+              scaleType = 'color_ord';
+              visualScale = d3.scaleOrdinal(d3['scheme' + this.getVisualScaleRange(scaleType)])
+                .domain(d3.map(data, d => d[attrName]).keys());
+            }
           } else if (field === 'size') {
-            visualScale = d3.scaleLinear().domain(expandRange(memoizedGetExtent(data, attrName))).range(this.getVisualScaleRange('size'));
+            scaleType = 'size';
+            visualScale = d3.scaleLinear()
+              .domain(expandRange(memoizedGetExtent(data, attrName)))
+              .range(this.getVisualScaleRange(scaleType));
           }
           // Nullify the custom scale cache - may be ok not doing so here, 
           // but done for consistency: The assumption is that
@@ -286,16 +309,20 @@ class MainPlotter {
           // so cache is kept only as long as custom scale is on
           this.customScales[field] = null;
         }
-        this.setVisualScales({[field]: visualScale})
+        this.setVisualScales(scaleType, visualScale, shouldUpdateRange);
       } else {
         // reset visual upon empty plotConfig entry
         visualScale = () => this.getDefaultVisualValue(field);
         this.customScales[field] = null;
-        this.setVisualScales({[field]: null});
+        this.setVisualScales(field, null);
       }
 
       // Clear both colored groups and selection, then apply visual
-      if (!keepSelection) { this.clearSelection(); }
+      // -- We need to keep selection in certain situations, for example when resetting
+      //  the color field and then color user selected points. See handleChangeVisualByUser()
+      //  in App.tsx
+      // -- For now. let's just keep selection for all cases
+      // this.clearSelection();
       this.activeSelections.resetValue(field);
       
       this.updateVisualWithScale(field, attrName, visualScale);
@@ -317,6 +344,7 @@ class MainPlotter {
   };
 
   updateVisualWithRecommendation = (field, attr) => {
+    // ONLY USE FOR PREVIEW!!
     // This is only used by hovering on recommendation cards to show temporary visual changes
     this.updateVisualWithScale(
       field,
@@ -374,7 +402,7 @@ class MainPlotter {
   };
 
   highlightDots = (idFilter) => {
-    d3.select('#main-plot')
+    d3.select('#plot')
       .selectAll('.dot')
       .classed('selected', d => idFilter(d.__id_extra__));
   };

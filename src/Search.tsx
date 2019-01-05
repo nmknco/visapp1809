@@ -35,6 +35,7 @@ class Search extends React.PureComponent<SearchProps> {
     return (
       <Panel
         heading="Search"
+        noMargin={true}
       >
         <div>
           <div className="p-1">

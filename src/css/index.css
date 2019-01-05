@@ -33,6 +33,10 @@
   min-height: 32px;
 }
 
+.app .navbar {
+  height: 36px;
+}
+
 .fas {
   cursor: pointer;
 }
@@ -74,6 +78,22 @@
   flex: 0 0 280px;
 }
 
+/* ---- Nav Bar ---- */
+.dropdown--button {
+  position: relative;
+  height: 100%;
+  cursor: pointer;
+}
+
+.dropdown--window {
+  position: absolute;
+  z-index: 20;
+  -webkit-box-shadow: 2px 2px 5px 0px rgba(148,148,148,1);
+  -moz-box-shadow: 2px 2px 5px 0px rgba(148,148,148,1);
+  box-shadow: 2px 2px 5px 0px rgba(148,148,148,1);
+}
+
+
 /* ---- Left panel ---- */
 
 .attr__tag {
@@ -113,8 +133,13 @@
 }
 
 /* ---- Main Plot ---- */
-.main-plot-container {
+.plot-container {
   position: relative; /* to relatively position the absolute-positioned drag-copy inside */
+}
+
+.plot-container__scroll {
+  max-width: 720px;
+  overflow-x: auto;
 }
 
 .chart-box {
@@ -169,12 +194,12 @@
 }
 
 .color-picker {
-  position: relative;
+  position: absolute;
   width: 115px;
 }
 
 .drag-clone {
-  z-index: 1;
+  z-index: 50;
   pointer-events: none; /* let events pass through for drag releasing */
 }
 

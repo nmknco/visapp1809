@@ -4,12 +4,11 @@ import { LIT, SAT } from '../ColorPicker';
 
 import { 
   InvalidHSLStringError,
-  NoMedianError,
+  NoStatError
 } from './errors';
 import { memoizedGetExtent } from './memoized';
 import {
-  Data, 
-  HSLColor,
+  Data,
   StringRangeScale,
 } from './types';
 
@@ -133,6 +132,30 @@ export class SelUtil {
   }
 }
 
+export class ColorObj {
+  // only need hsl field
+  readonly hsl: HSLColor;
+
+  constructor(hsl: HSLColor) {
+    this.hsl = hsl;
+  }
+}
+
+export class HSLColor {
+  // note this is different from the d3 HSLColor type
+  readonly h: number;
+  readonly s: number; // between 0 and 1
+  readonly l: number; // between 0 and 1
+  readonly a?: number;
+
+  constructor(h: number, s: number, l: number, a?: number) {
+    this.h = h;
+    this.s = s;
+    this.l = l;
+    this.a = a;
+  }
+}
+
 export class ColorUtil {
 
   static hslToString = (hsl: HSLColor) => 
@@ -148,10 +171,44 @@ export class ColorUtil {
     const [h, s100, l100] = strs.map(Number);
     const s = s100 / 100;
     const l = l100 / 100;
-    return {h, s, l};
+    return new HSLColor(h, s, l);
   }
 
   static interpolateColorScale = (
+    extent: Readonly<[number, number]>,
+    pivots: Readonly<[number, number]>,
+    pivotColors: Readonly<[HSLColor, HSLColor]>,
+  ): StringRangeScale<number> => {
+
+    const [min, max] = extent;
+    const [v1, v2] = pivots;
+    const [hsl1, hsl2] = pivotColors;
+
+    const colorScale: StringRangeScale<number> = (val) => {
+      let hNew;
+      let lNew;
+      if (val <= v1) {
+          hNew = hsl1.h
+          lNew = ColorUtil.interpolate(min, v1, 0.8, hsl1.l, val);
+      } else if (val <= v2) {
+          hNew = ColorUtil.interpolate(v1, v2, hsl1.h, hsl2.h, val);
+          lNew = LIT
+      } else {
+          hNew = hsl2.h
+          lNew = ColorUtil.interpolate(v2, max, hsl2.l, 0.2, val);
+      }
+      return ColorUtil.hslToString({
+        h: hNew, s: SAT, l: lNew,
+      });
+    };
+
+    colorScale.domain = () => [min, max];
+    colorScale.range = () => ([min, max]).map(colorScale);
+
+    return colorScale;
+  };
+
+  static interpolateColorScaleWithData = (
     idsByHSL: {[key: string]: ReadonlySet<number>},
     data: Data,
     colorAttrName: string
@@ -165,9 +222,9 @@ export class ColorUtil {
       const [hs, g] = entries[0];
       const med = d3.median(data.filter(d => g.has(d.__id_extra__)), d => d[colorAttrName] as number);
       if (med === undefined) {
-        throw new NoMedianError(colorAttrName);
+        throw new NoStatError(colorAttrName, 'median');
       }
-      return ColorUtil.interpolateColorScaleOneGroup(
+      return ColorUtil.interpolateColorScaleWithDataOneGroup(
         med,
         ColorUtil.stringToHSL(hs),
         data,
@@ -191,44 +248,32 @@ export class ColorUtil {
 
     const [min, max] = memoizedGetExtent(data, colorAttrName);
 
-    const colorScale: StringRangeScale<number> = (val) => {
-      let hNew;
-      let lNew;
-      if (val <= v1) {
-          hNew = hsl1.h
-          lNew = ColorUtil.interpolate(min, v1, 0.8, hsl1.l, val);
-      } else if (val <= v2) {
-          hNew = ColorUtil.interpolate(v1, v2, hsl1.h, hsl2.h, val);
-          lNew = LIT
-      } else {
-          hNew = hsl2.h
-          lNew = ColorUtil.interpolate(v2, max, hsl2.l, 0.2, val);
-      }
-      return ColorUtil.hslToString({
-        h: hNew, s: SAT, l: lNew,
-      });
-    };
-
-    return colorScale;
+    return ColorUtil.interpolateColorScale(
+      [min, max],
+      [v1, v2],
+      [hsl1, hsl2],
+    );
   };
 
-  static interpolateColorScaleOneGroup = (pivotValue: number, pivotHSLColor: HSLColor, data: Data, colorAttrName: string) => {
+  static interpolateColorScaleWithDataOneGroup = (pivotValue: number, pivotHSLColor: HSLColor, data: Data, colorAttrName: string) => {
     const [min, max] = memoizedGetExtent(data, colorAttrName);
     const [lmin, lmax] = [0.7, 0.1]
     const colorScale: StringRangeScale<number> = (val) => {
-      const hsl = { ...pivotHSLColor };
+      let l: number = pivotHSLColor.l;
       if (min !== max) {
         if (val < pivotValue) {
           // assert pivotValue > min
-          hsl.l = lmin + (val - min) / (pivotValue - min) * (hsl.l - lmin);
+          l = lmin + (val - min) / (pivotValue - min) * (pivotHSLColor.l - lmin);
         } else if (val > pivotValue) {
           // assert pivotValue < max
-          hsl.l = lmax - (max - val) / (max - pivotValue) * (lmax - hsl.l);
+          l = lmax - (max - val) / (max - pivotValue) * (lmax - pivotHSLColor.l);
         }
       }
       // console.log(val)
-      return ColorUtil.hslToString(hsl);
+      return (ColorUtil.hslToString(new HSLColor(pivotHSLColor.h, pivotHSLColor.s, l)));
     };
+    colorScale.domain = () => [min, max];
+    colorScale.range = () => ([min, max]).map(colorScale);
 
     return colorScale;
   };
@@ -255,7 +300,7 @@ export const subtract = (setA: Set<any> | ReadonlySet<any>, setB: Set<any> | Rea
       diff.delete(elem);
   }
   return diff;
-}
+};
 
 export const getDropBackgroundColor = (isOver: boolean | undefined, canDrop: boolean | undefined) => {
   /**
@@ -264,4 +309,12 @@ export const getDropBackgroundColor = (isOver: boolean | undefined, canDrop: boo
   return isOver ? 
     (canDrop ? '#ccffcc' : '#eecccc') :
     (canDrop ? '#ffff99' : undefined)
+};
+
+export const sumTo = (a: number[], count: number) => {
+  let sum = 0;
+  for (let i = 0; i < count; i++) {
+    sum += a[i];
+  }
+  return sum;
 }

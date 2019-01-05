@@ -1,13 +1,16 @@
 import * as React from 'react';
 
+import { RectPopupColorPicker } from './ColorPicker';
 import { DoubleSlider } from './DoubleSlider';
 import { GradientBar } from './GradientBar';
 
 import {
-  D3Interpolate,
+  ColorNumRange,
   HandleSetColorNumRange,
   HandleSetSizeRange,
+  StringRangeScale,
 } from './commons/types';
+import { ColorObj, ColorUtil } from './commons/util';
 
 interface OverlayMenuContainerProps {
   readonly isHidden: boolean,
@@ -44,52 +47,68 @@ class OverlayMenuContainer extends React.PureComponent<OverlayMenuContainerProps
 
 
 interface OverlayMenuColorNumPageProps {
+  readonly range: ColorNumRange,
+  readonly scale: StringRangeScale<number>,
   readonly onSetColorNumRange: HandleSetColorNumRange,
 }
 
+const COLORNUMHEIGHT = 30;
+
 class OverlayMenuColorNumPage extends React.PureComponent<OverlayMenuColorNumPageProps> {
-  
-  private paletteList: ReadonlyArray<D3Interpolate> = 
-    Object.values(D3Interpolate) as ReadonlyArray<D3Interpolate>;
 
-  private paletteSetters: {[key: string]: () => void}
-
-  constructor(props: OverlayMenuColorNumPageProps) {
-    super(props);
-    this.paletteSetters = {};
-    for (const palette of this.paletteList) {
-      this.paletteSetters[palette] = () => this.props.onSetColorNumRange(palette);
-    }
+  private handlePickColor = (colorObj: ColorObj, index: number) => {
+    const range = [...this.props.range];
+    range[index] = ColorUtil.hslToString(colorObj.hsl);
+    this.props.onSetColorNumRange(range as ColorNumRange);
   }
-  
+
+  private handlePickColorMin = (colorObj: ColorObj) => this.handlePickColor(colorObj, 0);
+
+  private handlePickColorMax = (colorObj: ColorObj) => this.handlePickColor(colorObj, 1);
+
   render() {
     return (
       <div>
-        {this.paletteList.map((palette) => (
-          <div
-            key={'palette-' + palette}
-            className="om-color-num__palatte-item p-1"
-            onClick={this.paletteSetters[palette]}
-          >
-            <GradientBar
-              palette={palette}
-              width={144}
-              height={20}
-              range={[0.1, 1]}
+        <div className="d-flex">
+          <div className="p-1 mx-2">
+            <RectPopupColorPicker
+              width={COLORNUMHEIGHT}
+              height={COLORNUMHEIGHT}
+              currentColor={this.props.range[0]}
+              onPickColor={this.handlePickColorMin}
             />
           </div>
-        ))}
+          <div className="p-1">
+            <GradientBar
+              scale={this.props.scale}
+              width={144}
+              height={COLORNUMHEIGHT}
+            />
+          </div>
+          <div className="p-1 mx-2">
+            <RectPopupColorPicker
+              width={COLORNUMHEIGHT}
+              height={COLORNUMHEIGHT}
+              currentColor={this.props.range[1]}
+              onPickColor={this.handlePickColorMax}
+            />
+          </div>
+        </div>
+        <div className="d-flex justify-content-between">
+          <div className="px-2 mx-2">Min</div>
+          <div className="px-2 mx-2">Max</div>
+        </div>
       </div>
     );
   }
 }
 
 
-const SIZE_RANGE: Readonly<[number, number]> = [2, 30]
 
 interface OverlayMenuSizePageProps {
   onSetSizeRange: HandleSetSizeRange,
   currentRange: Readonly<[number, number]>,
+  maxRange: Readonly<[number, number]>,
 }
 
 class OverlayMenuSizePage extends React.PureComponent<OverlayMenuSizePageProps> {
@@ -97,7 +116,7 @@ class OverlayMenuSizePage extends React.PureComponent<OverlayMenuSizePageProps> 
     return (
       <div>
         <DoubleSlider
-          extent={SIZE_RANGE}
+          extent={this.props.maxRange}
           range={this.props.currentRange}
           onChangeRange={this.props.onSetSizeRange}
           reversed={true}
