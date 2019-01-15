@@ -28,7 +28,7 @@ class FilterManager {
   private readonly onFilterListChange?: HandleFilterListChange;
   private readonly filterList: FilterList;
   private readonly filterCntByPoint: number[];
-  private newFilteredIds: number[];
+  private newFilteredIds: string[];
 
   private fidCounter: number;
 
@@ -49,10 +49,12 @@ class FilterManager {
 
   getFilterListCopy = () => [...this.filterList];
 
-  getFilteredIdSet = (): ReadonlySet<number> => new Set(
-    this.filterCntByPoint.map((d, i) => i).filter(i => this.filterCntByPoint[i] > 0)
+  getFilteredIdSet = (): ReadonlySet<string> => new Set(
+    this.filterCntByPoint
+      .map((d, i) => i.toString())
+      .filter(i => this.filterCntByPoint[+i] > 0)
   );
-  getIsFiltered = (id: number) => this.filterCntByPoint[id] > 0;
+  getIsFiltered = (id: string) => this.filterCntByPoint[id] > 0;
 
   getNewFilteredIds = () => this.newFilteredIds;
 
@@ -170,7 +172,7 @@ class FilterManager {
   }
 
   static getRecommendedFilters = (args: {
-    idSetDroppedToFilter: ReadonlySet<number>,
+    idSetDroppedToFilter: ReadonlySet<string>,
     data: Data,
     xAttr?: Attribute,
     yAttr?: Attribute,
@@ -222,7 +224,7 @@ class FilterManager {
     }
     // Filter 4: Range of most similar attribute
     if (idSetDroppedToFilter.size >= 2) {
-      const cls = new Classifier(data);
+      const cls = new Classifier(() => data);
       const simiAttrName = cls.getMostSimilarAttr([idSetDroppedToFilter,], 1)[0];
       if (simiAttrName && (!xAttr || simiAttrName !== xAttr.name) && (!yAttr || simiAttrName !== yAttr.name)) {
         const [min, max] = d3.extent(selectedData, d => d[simiAttrName] as number);

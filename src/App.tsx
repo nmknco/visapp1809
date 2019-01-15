@@ -74,12 +74,14 @@ import {
   RecommendedEncoding,
   SetPlotConfig,
   SetVisualScales,
+  ToggleColorPicker,
+  UpdateRecommendation,
   VField,
   VisualScaleMap,
   VisualScaleRanges,
   VisualScaleType,
 } from './commons/types';
-import { ColorUtil, HSLColor } from './commons/util';
+import { ColorUtil, HSLColor, SelUtil } from './commons/util';
 import { Dropdown } from './DropDown';
 
 
@@ -96,7 +98,7 @@ interface AppState {
   readonly colorPickerStyle: Readonly<ColorPickerStyle>,
   readonly plotConfig: Readonly<PlotConfig>,
   readonly filterList: Readonly<FilterList>,
-  readonly filteredIds: ReadonlySet<number>,
+  readonly filteredIds: ReadonlySet<string>,
   readonly minimapScaleMap: Readonly<MinimapScaleMap>,
   readonly visualScaleMap: Readonly<VisualScaleMap>,
   readonly visualScaleRanges: Readonly<VisualScaleRanges>,
@@ -113,7 +115,7 @@ interface AppState {
   readonly hasActiveSelection: Readonly<{[VField.COLOR]: boolean, [VField.SIZE]: boolean}>,
   readonly recommendedEncodings: ReadonlyArray<RecommendedEncoding>,
   
-  readonly searchResultsIdSet: ReadonlySet<number> | null, // null for empty keyword
+  readonly searchResultsIdSet: ReadonlySet<string> | null, // null for empty keyword
   readonly isSearchResultSelected: boolean;
 
   readonly shouldHideCustomAttrTag: Readonly<{[VField.COLOR]: boolean, [VField.SIZE]: boolean}>,
@@ -197,6 +199,8 @@ class App extends React.PureComponent<AppProps, AppState> {
     return new BarPlotter(
       this.props.data,
       this.d3ContainerRef.current,
+      this.toggleColorPicker,
+      this.updateRecommendation,
       this.setVisualScales,
       this.getVisualScaleRange,
       this.getDefaultVisualValue,
@@ -223,6 +227,7 @@ class App extends React.PureComponent<AppProps, AppState> {
   };
 
   private setupAndRedrawMainPlot = () => {
+    this.dropCustomScales();
     this.setState(
       prevState => ({
         visualScaleRanges: {
@@ -242,7 +247,7 @@ class App extends React.PureComponent<AppProps, AppState> {
     this.mp = this.createNewMainPlotter();
     this.plt = this.mp;
     
-    this.searcher = new Searcher(this.props.data, (id: number) => this.fm.getIsFiltered(id));
+    this.searcher = new Searcher(this.props.data, (id: string) => this.fm.getIsFiltered(id));
 
     // TODO: reset all filter and search states??
 
@@ -257,21 +262,21 @@ class App extends React.PureComponent<AppProps, AppState> {
   };
 
   private setupAndRedrawBarChart = () => {
+    //  (0) Set default X and Y attribute if not present
     //  (1) replace X attr with ordinal if current is numeric
     //  (2) drop custom status of color/size if present
     //  (3) change default size ranges to bar sizes
     //  (4) change default size/color to bar size/color defaults
 
-    const {x, color, size} = this.state.plotConfig;
-    if (x && x.attribute.type === 'number') {
+    const {x, y} = this.state.plotConfig;
+    if (!x || x && x.attribute.type === 'number') {
       this.setPlotConfig(Field.X, new PlotConfigEntry(new Attribute('Year', 'string')));
     }
-    if (color && color.useCustomScale) {
-      this.setPlotConfig(Field.COLOR, {...color, useCustomScale: false});
+    if (!y) {
+      this.setPlotConfig(Field.Y, new PlotConfigEntry(new Attribute('Miles_per_Gallon', 'number')));
     }
-    if (size && size.useCustomScale) {
-      this.setPlotConfig(Field.SIZE, {...size, useCustomScale: false});
-    }
+    this.dropCustomScales();
+    
     this.setState(
       prevState => ({
         visualScaleRanges: {
@@ -297,6 +302,16 @@ class App extends React.PureComponent<AppProps, AppState> {
     this.setupAndRedrawBarChart();
   };
 
+  private dropCustomScales = () => {
+    const {[VField.COLOR]: color, [VField.SIZE]: size} = this.state.plotConfig;
+    if (color && color.useCustomScale) {
+      this.setPlotConfig(Field.COLOR, {...color, useCustomScale: false});
+    }
+    if (size && size.useCustomScale) {
+      this.setPlotConfig(Field.SIZE, {...size, useCustomScale: false});
+    }
+  };
+
   componentDidMount() {
     if (this.props.data) {
       this.fm = new FilterManager(this.props.data, this.handleFilterListChange);
@@ -310,7 +325,13 @@ class App extends React.PureComponent<AppProps, AppState> {
       this.fm = new FilterManager(this.props.data, this.handleFilterListChange);
       this.setState(
         () => this.createInitialState(),
-        () => this.initializeMainPlot(true),
+        // () => this.initializeMainPlot(true),
+
+        // temp
+        () => {
+          this.setState({chartType: ChartType.BAR_CHART});
+          this.initializeBarChart();
+        }
       );
     }
   }
@@ -320,7 +341,7 @@ class App extends React.PureComponent<AppProps, AppState> {
 
   setPlotConfig : SetPlotConfig = (
     field, 
-    plotConfigEntry,
+    plotConfigEntry?,
     callback?,
   ) => {
 
@@ -366,6 +387,18 @@ class App extends React.PureComponent<AppProps, AppState> {
     ));
   };
 
+  private toggleColorPicker: ToggleColorPicker = (ev, on) => {
+    if (!this.d3ContainerRef.current) {
+      return;
+    }
+    const pos = SelUtil.getEventPosRelativeToBox(ev, this.d3ContainerRef.current);
+    this.updateColorPicker({
+      left: pos.x - 18,
+      top: pos.y + 20,
+      display: on ? undefined : 'none',
+    });
+  };
+
   // Note: now no need to call updateRecommendation the three methods below
   // as recommendations are sync-ed in ActiveSelectionsWithRec
   private handleChangeVisualByUser = (field: VField, value: string | number) => {
@@ -373,10 +406,18 @@ class App extends React.PureComponent<AppProps, AppState> {
       this.setPlotConfig(
         field, 
         undefined,
-        () => this.mp.assignVisual(field, value),
+        () => {
+          // @ts-ignore
+          this.plt.assignVisual(field, value);
+          // @ts-ignore
+          this.plt.clearSelection();
+        }
       ); // note this now always updates(clears) color
     } else {
-      this.mp.assignVisual(field, value);
+      // @ts-ignore
+      this.plt.assignVisual(field, value);
+      // @ts-ignore
+      this.plt.clearSelection();
     }
   };
 
@@ -387,7 +428,8 @@ class App extends React.PureComponent<AppProps, AppState> {
 
 
   private unVisualAll = (field: VField) => {
-    this.mp.unVisualAll(field);
+    // @ts-ignore
+    this.plt.unVisualAll(field);
   };
 
   private unVisualSelected = (field: VField) => {
@@ -414,7 +456,9 @@ class App extends React.PureComponent<AppProps, AppState> {
       this.state.hasActiveSelection[field];
   };
 
-  private updateRecommendation = (recommendedEncodings: ReadonlyArray<RecommendedEncoding>) => {
+  private updateRecommendation: UpdateRecommendation = (
+    recommendedEncodings: ReadonlyArray<RecommendedEncoding>
+  ) => {
     this.setState(() => ({ recommendedEncodings }));
   };
 
@@ -425,7 +469,8 @@ class App extends React.PureComponent<AppProps, AppState> {
   // };
 
   private handleAcceptRecommendeedEncoding: HandleAcceptRecommendedEncoding = (field, attrName) => {
-    this.mp.clearSelection();
+    // @ts-ignore
+    this.plt.clearSelection();
     this.setPlotConfig(
       field, 
       new PlotConfigEntry(new Attribute(attrName, 'number'), true)
@@ -452,9 +497,11 @@ class App extends React.PureComponent<AppProps, AppState> {
   private handleHoverRecommendedEncoding: HandleHoverRecommendedEncoding = (ev, field, attrName) => {
     if (!this.state.isDraggingPoints) {
       if (ev.type === 'mouseenter') {
-        this.mp.updateVisualWithRecommendation(field, attrName);
+        // @ts-ignore
+        this.plt.updateVisualWithRecommendation(field, attrName);
       } else if (ev.type === 'mouseleave') {
-        this.mp.syncVisualToUserSelection(field);
+        // @ts-ignore
+        this.plt.syncVisualToUserSelection(field);
       }
     }
   };
@@ -467,7 +514,8 @@ class App extends React.PureComponent<AppProps, AppState> {
       if (this.state.recommendedEncodings.filter(d => d.field === field).length === 0) {
         this.unVisualAll(field);
       } else {
-        this.mp.syncVisualToUserSelection(field); // manually reset since mouseleave is not fired
+        // @ts-ignore
+        this.plt.syncVisualToUserSelection(field); // manually reset since mouseleave is not fired
       }
     })
   }
@@ -497,7 +545,7 @@ class App extends React.PureComponent<AppProps, AppState> {
     }
   }
 
-  private handleDragPointsEnd = (idSetDroppedToFilter: ReadonlySet<number>) => {
+  private handleDragPointsEnd = (idSetDroppedToFilter: ReadonlySet<string>) => {
     if (this.state.isHoveringFilterPanel) {
       // console.log('Points dropped in filter');
       const recommendedFilters = FilterManager.getRecommendedFilters({
@@ -511,7 +559,7 @@ class App extends React.PureComponent<AppProps, AppState> {
   };
 
 
-  private updateScatterPlotOnFilter = (filteredIds: ReadonlySet<number>) => {
+  private updateScatterPlotOnFilter = (filteredIds: ReadonlySet<string>) => {
     // This draws plot only and does not clean up, animation, etc.
     // Use this for initializing plot with filters
     const getState = this.fm.getStateGetterOnNoPreview();
@@ -617,7 +665,7 @@ class App extends React.PureComponent<AppProps, AppState> {
     this.mp.hideOrDimPoints(shouldHide, shouldDim);
   };
 
-  private cleanUpFilteredPoints = (filteredIds: ReadonlySet<number>) => {
+  private cleanUpFilteredPoints = (filteredIds: ReadonlySet<string>) => {
     // 1. remove from active selections (and unvisual)
     // Note that operations updating active selection always sync visual 
     //    by design (see Plotter class), thereore we should
@@ -783,9 +831,15 @@ class App extends React.PureComponent<AppProps, AppState> {
         },
       }),
       // use SetPlotConfig to update visual - this clears
-      //    existing encoding and user assigned visuals
+      //    existing encoding and user assigned visuals for the field
       // Otherwise has to clear both manually before updating visual
-      () => this.setPlotConfig(vfield, undefined)
+      () => this.setPlotConfig(
+        vfield,
+        undefined,
+        // restore the user assignment in the other vfield that is not set
+        // @ts-ignore
+        () => this.plt.syncVisualToUserSelection(vfield === VField.COLOR ? VField.SIZE : VField.COLOR),
+      ),
     );
   };
 

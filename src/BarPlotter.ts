@@ -1,5 +1,9 @@
 import * as d3 from 'd3';
 
+import { ActiveSelectionsWithRec } from './ActiveSelections';
+import { Attribute } from './Attribute';
+import { BarSelector } from './Selector';
+
 import {
   BAR_PADDING,
   CHARTCONFIG, 
@@ -7,53 +11,72 @@ import {
 import {
   NoStatError, 
 } from './commons/errors';
+import { memoizedGetAttributes } from './commons/memoized';
 import {
   Data,
   DataEntry,
   GetDefaultVisualValue,
   GetVisualScaleRange,
+  GroupData,
+  HandlePendingSelectionChange,
+  HandleSelectionChange,
   NestedDataEntry,
   PlotConfig,
   SetVisualScales,
+  StringRangeScale,
+  ToggleColorPicker,
+  UpdateRecommendation,
   VField,
   VisualScaleType,
 } from './commons/types';
 import { ColorUtil } from './commons/util';
+import { PlotConfigEntry } from './PlotConfigEntry';
 
 
 
 class BarPlotter {
   private readonly data: Data;
   private readonly container: HTMLDivElement;
+  private readonly toggleColorPicker: ToggleColorPicker;
   private readonly getVisualScaleRange: GetVisualScaleRange;
   private readonly setVisualScales: SetVisualScales;
   private readonly getDefaultVisualValue: GetDefaultVisualValue;
 
+  private readonly numericAttrList: ReadonlyArray<string>;
+
   // core fields, externally provided
-  private fdata: Data;
+  private fdata: DataEntry[]; // mutable
   private xName: string | null;
   private zName: string | null;
 
+  private readonly activeSelections: ActiveSelectionsWithRec;
+
   // derived fields, used for plotting
   private fdataNested: NestedDataEntry[];
+  private groupData: GroupData;
   private xDomain: ReadonlyArray<string>;
   private sizes: {[key: string]: number};
   private xScale: d3.ScaleOrdinal<string, {}>;
 
   private canvas: d3.Selection<d3.BaseType, {}, null, undefined>;
   private chart: d3.Selection<d3.BaseType, {}, null, undefined>;
+  private chartBox: d3.Selection<d3.BaseType, {}, null, undefined>;
+  private selector: BarSelector;
   
 
   
   constructor(
     data: Data,
     container: HTMLDivElement,
+    toggleColorPicker: ToggleColorPicker,
+    updateRecommendation: UpdateRecommendation,
     setVisualScales: SetVisualScales,
     getVisualScaleRange: GetVisualScaleRange,
     getDefaultVisualValue: GetDefaultVisualValue,
   ){
     this.data = data;
     this.container = container;
+    this.toggleColorPicker = toggleColorPicker;
     this.getVisualScaleRange = getVisualScaleRange;
     this.setVisualScales = setVisualScales;
     this.getDefaultVisualValue = getDefaultVisualValue;
@@ -61,11 +84,21 @@ class BarPlotter {
     this.xName = null;
     this.zName = null; // important to not left this undefined - see updateVisualSize()
 
+    this.numericAttrList = memoizedGetAttributes(data)
+      .filter((attr: Attribute) => attr.type === 'number')
+      .map((attr: Attribute) => attr.name);
+    
     this.init();
     this.setFilteredData(new Set());
-
+    
+    this.activeSelections = new ActiveSelectionsWithRec(
+      this.getGroupData,
+      updateRecommendation,
+      this.handleActiveSelectionChange,
+    );
   }
 
+  private getGroupData = () => this.groupData;
 
   private setXName = (xName: string | null) => {
     this.xName = xName;
@@ -89,6 +122,18 @@ class BarPlotter {
       .key(d => d[xName])
       .sortKeys(d3.ascending)
       .entries(this.fdata);
+
+    this.groupData = this.fdataNested.map(({key, values}) => {
+      const gEntry = {
+        __is_group__: 1,
+        __id_extra__: key,
+      };
+      for (const attr of this.numericAttrList) {
+        gEntry[attr] = d3.mean(values, d => d[attr] as number)
+      }
+      return gEntry;
+    })
+
     this.xDomain = this.fdataNested.map(d => d.key);
     this.updateSizes();
   };
@@ -125,11 +170,10 @@ class BarPlotter {
     
     // expand/reset if necessary
     const w = xRight + l + r;
-    if (w > svgW) {
-      this.canvas.attr('width', w)
-    } else {
-      this.canvas.attr('width', CHARTCONFIG.svgW);
-    }
+    const newW = (w > svgW) ? w : CHARTCONFIG.svgW;
+    this.canvas.attr('width', newW);
+    this.chartBox.attr('width', newW);
+    this.selector.setChartBoxNode(this.chartBox.node() as SVGRectElement);
     this.xScale = d3.scaleOrdinal()
       .domain(this.xDomain)
       .range(xRange);
@@ -164,7 +208,7 @@ class BarPlotter {
   };
 
   // public
-  setFilteredData = (filteredIds: ReadonlySet<number>) => {
+  setFilteredData = (filteredIds: ReadonlySet<string>) => {
     this.fdata = this.data.filter(d => !filteredIds.has(d.__id_extra__));
     this.updateDerivedFields();
   };
@@ -172,38 +216,43 @@ class BarPlotter {
 
   init = () => {
 
-    const {pad: {t, b, l}, svgH, svgW} = CHARTCONFIG;
+    const {pad: {t, b, l, r}, svgH, svgW} = CHARTCONFIG;
 
     d3.select(this.container).selectAll('svg').remove();
 
-    const canvas = d3.select(this.container)
+    this.canvas = d3.select(this.container)
       .append('svg')
       .attr('width', svgW)
       .attr('height', svgH)
       .attr('id', 'plot')
-    const chart = canvas.append('g')
+      .on('mousedown', () => this.toggleColorPicker(d3.event, false));
+    this.chart = this.canvas.append('g')
       .attr('transform', `translate(${l}, ${t})`);
-
-    // // the box listening for select/resize drag, also works as ref for computing positions
-    // const chartBox = chart.append(this.canvas.attr('width', CHARTCONFIG.svgW);'rect') 
-    //   .classed('chart-box', true)
-    //   .attr('id', 'chart-box')
-    //   .attr('x', 0)
-    //   .attr('y', 0)
-    //   .attr('width', svgW - l - r)
-    //   .attr('height', svgH - t - b);
     
-    this.canvas = canvas;
-    this.chart = chart;
 
-    chart.append('g')
+    // the box listening for select/resize drag, also works as ref for computing positions
+    this.chartBox = this.chart.append('rect') 
+      .classed('chart-box', true)
+      .attr('id', 'chart-box')
+      .attr('x', 0)
+      .attr('y', 0)
+      .attr('width', svgW - l - r)
+      .attr('height', svgH - t - b);
+
+    this.selector = new BarSelector(
+      this.chartBox.node() as SVGRectElement,
+      this.handlePendingSelectionChange,
+      this.handleSelectionChange,
+    );
+
+    this.chart.append('g')
       .attr('transform', `translate(0, ${svgH - t - b})`)
       .classed('x-axis', true)
       .classed('axis-container', true)
       .append('text')
       .attr('x', 250).attr('y', 80)
       .classed('label', true);
-    chart.append('g')
+    this.chart.append('g')
       .classed('y-axis', true)
       .classed('axis-container', true)
       .append('text')
@@ -215,7 +264,7 @@ class BarPlotter {
 
 
 
-  updateDataAndPlot = (filteredIds: ReadonlySet<number>, plotConfig: PlotConfig) => {
+  updateDataAndPlot = (filteredIds: ReadonlySet<string>, plotConfig: PlotConfig) => {
     // filtering has a much more global effect on bar chart than on scatterplot.
     this.setFilteredData(filteredIds);
     this.redrawAll(plotConfig);
@@ -243,6 +292,8 @@ class BarPlotter {
       this.chart.selectAll('.bar').remove();
       this.chart.selectAll('.axis-container').selectAll('*').remove();
       this.canvas.attr('width', CHARTCONFIG.svgW);
+      this.chartBox.attr('width', CHARTCONFIG.svgW);
+      this.selector.setChartBoxNode(this.chartBox.node() as SVGRectElement);
       return;
     }
 
@@ -275,7 +326,24 @@ class BarPlotter {
     const newBars = bars.enter()
       .append('rect')
       .classed('bar', true)
-      .attr('fill', this.getDefaultVisualValue(VField.COLOR));
+      .attr('fill', this.getDefaultVisualValue(VField.COLOR))
+      .on('click', d => {
+        const id = d.key
+        // if (!this.resizer.getIsHovering()) {
+        if (true) {
+          if (!(d3.event.ctrlKey || d3.event.metaKey)) {
+            this.selector.selectOnlyOne(id);
+          } else {
+            this.selector.selectToggle(id);
+          }
+        }
+      })
+      .on('contextmenu', d => {
+        d3.event.preventDefault();
+        if (this.selector.getIsSelected(d.key)) {
+          this.toggleColorPicker(d3.event, true);
+        }
+      });
 
     bars.merge(newBars)
       .transition()
@@ -286,6 +354,7 @@ class BarPlotter {
       .attr('height', d => svgH - pad.t - pad.b - yScale(this.getMean(d.values, yName)))
 
     bars.exit()
+      .each((d: NestedDataEntry) => this.selector.unselectOne(d.key))
       .remove();
   };
 
@@ -298,7 +367,7 @@ class BarPlotter {
       this.updateVisualSize(sizeEntry ? sizeEntry.attribute.name : null);
     }
     if (fields.includes(VField.COLOR)) {
-      this.updateVisualColor(colorEntry ? colorEntry.attribute.name: null);
+      this.updateVisualColor(colorEntry);
     }
   };
 
@@ -321,7 +390,10 @@ class BarPlotter {
     // https://bl.ocks.org/mbostock/5348789
     // https://bl.ocks.org/mbostock/6081914
 
+    // currently doing (2)
+
     if (zName === this.zName) {
+      console.log('size not updated');
       return;
     }
     console.log('update size on bar chart');
@@ -339,28 +411,102 @@ class BarPlotter {
     }
   };
 
-  private updateVisualColor = (cName: string | null) => {
+  private updateVisualColor = (cEntry: PlotConfigEntry | undefined) => {
     if (!this.xName) {
       return;
     }
     console.log('update color on bar chart');
     const bars = this.chart
-      .selectAll('.bar')
-    if (cName) {
+      .selectAll('.bar');
+    if (!cEntry) {
+      bars.attr('fill', this.getDefaultVisualValue(VField.COLOR));
+      return;
+    }
+
+    const {attribute: {name: cName}, useCustomScale} = cEntry;
+    let cScale: StringRangeScale<number>;
+    let shouldUpdateRange: boolean;
+    if (!useCustomScale) {
       const [hslstr1, hslstr2] = this.getVisualScaleRange(VisualScaleType.COLOR_NUM) as [string, string];
       const domain = this.getExtent(cName);
-      const cScale = ColorUtil.interpolateColorScale(
+      cScale = ColorUtil.interpolateColorScale(
         domain,
         domain,
         [ColorUtil.stringToHSL(hslstr1), ColorUtil.stringToHSL(hslstr2)],
       );
-      this.setVisualScales(VisualScaleType.COLOR_NUM, cScale);
-      bars.attr('fill', (d: NestedDataEntry) => cScale(this.getMean(d.values, cName)));
+      shouldUpdateRange = false;
     } else {
-      bars.attr('fill', this.getDefaultVisualValue(VField.COLOR));
+      cScale = this.activeSelections.getInterpolatedScale(VField.COLOR, cName) as StringRangeScale<number>;
+      shouldUpdateRange = true;
     }
+    this.setVisualScales(VisualScaleType.COLOR_NUM, cScale, shouldUpdateRange);
+    this.activeSelections.resetValue(VField.COLOR);
+    bars.attr('fill', (d: NestedDataEntry) => cScale(this.getMean(d.values, cName)));
   }
 
+  updateVisualWithRecommendation = (vfield: VField, attrName: string) => {
+    if (vfield === VField.COLOR) {
+      const cScale = this.activeSelections.getInterpolatedScale(VField.COLOR, attrName) as StringRangeScale<number>;
+      this.chart.selectAll('.bar').attr('fill', (d: NestedDataEntry) => cScale(this.getMean(d.values, attrName)));
+    }
+  };
+
+  private highlightBars = (idFilter: (d: NestedDataEntry) => boolean) => {
+    this.chart.selectAll('.bar')
+      .classed('selected', (d: NestedDataEntry)  => idFilter(d))
+      .classed('unselected', (d: NestedDataEntry) => !idFilter(d));
+  }
+
+  private clearHighlights = () => {
+    this.chart.selectAll('.bar')
+      .classed('selected', false)
+      .classed('unselected', false);
+  }
+
+  private handlePendingSelectionChange: HandlePendingSelectionChange = (selectedIds, pendingIds) => {
+    this.highlightBars((d: NestedDataEntry) => selectedIds.has(d.key) || pendingIds.has(d.key));
+  };
+
+  private handleSelectionChange: HandleSelectionChange = (selectedIds) => {
+    if (selectedIds.size > 0) {
+      this.highlightBars((d: NestedDataEntry) => selectedIds.has(d.key));
+    } else {
+      this.clearHighlights();
+    }
+  };
+  
+  syncVisualToUserSelection = (vfield: VField) => {
+    console.log(vfield);
+    const bars = this.chart.selectAll('.bar');
+    if (vfield === VField.COLOR) {
+      bars.attr('fill', 
+        (d: NestedDataEntry) =>
+          this.activeSelections.getValue(VField.COLOR, d.key) || 
+          this.getDefaultVisualValue(VField.COLOR)
+      );
+    }
+  }
+  
+  assignVisual = (vfield: VField, value: string) => {
+    this.activeSelections.assignValue(vfield, this.selector.getSelectedIds(), value);
+    this.syncVisualToUserSelection(vfield);
+  }
+
+  unVisualAll = (vfield: VField) => {
+    // This is a VISUAL method that will clear ALL visual (including ones generated by encoding box)
+    // NOW this is also only called in user-selection mode since we can
+    // clear encoding directly in the encoding fields.
+    this.activeSelections.resetValue(vfield);
+    this.syncVisualToUserSelection(vfield);
+  };
+  
+  private handleActiveSelectionChange = (vfield: VField) => {
+    console.log();
+  }
+  
+  clearSelection = (idSet: ReadonlySet<string>) => {
+    this.selector.clearSelection(idSet);
+  }
 }
 
 export { BarPlotter };

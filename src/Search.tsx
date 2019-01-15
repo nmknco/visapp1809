@@ -10,7 +10,7 @@ import {
 
 interface SearchProps {
   readonly onSearchInputChange: HandleSearchInputChange,
-  readonly resultsIdSet: ReadonlySet<number> | null,
+  readonly resultsIdSet: ReadonlySet<string> | null,
   readonly shouldShowSelectButton: boolean,
   readonly onClickSelectSearchButton: () => void,
 }

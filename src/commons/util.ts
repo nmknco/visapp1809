@@ -9,6 +9,7 @@ import {
 import { memoizedGetExtent } from './memoized';
 import {
   Data,
+  GeneralData,
   StringRangeScale,
 } from './types';
 
@@ -209,9 +210,9 @@ export class ColorUtil {
   };
 
   static interpolateColorScaleWithData = (
-    idsByHSL: {[key: string]: ReadonlySet<number>},
-    data: Data,
-    colorAttrName: string
+    idsByHSL: {[key: string]: ReadonlySet<string>},
+    data: GeneralData,
+    colorAttrName: string,
   ): StringRangeScale<number> => {
     // Use two colors at most - now use the two with most distant data value
 
@@ -236,7 +237,7 @@ export class ColorUtil {
     for (const e of entries) {
       const [color, group] = e;
       medians[color] = d3.median(
-        data.filter(d => group.has(d.__id_extra__)), d => d[colorAttrName] as number
+        data.filter(d => group.has(d.__id_extra__.toString())), d => d[colorAttrName] as number
       );
     }
     entries.sort((ea, eb) => medians[ea[0]] - medians[eb[0]]);

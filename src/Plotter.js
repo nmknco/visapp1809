@@ -1,5 +1,5 @@
 import * as d3 from 'd3';
-import { Selector } from './Selector';
+import { DotSelector } from './Selector';
 import { Resizer } from './Resizer';
 import { Dragger } from './Dragger';
 import { ActiveSelectionsWithRec } from './ActiveSelections';
@@ -44,7 +44,7 @@ class MainPlotter {
     this.getDefaultVisualValue = getDefaultVisualValue;
     
     this.activeSelections = new ActiveSelectionsWithRec(
-      data, 
+      this.getData,
       updateRecommendation,
       this.handleActiveSelectionChange,
     );
@@ -62,6 +62,8 @@ class MainPlotter {
 
     this.init();
   }
+
+  getData = () => this.data;
 
   getActiveSelections = () => this.activeSelections;
 
@@ -91,7 +93,7 @@ class MainPlotter {
     
     this.chart = chart;
 
-    this.selector = new Selector(
+    this.selector = new DotSelector(
       chartBox.node(),
       this.handlePendingSelectionChange,
       this.handleSelectionChange,
@@ -387,8 +389,8 @@ class MainPlotter {
     this.syncVisualToUserSelection(field);
   };
 
-  handleActiveSelectionChange = (field, activeSelection) => {
-    this.updateHasActiveSelection(field, activeSelection.hasActiveSelection(field));
+  handleActiveSelectionChange = (field) => {
+    this.updateHasActiveSelection(field, this.activeSelections.hasActiveSelection(field));
   }
 
   handlePendingSelectionChange = (selectedIds, pendingIds) => {

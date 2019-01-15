@@ -53,7 +53,7 @@ class AppContainer extends React.PureComponent<{}, AppContainerState> {
       return dcopy;
     }).map((d, i): DataEntry => {
       // add an integer index
-      return { ...d, __id_extra__: i } as DataEntry;
+      return { ...d, __id_extra__: i.toString() } as DataEntry;
     });
   };
   

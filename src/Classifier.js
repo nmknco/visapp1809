@@ -3,18 +3,25 @@ import * as d3 from 'd3';
 import { memoizedGetAttributes } from './commons/memoized';
 
 class Classifier {
-  constructor(data) {
-    this.data = data;
-    this.attrList = memoizedGetAttributes(data)
-      .filter(attr => attr.type === 'number')
-      .map(attr => attr.name);
+  constructor(getData) {
+    this.getData = getData;
     this.vars = {};
-    this._init(data)
+    this.nested = {};
+
+    this.data = {};
+    this.numericAttrList = [];
   }
 
-  _init = (data) => {
-    for (const attr of this.attrList) {
-      this.vars[attr] = d3.variance(data, d => d[attr]);
+  _updateDataAndAttrList = () => {
+    this.data = this.getData();
+    this.numericAttrList = memoizedGetAttributes(this.getData())
+      .filter(attr => attr.type === 'number')
+      .map(attr => attr.name);
+  }
+
+  _updateTotalVar = () => {
+    for (const attr of this.numericAttrList) {
+      this.vars[attr] = d3.variance(this.data, d => d[attr]);
     }
   };
 
@@ -44,28 +51,37 @@ class Classifier {
     const k = groups.length;
     if (k === 0) return [];
 
+    this._updateDataAndAttrList();
+    this._updateTotalVar();
+
     const simi = {};
 
     if (k === 1) {
-      for (const attr of this.attrList) {
+      for (const attr of this.numericAttrList) {
         const var_all = this.vars[attr];
-        let var_sum = 0;
+        if (var_all) {
+          let var_sum = 0;
 
-        for (const group of groups) {
-          const selected = this.data.filter(d => group.has(d.__id_extra__));
-          var_sum += var_all ? d3.variance(selected, d => d[attr]) : 0;
+          // We are doing a for loop so this can be applied to multiple groups
+          //  in case that we want
+          for (const group of groups) {
+            const selected = this.data.filter(d => group.has(d.__id_extra__));
+            var_sum += d3.variance(selected, d => d[attr]);
+          }
+          const var_ratio_sum = var_sum / var_all;
+          simi[attr] = var_ratio_sum;
+        } else {
+          simi[attr] = -1;
         }
-        const var_ratio_sum = var_sum / var_all
-        simi[attr] = var_ratio_sum;
       } 
     } else {
       // Two or more groups
-      for (const attr of this.attrList) {
+      for (const attr of this.numericAttrList) {
         const f = this._F(attr, groups);
         simi[attr] = f;
       }
     }
-    // console.log(simi);
+    console.log(simi);
     return Object.entries(simi)
       .filter(d => typeof d[1] === 'number' && !isNaN(d[1]))
       .sort((a, b)=> (a[1] - b[1]) * (k>1?-1:1))

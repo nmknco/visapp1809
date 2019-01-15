@@ -4,19 +4,24 @@ import {
   DataEntry,
   HandlePendingSelectionChange,
   HandleSelectionChange,
+  NestedDataEntry,
 } from './commons/types';
 import { Pos, Rect, SelUtil } from './commons/util';
 
 
-class Selector {
-  private readonly chartBoxNode: SVGRectElement;
+//////////////////////////////////////
+// TODO: Clear Event Listeners
+
+
+abstract class Selector {
+  private chartBoxNode: SVGRectElement;
 
   // The next two fields are also used as isSelecting check
   private selNode: SVGRectElement | null; // the <rect> selection window
   private origin: Pos | null;
 
-  private selectedIds: Set<number>;
-  private pendingIds: Set<number>;
+  protected selectedIds: Set<string>;
+  protected pendingIds: Set<string>;
   private readonly onPendingSelectionChange: () => void;
   private readonly onSelectionChange: () => void;
 
@@ -39,15 +44,22 @@ class Selector {
     this.addDragListeners();
   }
 
-  getSelectedIds = (): ReadonlySet<number> => new Set(this.selectedIds);
-  getPendingIds = (): ReadonlySet<number> => new Set(this.pendingIds);
+  setChartBoxNode = (chartBoxNode: SVGRectElement) => {
+    this.chartBoxNode = chartBoxNode;
+  }
+
+  getSelectedIds = (): ReadonlySet<string> => new Set(this.selectedIds);
+  getPendingIds = (): ReadonlySet<string> => new Set(this.pendingIds);
 
   hasSelection = (): boolean => this.selectedIds.size > 0;
 
-  getIsSelected = (id: number): boolean => this.selectedIds.has(id);
+  getIsSelected = (id: string): boolean => this.selectedIds.has(id);
   
-  getIsSelectedOrPending = (id: number): boolean => 
+  getIsSelectedOrPending = (id: string): boolean => 
     this.selectedIds.has(id) || this.pendingIds.has(id);
+
+  
+  protected abstract onMouseMove: (currentRect: Rect) => void;
 
   private addDragListeners = () => {
     this.chartBoxNode.addEventListener('mousedown', (ev: MouseEvent) => {
@@ -70,27 +82,13 @@ class Selector {
         );
         Rect.updateNodeByRect(this.selNode, currentRect);
 
-        const { pendingIds } = this; // for use in context where there's no access via `this`
-        pendingIds.clear();
+        this.pendingIds.clear();
         if (!(e.ctrlKey || e.metaKey)) {
           this.selectedIds.clear();
         }
 
 
-        d3.select('#plot')
-          .selectAll('.dot:not(.hidden)') // prevent selecting filtered-out points
-          .each(function(d: DataEntry) {
-          // Not using arrow func to void `this` binding
-          // d3 convention is that the node itself is `this`
-            if(this) {
-              const el = this as Element
-              const x = el.getAttribute('data-x');
-              const y = el.getAttribute('data-y');
-              if (x && y && currentRect.containsCoor(+x, +y)) { 
-                pendingIds.add(d.__id_extra__); 
-              }
-            }
-          });
+        this.onMouseMove(currentRect);
         this.onPendingSelectionChange();
       }
     });
@@ -110,14 +108,14 @@ class Selector {
 
   // Single-dot handlers are defined here but event listeners are added 
   //    by the plotter as the dots may not have been created yet
-  selectOnlyOne = (id: number) => {
+  selectOnlyOne = (id: string) => {
     this.selectedIds.clear();
     this.pendingIds.clear();
     this.selectedIds.add(id);
     this.onSelectionChange();
   };
 
-  selectToggle = (id: number) => {
+  selectToggle = (id: string) => {
     if (this.selectedIds.has(id)) {
       this.selectedIds.delete(id);
     } else {
@@ -126,17 +124,17 @@ class Selector {
     this.onSelectionChange();
   };
 
-  unselectOne = (id: number) => {
+  unselectOne = (id: string) => {
     this.selectedIds.delete(id);
     this.onSelectionChange();
   };
 
-  selectByIds = (idSet: ReadonlySet<number>) => {
+  selectByIds = (idSet: ReadonlySet<string>) => {
     this.selectedIds = new Set(idSet);
     this.onSelectionChange();
   };
 
-  clearSelection = (idSet?: ReadonlySet<number>) => {
+  clearSelection = (idSet?: ReadonlySet<string>) => {
     // clear some: Called when some points are filtered out
     // clear all: Called when color the whole plot (with encoding or accepted recommendation)
     if (idSet) {
@@ -151,4 +149,50 @@ class Selector {
 
 }
 
-export { Selector };
+
+class DotSelector extends Selector {
+
+  protected onMouseMove = (currentRect: Rect) => {
+    const { pendingIds } = this;
+    d3.select('#plot')
+      .selectAll('.dot:not(.hidden)') // prevent selecting filtered-out points
+      .each(function(d: DataEntry) {
+      // Not using arrow func to void `this` binding
+      // d3 convention is that the node itself is `this`
+        if(this) {
+          const el = this as Element;
+          const x = el.getAttribute('data-x');
+          const y = el.getAttribute('data-y');
+          if (x && y && currentRect.containsCoor(+x, +y)) { 
+            pendingIds.add(d.__id_extra__); 
+          }
+        }
+      });
+  }
+}
+
+
+class BarSelector extends Selector {
+
+  protected onMouseMove = (currentRect: Rect) => {
+    const { pendingIds } = this;
+    d3.select('#plot')
+      .selectAll('.bar')
+      .each(function(d: NestedDataEntry) {
+        if (this) {
+          const el = this as Element;
+          const x = el.getAttribute('x');
+          const y = el.getAttribute('y');
+          const w = el.getAttribute('width');
+          const h = el.getAttribute('height');
+          if (x && y && w && h) {
+            if (currentRect.containsCoor(+x + +w/2, +y + +h/2)) {
+              pendingIds.add(d.key);
+            }
+          }
+        }
+      });
+  }
+}
+
+export { BarSelector, DotSelector };

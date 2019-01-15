@@ -4,12 +4,22 @@ import { PlotConfigEntry } from '../PlotConfigEntry';
 
 import { ColorObj } from './util';
 
-export interface DataEntry {
-  readonly __id_extra__: number,
+export interface GeneralDataEntry {
+  readonly __id_extra__: string,
   readonly [key: string]: number | string,
 }
 
-export type Data = Readonly<DataEntry[]>;
+export type DataEntry = GeneralDataEntry
+
+export interface GroupDataEntry extends GeneralDataEntry {
+  readonly __is_group__: number,
+}
+
+export type Data = ReadonlyArray<DataEntry>;
+
+export type GroupData = ReadonlyArray<GroupDataEntry>;
+
+export type GeneralData = ReadonlyArray<GeneralDataEntry>;
 
 export interface NestedDataEntry {
   key: string;
@@ -51,8 +61,8 @@ export enum PointState {
 }
 
 export enum ChartType {
-  BAR_CHART = 'Bar Chart',
-  SCATTER_PLOT = 'Scatter Plot',
+  BAR_CHART = 'barchart',
+  SCATTER_PLOT = 'scatterplot',
 }
 
 export enum OverlayMenu {
@@ -108,8 +118,8 @@ export interface ColorPickerStyle {
 
 // Used as Readonly in props/states, but may be mutated in other context
 export interface RecommendedAttrListsByField {
-  color: string[]; // A list of attributes
-  size: string[];
+  [VField.COLOR]: string[]; // A list of attributes
+  [VField.SIZE]: string[];
 }
 
 // Used as Readonly in props/states, but may be mutated in other context
@@ -177,6 +187,11 @@ export interface RecommendedEncoding {
   readonly field: VField;
   readonly attrName: string;
 }
+
+export type ToggleColorPicker = (
+  ev: MouseEvent,
+  on: boolean,
+) => void;
 
 
 export type HandleAcceptRecCard = () => void;
@@ -252,12 +267,12 @@ export type HandleHoverDrop = (
 
 
 export type HandlePendingSelectionChange = (
-  selection: ReadonlySet<number>,
-  pending: ReadonlySet<number>,
+  selection: ReadonlySet<string>,
+  pending: ReadonlySet<string>,
 ) => void;
 
 export type HandleSelectionChange = (
-  selection: ReadonlySet<number>,
+  selection: ReadonlySet<string>,
 ) => void;
 
 
@@ -305,3 +320,11 @@ export type SetVisualScales = (
 export type GetDefaultVisualValue = (
   vfield: VField,
 ) => number | string;
+
+export type HandleActiveSelectionChange = (
+  vfield: VField,
+) => void;
+
+export type UpdateRecommendation = (
+  recommendedEncodings: ReadonlyArray<RecommendedEncoding>
+) => void;

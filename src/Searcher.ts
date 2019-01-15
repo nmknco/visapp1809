@@ -4,15 +4,15 @@ import {
 
 class Searcher {
   private readonly data: Data;
-  private readonly getIsFiltered: (id: number) => boolean;
+  private readonly getIsFiltered: (id: string) => boolean;
 
   // These are states that are needed for the parts (plot) that are not
   //    controlled by React.
   private currentKeyword: string;
   private currentResults: Readonly<Data> | null;
-  private currentResultsIdSet: ReadonlySet<number> | null;
+  private currentResultsIdSet: ReadonlySet<string> | null;
   
-  constructor(data: Data, getIsFiltered: (id: number) => boolean) {
+  constructor(data: Data, getIsFiltered: (id: string) => boolean) {
     this.data = data;
     this.getIsFiltered = getIsFiltered;
     this.currentKeyword = '';
@@ -49,7 +49,7 @@ class Searcher {
     return this.currentResults;
   };
 
-  searchAndGetResultsIdSet = (keyword?: string): ReadonlySet<number> | null => {
+  searchAndGetResultsIdSet = (keyword?: string): ReadonlySet<string> | null => {
     // returns null for empty search
     this.doSearch(keyword);
     return this.currentResultsIdSet;

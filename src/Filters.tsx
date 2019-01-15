@@ -27,7 +27,7 @@ import { getDropBackgroundColor } from './commons/util';
 interface FiltersProps {
   readonly data: Data,
   readonly filterList: Readonly<FilterList>,
-  readonly filteredIds: ReadonlySet<number>,
+  readonly filteredIds: ReadonlySet<string>,
   readonly onAddFilter: HandleAddFilter,
   readonly onSetFilter: HandleSetFilter,
   readonly onRemoveFilter: HandleRemoveFilter,
@@ -113,11 +113,11 @@ class Filters extends React.PureComponent<FiltersProps> {
   );
 
   // This must be memoized to prevent unnecessary rerender
-  private memoizedGetFilteredData = memoizeLast((filteredIds: ReadonlySet<number>) => 
+  private memoizedGetFilteredData = memoizeLast((filteredIds: ReadonlySet<string>) => 
     this.props.data.filter(d => filteredIds.has(d.__id_extra__)));
 
 
-  private renderFilteredPointsMinimap = (filteredIds: ReadonlySet<number>) => (
+  private renderFilteredPointsMinimap = (filteredIds: ReadonlySet<string>) => (
     <div className="flex">
       <div id="filtered-point-minimap" className="d-flex justify-content-center">
         <Minimap

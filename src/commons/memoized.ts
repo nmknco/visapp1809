@@ -3,7 +3,7 @@ import * as d3 from 'd3';
 import { Attribute } from '../Attribute';
 
 import { NoStatError } from './errors';
-import { Data } from './types';
+import { Data, GroupData } from './types';
 
 const arrSame = (arr1: any[], arr2: any[]) => {
   return (arr1.length === arr2.length) && arr1.every((d, i) => d === arr2[i]);
@@ -27,7 +27,7 @@ export const memoizeLast = (fn: (...args: any[]) => any) => {
     lastArgs = args;
     lastThis = this;
 
-    return lastResult
+    return lastResult;
   }
 
   return wrap;
@@ -113,13 +113,13 @@ export const memoizedGetUniqueValueList: (
 );
 
 export const memoizedGetAttributes = memoizeLast(
-  (data: Data) => {
+  (data: Data | GroupData) => {
     console.log('computing attributes list')
     let attrList: Readonly<Attribute[]>
     if (data && data.length > 0) {
       const d0 = data[0];
       attrList = Object.keys(d0)
-        .filter(attrName => attrName !== '__id_extra__')
+        .filter(attrName => attrName !== '__id_extra__' && attrName !== '__is_group__')
         .map(attrName => new Attribute(
           attrName,
           (typeof d0[attrName] === 'number') ? 'number' : 'string'

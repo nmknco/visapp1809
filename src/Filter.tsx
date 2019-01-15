@@ -10,7 +10,7 @@ export type FilterFn = (d: DataEntry) => boolean;
 // Types used for generating and uniquely representing the filters
 export type NumericRangeFilterSeed = Readonly<[number, number]>
 export type DiscreteFilterSeed = ReadonlySet<string|number>;
-export type IdFilterSeed = ReadonlySet<number>;
+export type IdFilterSeed = ReadonlySet<string>;
 export type FilterSeed = NumericRangeFilterSeed | DiscreteFilterSeed | IdFilterSeed
 
 interface FilterConstructorArgs<T extends FilterSeed> {

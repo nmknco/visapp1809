@@ -116,7 +116,7 @@ class DragAnimator {
   };
 
   static showDragFilteredPointsAnimation = (
-    filteredIds: number[],
+    filteredIds: string[],
   ) => {
     // console.log('creating drag animation for filtered points');
     // console.log(filteredIds);
@@ -127,6 +127,7 @@ class DragAnimator {
       // only copy the ring
       const point: HTMLElement | null = document.querySelector(`#point-${id}>.circle-ring`);
       if (!point) {
+        console.log(id)
         throw new ElementNotFoundError(`Cannot find point`);
       }
       const r = point.getAttribute('r');
