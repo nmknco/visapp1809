@@ -177,7 +177,7 @@ class BarSelector extends Selector {
   protected onMouseMove = (currentRect: Rect) => {
     const { pendingIds } = this;
     d3.select('#plot')
-      .selectAll('.bar')
+      .selectAll('.bar__rect')
       .each(function(d: NestedDataEntry) {
         if (this) {
           const el = this as Element;

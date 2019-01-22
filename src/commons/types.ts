@@ -328,3 +328,21 @@ export type HandleActiveSelectionChange = (
 export type UpdateRecommendation = (
   recommendedEncodings: ReadonlyArray<RecommendedEncoding>
 ) => void;
+
+export type HandleResize = (
+  size: number
+) => void;
+
+export type HandleChangeVisualByUser = (
+  vfield: VField,
+  value: string,
+  clearSelection? : boolean,
+) => void;
+
+export type SetIsDragging = (
+  isDragging: boolean,
+) => void;
+
+export type HandleDragEnd = (
+  idSetDroppedToFilter: ReadonlySet<string>,
+) => void;

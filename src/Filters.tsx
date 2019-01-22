@@ -33,7 +33,7 @@ interface FiltersProps {
   readonly onRemoveFilter: HandleRemoveFilter,
   readonly onHoverFilter: HandleHoverFilter,
   readonly onHoverDrop: HandleHoverDrop,
-  readonly isDraggingPoints: boolean,
+  readonly isDragging: boolean,
   readonly minimapScaleMap: Readonly<MinimapScaleMap>,
   readonly xAttrName?: string,
   readonly yAttrName?: string,
@@ -159,7 +159,7 @@ class Filters extends React.PureComponent<FiltersProps> {
       >
         <div>
           <Drop
-            isDragging={this.props.isDraggingPoints}
+            isDragging={this.props.isDragging}
             onHoverDrop={this.props.onHoverDrop}
           >
             <FiltersAttributeDrop

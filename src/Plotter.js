@@ -18,12 +18,12 @@ class MainPlotter {
     onDataPointHover,
     updateRecommendation,
     handleChangeVisualByUser,
-    handleDragPointsEnd,
+    handleDragEnd,
     setMinimapScales,
     setVisualScales,
     updateHasSelection,
     updateHasActiveSelection,
-    setIsDraggingPoints,
+    setIsDragging,
     onSelectionChange,
     getVisualScaleRange,
     getDefaultVisualValue,
@@ -33,15 +33,17 @@ class MainPlotter {
     this.updateColorPicker = updateColorPicker;
     this.onDataPointHover = onDataPointHover;
     this.handleChangeVisualByUser = handleChangeVisualByUser;
-    this.handleDragPointsEnd = handleDragPointsEnd;
+    this.handleDragEnd = handleDragEnd;
     this.setMinimapScales = setMinimapScales;
     this.setVisualScales = setVisualScales;
     this.updateHasSelection = updateHasSelection;
     this.updateHasActiveSelection = updateHasActiveSelection;
-    this.setIsDraggingPoints = setIsDraggingPoints;
+    this.setIsDragging = setIsDragging;
     this.onSelectionChange = onSelectionChange;
     this.getVisualScaleRange = getVisualScaleRange;
     this.getDefaultVisualValue = getDefaultVisualValue;
+
+    this.chartType = 'scatterplot';
     
     this.activeSelections = new ActiveSelectionsWithRec(
       this.getData,
@@ -58,7 +60,7 @@ class MainPlotter {
     this.selector = null;
     this.resizer = null;
 
-    this.isDraggingPoints = false;
+    this.isDragging = false;
 
     this.init();
   }
@@ -414,7 +416,7 @@ class MainPlotter {
   };
 
   handleResizing = (r) => {
-    this.handleChangeVisualByUser('size', r);
+    this.handleChangeVisualByUser('size', r.toString());
   };
 
   _closeColorPicker = () => {

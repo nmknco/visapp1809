@@ -81,7 +81,9 @@ class Classifier {
         simi[attr] = f;
       }
     }
-    console.log(simi);
+
+    // console.log(simi);
+    
     return Object.entries(simi)
       .filter(d => typeof d[1] === 'number' && !isNaN(d[1]))
       .sort((a, b)=> (a[1] - b[1]) * (k>1?-1:1))

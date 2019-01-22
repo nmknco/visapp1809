@@ -187,7 +187,7 @@ class FilterManager {
 
     const selectedData = data.filter(d => idSetDroppedToFilter.has(d.__id_extra__));
     
-    // Filter1: selected onl
+    // Filter1: selected only
     recommendedFilters.push(
       new RecommendedFilter(
         new IdFilter({
@@ -240,6 +240,36 @@ class FilterManager {
       }
     }
     // TODO: Filter 5: Nearest neighbors
+
+    return recommendedFilters;
+  }
+
+  static getBarRecommendedFilters = (args: {
+    xSetDroppedToFilter: ReadonlySet<string>,
+    xName: string,
+    data: Data,
+  }): ReadonlyArray<RecommendedFilter> => {
+    const {data, xSetDroppedToFilter, xName} = args;
+
+    const recommendedFilters: RecommendedFilter[] = [];
+
+    if (!xSetDroppedToFilter) {
+      return recommendedFilters;
+    }
+    
+    // Filter1: selected only
+    recommendedFilters.push(
+      new RecommendedFilter(
+        new IdFilter({
+          seed: new Set(
+            data
+              .filter(d => xSetDroppedToFilter.has(d[xName].toString()))
+              .map(d => d.__id_extra__)
+          ),
+        }),
+        RFkey.SELECTED,
+      )
+    );
 
     return recommendedFilters;
   }

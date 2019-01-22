@@ -102,7 +102,7 @@ interface AppState {
   readonly minimapScaleMap: Readonly<MinimapScaleMap>,
   readonly visualScaleMap: Readonly<VisualScaleMap>,
   readonly visualScaleRanges: Readonly<VisualScaleRanges>,
-  readonly isDraggingPoints: boolean,
+  readonly isDragging: boolean,
   readonly isHoveringFilterPanel: boolean,
   readonly recommendedFilters: ReadonlyArray<RecommendedFilter>
 
@@ -159,7 +159,7 @@ class App extends React.PureComponent<AppProps, AppState> {
         [VisualScaleType.COLOR_ORD]: D3Scheme.CATEGORY10,
         [VisualScaleType.SIZE]: DEFAULT_DOT_SIZE_RANGE,
       },
-      isDraggingPoints: false,
+      isDragging: false,
       isHoveringFilterPanel: false,
       recommendedFilters: [],
       activeOverlayMenu: null,
@@ -181,12 +181,12 @@ class App extends React.PureComponent<AppProps, AppState> {
     this.handleHoverDataPoint,
     this.updateRecommendation,
     this.handleChangeVisualByUser, // for resizer, which needs direct interaction with plot
-    this.handleDragPointsEnd,
+    this.handleDragEnd,
     this.setMinimapScales,
     this.setVisualScales,
     this.updateHasSelection,
     this.updateHasActiveSelection,
-    this.setIsDraggingPoints,
+    this.setIsDragging,
     this.onSelectionChange,
     this.getVisualScaleRange,
     this.getDefaultVisualValue,
@@ -204,6 +204,9 @@ class App extends React.PureComponent<AppProps, AppState> {
       this.setVisualScales,
       this.getVisualScaleRange,
       this.getDefaultVisualValue,
+      this.handleChangeVisualByUser,
+      this.setIsDragging,
+      this.handleDragBarsEnd,
     )
   };
 
@@ -401,28 +404,32 @@ class App extends React.PureComponent<AppProps, AppState> {
 
   // Note: now no need to call updateRecommendation the three methods below
   // as recommendations are sync-ed in ActiveSelectionsWithRec
-  private handleChangeVisualByUser = (field: VField, value: string | number) => {
+  private handleChangeVisualByUser = (field: VField, value: string, clearSelection?: boolean) => {
+    const update = () => {
+      // @ts-ignore
+      this.plt.assignVisual(field, value);
+      if (clearSelection) {
+        // @ts-ignore
+        this.plt.clearSelection();
+      }
+    }
     if (this.state.plotConfig[field]) {
       this.setPlotConfig(
         field, 
         undefined,
-        () => {
-          // @ts-ignore
-          this.plt.assignVisual(field, value);
-          // @ts-ignore
-          this.plt.clearSelection();
-        }
+        update,
       ); // note this now always updates(clears) color
     } else {
-      // @ts-ignore
-      this.plt.assignVisual(field, value);
-      // @ts-ignore
-      this.plt.clearSelection();
+      update();
     }
   };
 
   private handlePickColor: HandlePickColor = (colorObj) => {
-    this.handleChangeVisualByUser(VField.COLOR, ColorUtil.hslToString(colorObj.hsl))
+    this.handleChangeVisualByUser(
+      VField.COLOR,
+      ColorUtil.hslToString(colorObj.hsl),
+      true,
+    );
     this.updateColorPicker({display: 'none'});
   }
 
@@ -495,7 +502,7 @@ class App extends React.PureComponent<AppProps, AppState> {
   // }
 
   private handleHoverRecommendedEncoding: HandleHoverRecommendedEncoding = (ev, field, attrName) => {
-    if (!this.state.isDraggingPoints) {
+    if (!this.state.isDragging) {
       if (ev.type === 'mouseenter') {
         // @ts-ignore
         this.plt.updateVisualWithRecommendation(field, attrName);
@@ -533,8 +540,8 @@ class App extends React.PureComponent<AppProps, AppState> {
     this.setState({isHoveringFilterPanel});
   };
 
-  private setIsDraggingPoints = (isDraggingPoints: boolean) => {
-    this.setState({isDraggingPoints});
+  private setIsDragging = (isDragging: boolean) => {
+    this.setState({isDragging});
   };
 
   private handleHoverDrop: HandleHoverDrop = (ev) => {
@@ -543,9 +550,9 @@ class App extends React.PureComponent<AppProps, AppState> {
     } else if (ev.type === 'mouseleave') {
       this.setIsHoveringFilterPanel(false);
     }
-  }
+  };
 
-  private handleDragPointsEnd = (idSetDroppedToFilter: ReadonlySet<string>) => {
+  private handleDragEnd = (idSetDroppedToFilter: ReadonlySet<string>) => {
     if (this.state.isHoveringFilterPanel) {
       // console.log('Points dropped in filter');
       const recommendedFilters = FilterManager.getRecommendedFilters({
@@ -553,7 +560,20 @@ class App extends React.PureComponent<AppProps, AppState> {
         data: this.props.data,
         xAttr: this.state.plotConfig.x && this.state.plotConfig.x.attribute,
         yAttr: this.state.plotConfig.y && this.state.plotConfig.y.attribute,
-      })
+      });
+      this.setState(() => ({recommendedFilters}));
+    }
+  };
+
+  private handleDragBarsEnd = (xSetDroppedToFilter: ReadonlySet<string>) => {
+    const xAttr = this.state.plotConfig[Field.X];
+    if (this.state.isHoveringFilterPanel && xAttr) {
+      // console.log('Points dropped in filter');
+      const recommendedFilters = FilterManager.getBarRecommendedFilters({
+        xSetDroppedToFilter,
+        xName: xAttr.attribute.name,
+        data: this.props.data,
+      });
       this.setState(() => ({recommendedFilters}));
     }
   };
@@ -941,7 +961,7 @@ class App extends React.PureComponent<AppProps, AppState> {
               onRemoveFilter={this.handleRemoveFilter}
               onHoverFilter={this.handleHoverFilter}
               onHoverDrop={this.handleHoverDrop}
-              isDraggingPoints={this.state.isDraggingPoints}
+              isDragging={this.state.isDragging}
               random={Math.random()}
             />
             <RecommendedFilters

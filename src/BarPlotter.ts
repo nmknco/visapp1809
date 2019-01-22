@@ -2,10 +2,14 @@ import * as d3 from 'd3';
 
 import { ActiveSelectionsWithRec } from './ActiveSelections';
 import { Attribute } from './Attribute';
+import { BarResizer } from './BarResizer';
+import { Dragger } from './Dragger';
+import { PlotConfigEntry } from './PlotConfigEntry';
 import { BarSelector } from './Selector';
 
 import {
   BAR_PADDING,
+  BAR_XBORDER_W,
   CHARTCONFIG, 
 } from './commons/constants';
 import {
@@ -13,15 +17,19 @@ import {
 } from './commons/errors';
 import { memoizedGetAttributes } from './commons/memoized';
 import {
+  ChartType,
   Data,
   DataEntry,
   GetDefaultVisualValue,
   GetVisualScaleRange,
   GroupData,
+  HandleChangeVisualByUser,
+  HandleDragEnd,
   HandlePendingSelectionChange,
   HandleSelectionChange,
   NestedDataEntry,
   PlotConfig,
+  SetIsDragging,
   SetVisualScales,
   StringRangeScale,
   ToggleColorPicker,
@@ -30,7 +38,6 @@ import {
   VisualScaleType,
 } from './commons/types';
 import { ColorUtil } from './commons/util';
-import { PlotConfigEntry } from './PlotConfigEntry';
 
 
 
@@ -41,8 +48,13 @@ class BarPlotter {
   private readonly getVisualScaleRange: GetVisualScaleRange;
   private readonly setVisualScales: SetVisualScales;
   private readonly getDefaultVisualValue: GetDefaultVisualValue;
+  private readonly handleChangeVisualByUser: HandleChangeVisualByUser;
+  readonly setIsDragging: SetIsDragging;
+  readonly handleDragEnd: HandleDragEnd;
 
   private readonly numericAttrList: ReadonlyArray<string>;
+
+  readonly chartType = ChartType.BAR_CHART;
 
   // core fields, externally provided
   private fdata: DataEntry[]; // mutable
@@ -57,11 +69,15 @@ class BarPlotter {
   private xDomain: ReadonlyArray<string>;
   private sizes: {[key: string]: number};
   private xScale: d3.ScaleOrdinal<string, {}>;
+  private cCustomScale: StringRangeScale<number> | null;
 
   private canvas: d3.Selection<d3.BaseType, {}, null, undefined>;
   private chart: d3.Selection<d3.BaseType, {}, null, undefined>;
   private chartBox: d3.Selection<d3.BaseType, {}, null, undefined>;
-  private selector: BarSelector;
+
+  private readonly selector: BarSelector;
+  private readonly resizer: BarResizer;
+  private readonly dragger: Dragger;
   
 
   
@@ -73,6 +89,10 @@ class BarPlotter {
     setVisualScales: SetVisualScales,
     getVisualScaleRange: GetVisualScaleRange,
     getDefaultVisualValue: GetDefaultVisualValue,
+    // the next one is for size since color is handled in app and resize is handled here
+    handleChangeVisualByUser: HandleChangeVisualByUser,
+    setIsDragging: SetIsDragging,
+    handleDragEnd: HandleDragEnd,
   ){
     this.data = data;
     this.container = container;
@@ -80,7 +100,10 @@ class BarPlotter {
     this.getVisualScaleRange = getVisualScaleRange;
     this.setVisualScales = setVisualScales;
     this.getDefaultVisualValue = getDefaultVisualValue;
-    
+    this.handleChangeVisualByUser = handleChangeVisualByUser;
+    this.setIsDragging = setIsDragging;
+    this.handleDragEnd = handleDragEnd;
+
     this.xName = null;
     this.zName = null; // important to not left this undefined - see updateVisualSize()
 
@@ -89,6 +112,23 @@ class BarPlotter {
       .map((attr: Attribute) => attr.name);
     
     this.init();
+
+    // must be after init()
+    this.selector = new BarSelector(
+      this.chartBox.node() as SVGRectElement,
+      this.handlePendingSelectionChange,
+      this.handleSelectionChange,
+    );
+
+    this.resizer = new BarResizer(
+      this.chartBox.node() as SVGRectElement,
+      this.handleResizeX,
+      (d: number) => {console.log(d)},
+      this.handleResizeXFinish,
+    );
+
+    this.dragger = new Dragger(this);
+
     this.setFilteredData(new Set());
     
     this.activeSelections = new ActiveSelectionsWithRec(
@@ -138,15 +178,13 @@ class BarPlotter {
     this.updateSizes();
   };
 
-  private updateSizes = (customSizes?: {[key: string]: number}) => {
+  private updateSizes = () => {
     // size only makes sense when there is an x attribute
     if (!this.xName) {
       return;
     }
     const {zName} = this;
-    if (customSizes) {
-      console.log(0)
-    } else if (!zName) {
+    if (!zName) {
       this.sizes = {};
       for (const x of this.xDomain) {
         this.sizes[x] = this.getDefaultVisualValue(VField.SIZE) as number;
@@ -164,6 +202,10 @@ class BarPlotter {
       }
     }
 
+    this.updateXWithSize();
+  };
+
+  private updateXWithSize = () => {
     // reset x-dimension
     const {pad: {r, l}, svgW} = CHARTCONFIG;
     const {xRange, xRight} = this.getXRange();
@@ -177,7 +219,14 @@ class BarPlotter {
     this.xScale = d3.scaleOrdinal()
       .domain(this.xDomain)
       .range(xRange);
-  };
+  }
+
+  private updateCustomSizes = (customSizes: {[key: string]: number}) => {
+    this.sizes = {
+      ...this.sizes,
+      ...customSizes,
+    };
+  }
 
   private getExtent = (attrName: string): Readonly<[number, number]> => {
     const [min, max] = d3.extent(this.fdataNested, e => d3.mean(e.values, d => d[attrName] as number));
@@ -239,11 +288,6 @@ class BarPlotter {
       .attr('width', svgW - l - r)
       .attr('height', svgH - t - b);
 
-    this.selector = new BarSelector(
-      this.chartBox.node() as SVGRectElement,
-      this.handlePendingSelectionChange,
-      this.handleSelectionChange,
-    );
 
     this.chart.append('g')
       .attr('transform', `translate(0, ${svgH - t - b})`)
@@ -272,12 +316,12 @@ class BarPlotter {
 
 
   redrawAll = (plotConfig: PlotConfig) => {
-    this.updatePosition(plotConfig);
-    this.updateVisual(Object.values(VField), plotConfig);
+    this.updatePositionAndSize(plotConfig);
+    this.updateVisualColor(plotConfig[VField.COLOR]);
   };
 
 
-  updatePosition = (plotConfig: PlotConfig) => {
+  updatePositionAndSize = (plotConfig: PlotConfig) => {
     // Unlike scatter plot, x-attr change necessarily causes data change
 
     if (!this.fdata.length) {
@@ -302,11 +346,7 @@ class BarPlotter {
     const yName = y.attribute.name;
     this.setXName(xName);
 
-    // Sync size if size is present in plotConfig.
-    // This is necessary to keep updateVisual() efficient (see updateVisualSize())
-    if (size) {
-      this.setZName(size.attribute.name);
-    }
+    this.setZName(size ? size.attribute.name : null);
 
     // TO DO: deal with negative values
     const yScale = d3.scaleLinear().domain([0, this.getExtent(yName)[1]]).range([svgH - pad.t - pad.b, 0]);
@@ -324,13 +364,12 @@ class BarPlotter {
       .data([...this.fdataNested], (d: NestedDataEntry) => d.key);
 
     const newBars = bars.enter()
-      .append('rect')
+      .append('g')
       .classed('bar', true)
-      .attr('fill', this.getDefaultVisualValue(VField.COLOR))
+      .attr('data-cx', d => this.xScale(d.key) as number)
       .on('click', d => {
         const id = d.key
-        // if (!this.resizer.getIsHovering()) {
-        if (true) {
+        if (!this.resizer.getIsHovering()) {
           if (!(d3.event.ctrlKey || d3.event.metaKey)) {
             this.selector.selectOnlyOne(id);
           } else {
@@ -345,7 +384,35 @@ class BarPlotter {
         }
       });
 
-    bars.merge(newBars)
+    newBars.append('rect')
+      .classed('bar__rect', true)
+      .attr('fill', this.getDefaultVisualValue(VField.COLOR))
+      .call(this.dragger.getDragger());
+    
+    for (const b of ['left', 'right']) {
+      newBars.append('rect')
+        .classed('bar__xborder', true)
+        .classed('bar__xborder--' + b, true)
+        .attr('width', BAR_XBORDER_W)
+        .on('mousedown', d => {
+          if (this.selector.getIsSelected(d.key)) {
+            this.resizer.handleMouseDownX(d3.event);
+          }
+        })
+        .on('mouseenter', d => {
+          if (this.selector.getIsSelected(d.key)) {
+            this.resizer.handleMouseEnter(d3.event);
+          }
+        })
+        .on('mouseleave', () => 
+          this.resizer.handleMouseLeave(d3.event)
+        );
+    }
+
+
+    const allBars = bars.merge(newBars)
+
+    allBars.select('.bar__rect')
       .transition()
       .duration(1000)
       .attr('x', d => (this.xScale(d.key) as number) - this.sizes[d.key] / 2)
@@ -353,63 +420,107 @@ class BarPlotter {
       .attr('y', d => yScale(this.getMean(d.values, yName)))
       .attr('height', d => svgH - pad.t - pad.b - yScale(this.getMean(d.values, yName)))
 
+    for (const b of ['left', 'right']) {
+      allBars.select('.bar__xborder--' + b)
+        .transition()
+        .duration(1000)
+        .attr('x', d => (this.xScale(d.key) as number) 
+          + (b === 'left' ? -this.sizes[d.key] / 2 : this.sizes[d.key] / 2 - BAR_XBORDER_W)
+        )
+        .attr('y', d => yScale(this.getMean(d.values, yName)))
+        .attr('height', d => svgH - pad.t - pad.b - yScale(this.getMean(d.values, yName)))
+    }
+
     bars.exit()
       .each((d: NestedDataEntry) => this.selector.unselectOne(d.key))
       .remove();
+
+    this.activeSelections.resetValue(VField.SIZE); // this also removes recommended encoding
   };
 
-  updateVisual = (fields: VField[], plotConfig: PlotConfig) => {
-    if (!this.fdata.length) {
-      return;
-    }
-    const {[VField.SIZE]: sizeEntry, [VField.COLOR]: colorEntry} = plotConfig
-    if (fields.includes(VField.SIZE)) {
-      this.updateVisualSize(sizeEntry ? sizeEntry.attribute.name : null);
-    }
-    if (fields.includes(VField.COLOR)) {
-      this.updateVisualColor(colorEntry);
-    }
-  };
 
-  private updateVisualSize = (zName: string | null) => {
-    
-    // size change involves position change. Indeally we do not need to update y again
-    //    but if we only doing another size transition it leads to size-transition preempting
-    //    the y-transition in updatePosition() in the situations
-    //    where both updatePosition() and updateVisual() are called (in setPlotConfig() in App.tsx)
-    
-    // We could do either 
-    // (1) just call updatePosition(), doing redundant computation on y to get complete transition
-    // (2) since updatePosition() actually takes size into account when drawing the bars, we can
-    //      do size update here ONLY when zName changes - this is also more efficient
-    //    Note this requires updatePosition() to keep zName sync-ed with plotConfig. This is
-    //    because of the case where the bar chart is initialized with size attribute already present, 
-    //    so both updatePosition() and updateVisual() are called but no change in between. In this case
-    //    sizes should be updated by updatePosition() instead of updateVisual().
-    // (3) use techniques for concurrent d3 transitions, see Bostock
-    // https://bl.ocks.org/mbostock/5348789
-    // https://bl.ocks.org/mbostock/6081914
-
-    // currently doing (2)
-
-    if (zName === this.zName) {
-      console.log('size not updated');
-      return;
-    }
-    console.log('update size on bar chart');
-    this.setZName(zName);
-    this.chart
-      .selectAll('.bar')
-      .transition()
-      .duration(1000)
+  private syncVisualSize = () => {
+    // sync the visual (x and size) to this.sizes
+    const bars = this.chart.selectAll('.bar');
+    bars
+      .attr('data-cx', (d: NestedDataEntry) => this.xScale(d.key) as number)
+    bars
+      .select('.bar__rect')
       .attr('x', (d: NestedDataEntry) => (this.xScale(d.key) as number) - this.sizes[d.key] / 2)
       .attr('width', (d: NestedDataEntry) => this.sizes[d.key]);
 
+    for (const b of ['left', 'right']) {
+      bars
+        .select('.bar__xborder--' + b)
+        .attr('x', (d: NestedDataEntry) => (this.xScale(d.key) as number) 
+          + (b === 'left' ? -this.sizes[d.key] / 2 : this.sizes[d.key] / 2 - BAR_XBORDER_W)
+        );
+    }
+
+    // Update x axis
     if (this.xName) {
       // @ts-ignore
       this.chart.select('.x-axis').call(d3.axisBottom(this.xScale));
     }
-  };
+  }
+
+
+  // updateVisual = (fields: VField[], plotConfig: PlotConfig) => {
+  //   if (!this.fdata.length) {
+  //     return;
+  //   }
+  //   const {[VField.SIZE]: sizeEntry, [VField.COLOR]: colorEntry} = plotConfig
+  //   if (fields.includes(VField.SIZE)) {
+  //     this.updateVisualSize(sizeEntry ? sizeEntry.attribute.name : null);
+  //   }
+  //   if (fields.includes(VField.COLOR)) {
+  //     this.updateVisualColor(colorEntry);
+  //   }
+  // };
+
+  // private updateVisualSize = (zName: string | null) => {
+    
+  //   // size change involves position change. Indeally we do not need to update y again
+  //   //    but if we only doing another size transition it leads to size-transition preempting
+  //   //    the y-transition in updatePosition() in the situations
+  //   //    where both updatePosition() and updateVisual() are called (in setPlotConfig() in App.tsx)
+    
+  //   // We could do either 
+  //   // (1) just call updatePosition(), doing redundant computation on y to get complete transition
+  //   // (2) since updatePosition() actually takes size into account when drawing the bars, we can
+  //   //      do size update here ONLY when zName changes - this is also more efficient
+  //   //    Note this requires updatePosition() to keep zName sync-ed with plotConfig. This is
+  //   //    because of the case where the bar chart is initialized with size attribute already present, 
+  //   //    so both updatePosition() and updateVisual() are called but no change in between. In this case
+  //   //    sizes should be updated by updatePosition() instead of updateVisual().
+  //   // (3) use techniques for concurrent d3 transitions, see Bostock
+  //   // https://bl.ocks.org/mbostock/5348789
+  //   // https://bl.ocks.org/mbostock/6081914
+
+  //   // currently doing (2)
+
+
+  //   if (zName === this.zName) {
+  //     console.log('size not updated');
+  //     return;
+  //   }
+
+  //   console.log('update size on bar chart');
+  //   this.setZName(zName);
+
+  //   this.chart
+  //     .selectAll('.bar__rect')
+  //     .transition()
+  //     .duration(1000)
+  //     .attr('x', (d: NestedDataEntry) => (this.xScale(d.key) as number) - this.sizes[d.key] / 2)
+  //     .attr('width', (d: NestedDataEntry) => this.sizes[d.key]);
+      
+
+  //   if (this.xName) {
+  //     // @ts-ignore
+  //     this.chart.select('.x-axis').call(d3.axisBottom(this.xScale));
+  //   }
+  // };
 
   private updateVisualColor = (cEntry: PlotConfigEntry | undefined) => {
     if (!this.xName) {
@@ -417,7 +528,7 @@ class BarPlotter {
     }
     console.log('update color on bar chart');
     const bars = this.chart
-      .selectAll('.bar');
+      .selectAll('.bar__rect');
     if (!cEntry) {
       bars.attr('fill', this.getDefaultVisualValue(VField.COLOR));
       return;
@@ -427,6 +538,7 @@ class BarPlotter {
     let cScale: StringRangeScale<number>;
     let shouldUpdateRange: boolean;
     if (!useCustomScale) {
+      this.cCustomScale = null;
       const [hslstr1, hslstr2] = this.getVisualScaleRange(VisualScaleType.COLOR_NUM) as [string, string];
       const domain = this.getExtent(cName);
       cScale = ColorUtil.interpolateColorScale(
@@ -436,18 +548,22 @@ class BarPlotter {
       );
       shouldUpdateRange = false;
     } else {
-      cScale = this.activeSelections.getInterpolatedScale(VField.COLOR, cName) as StringRangeScale<number>;
+      cScale = this.cCustomScale || 
+        this.activeSelections.getInterpolatedScale(VField.COLOR, cName) as StringRangeScale<number>;
+      this.cCustomScale = cScale;
       shouldUpdateRange = true;
     }
     this.setVisualScales(VisualScaleType.COLOR_NUM, cScale, shouldUpdateRange);
     this.activeSelections.resetValue(VField.COLOR);
     bars.attr('fill', (d: NestedDataEntry) => cScale(this.getMean(d.values, cName)));
-  }
+  };
 
   updateVisualWithRecommendation = (vfield: VField, attrName: string) => {
     if (vfield === VField.COLOR) {
       const cScale = this.activeSelections.getInterpolatedScale(VField.COLOR, attrName) as StringRangeScale<number>;
-      this.chart.selectAll('.bar').attr('fill', (d: NestedDataEntry) => cScale(this.getMean(d.values, attrName)));
+      this.chart.selectAll('.bar__rect').attr('fill', (d: NestedDataEntry) => cScale(this.getMean(d.values, attrName)));
+    } else if (vfield === VField.SIZE) {
+      console.log('(No preview for bar size change yet.)');
     }
   };
 
@@ -455,13 +571,13 @@ class BarPlotter {
     this.chart.selectAll('.bar')
       .classed('selected', (d: NestedDataEntry)  => idFilter(d))
       .classed('unselected', (d: NestedDataEntry) => !idFilter(d));
-  }
+  };
 
   private clearHighlights = () => {
     this.chart.selectAll('.bar')
       .classed('selected', false)
       .classed('unselected', false);
-  }
+  };
 
   private handlePendingSelectionChange: HandlePendingSelectionChange = (selectedIds, pendingIds) => {
     this.highlightBars((d: NestedDataEntry) => selectedIds.has(d.key) || pendingIds.has(d.key));
@@ -476,21 +592,33 @@ class BarPlotter {
   };
   
   syncVisualToUserSelection = (vfield: VField) => {
-    console.log(vfield);
-    const bars = this.chart.selectAll('.bar');
     if (vfield === VField.COLOR) {
-      bars.attr('fill', 
-        (d: NestedDataEntry) =>
-          this.activeSelections.getValue(VField.COLOR, d.key) || 
-          this.getDefaultVisualValue(VField.COLOR)
-      );
+      this.chart
+        .selectAll('.bar')
+        .select('.bar__rect')
+        .attr('fill', 
+          (d: NestedDataEntry) =>
+            this.activeSelections.getValue(VField.COLOR, d.key) || 
+            this.getDefaultVisualValue(VField.COLOR)
+        );
+    } else if (vfield === VField.SIZE) {
+      const customSizes = {};
+      for (const x of this.xDomain) {
+        customSizes[x] = this.activeSelections.getValue(VField.SIZE, x) ||
+            this.getDefaultVisualValue(VField.SIZE);
+      }
+      this.updateCustomSizes(customSizes);
+      this.syncVisualSize();
     }
-  }
+  };
   
   assignVisual = (vfield: VField, value: string) => {
     this.activeSelections.assignValue(vfield, this.selector.getSelectedIds(), value);
     this.syncVisualToUserSelection(vfield);
-  }
+    if (vfield === VField.COLOR) {
+      this.cCustomScale = null;
+    }
+  };
 
   unVisualAll = (vfield: VField) => {
     // This is a VISUAL method that will clear ALL visual (including ones generated by encoding box)
@@ -502,11 +630,22 @@ class BarPlotter {
   
   private handleActiveSelectionChange = (vfield: VField) => {
     console.log();
-  }
+  };
   
   clearSelection = (idSet: ReadonlySet<string>) => {
     this.selector.clearSelection(idSet);
-  }
+  };
+
+
+  private handleResizeX = (size: number) => {
+    this.handleChangeVisualByUser(VField.SIZE, size.toString());
+  };
+
+  private handleResizeXFinish = () => {
+    this.updateXWithSize();
+    this.syncVisualSize();
+  };
+
 }
 
 export { BarPlotter };

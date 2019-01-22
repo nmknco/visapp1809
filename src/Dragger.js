@@ -8,7 +8,7 @@ class Dragger {
 
     // To do: use plotter instead of binding
     // Make a copy of the selected at the beginning and use the copy 
-    //    instead of querying the selector for the live selection (just ot be safe)
+    //    instead of querying the selector for the live selection (just to be safe)
 
     this._dragStart = this._dragStart.bind(plotter);
     this._dragMove = this._dragMove.bind(plotter);
@@ -29,16 +29,16 @@ class Dragger {
   }
 
   _dragMove(d) {
-    if (this.selector.getIsSelected(d.__id_extra__)) {
+    if (this.selector.getIsSelected(this.chartType === 'scatterplot' ? d.__id_extra__ : d.key)) {
       // console.log('drag')
-      if (!this.isDraggingPoints) {
+      if (!this.isDragging) {
         // Do the clone upon the first drag event rather than start - otherwise
         //    the click behavior may be prevented
-        this.isDraggingPoints = true;
-        this.setIsDraggingPoints(true);
+        this.isDragging = true;
+        this.setIsDragging(true);
 
         const e = d3.event.sourceEvent;
-        this.draggingPointsOrigin = new Pos(e.clientX, e.clientY);
+        this.DraggingOrigin = new Pos(e.clientX, e.clientY);
 
         const copyDiv = document.createElement('div');
         copyDiv.classList.add('drag-clone')
@@ -53,8 +53,10 @@ class Dragger {
           .attr('height', CHARTCONFIG.svgH)
           .append('g')
           .attr('transform', `translate(${CHARTCONFIG.pad.l}, ${CHARTCONFIG.pad.t})`);
-        d3.select(this.container).selectAll('.dot')
-          .filter(d => this.selector.getIsSelected(d.__id_extra__))
+        this.chart.selectAll(this.chartType === 'scatterplot' ? '.dot' : '.bar')
+          .filter(d => this.selector.getIsSelected(
+            this.chartType === 'scatterplot' ? d.__id_extra__ : d.key
+          ))
           .each(function() {
             // Not using arrow func to avoid 'this' binding
             copyCanvas.append(() => this.cloneNode(true))
@@ -64,7 +66,7 @@ class Dragger {
         // Drag has started
         const e = d3.event.sourceEvent;
         const ePos = new Pos(e.clientX, e.clientY);
-        const offset = ePos.relativeTo(this.draggingPointsOrigin);
+        const offset = ePos.relativeTo(this.DraggingOrigin);
         const copyDiv = this.container.querySelector('.drag-clone');
         Object.assign(copyDiv.style, {
           left: offset.x + 'px',
@@ -76,12 +78,12 @@ class Dragger {
   }
 
   _dragEnd() {
-    if (this.isDraggingPoints) {
+    if (this.isDragging) {
       // console.log('end');
-      this.isDraggingPoints = false;
-      this.setIsDraggingPoints(false);
+      this.isDragging = false;
+      this.setIsDragging(false);
       this.container.removeChild(this.container.querySelector('.drag-clone'));
-      this.handleDragPointsEnd(new Set(this.selector.getSelectedIds())); // make a copy!
+      this.handleDragEnd(new Set(this.selector.getSelectedIds())); // make a copy!
     }
   }
 }

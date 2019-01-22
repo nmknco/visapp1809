@@ -163,13 +163,6 @@
   opacity: 0.15;
 }
 
-.bar.selected {
-  opacity: 1;
-}
-
-.bar.unselected {
-  opacity: 0.2;
-}
 
 .normal {
   opacity: 1;
@@ -382,7 +375,24 @@
 }
 
 
-/* ---- Misc ---- */
+/* ---- Bar ---- */
+.bar {
+  cursor: pointer;
+}
+
+
+.bar.selected {
+  opacity: 0.8;
+}
+
+.bar.unselected {
+  opacity: 0.2;
+}
+
+.bar__xborder {
+  fill: black;
+}
+
 
 
 /* ---- Misc ---- */
