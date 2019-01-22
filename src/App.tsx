@@ -66,7 +66,6 @@ import {
   HandleSearchInputChange,
   HandleSelectChartType,
   HandleSetFilter,
-  MinimapScaleMap,
   OverlayMenu,
   PlotConfig,
   PointState,
@@ -99,7 +98,6 @@ interface AppState {
   readonly plotConfig: Readonly<PlotConfig>,
   readonly filterList: Readonly<FilterList>,
   readonly filteredIds: ReadonlySet<string>,
-  readonly minimapScaleMap: Readonly<MinimapScaleMap>,
   readonly visualScaleMap: Readonly<VisualScaleMap>,
   readonly visualScaleRanges: Readonly<VisualScaleRanges>,
   readonly isDragging: boolean,
@@ -145,7 +143,6 @@ class App extends React.PureComponent<AppProps, AppState> {
       plotConfig: {},
       filterList: [],
       filteredIds: new Set(),
-      minimapScaleMap: {xScale: null, yScale: null},
       visualScaleMap: {
         [VisualScaleType.COLOR_NUM]: null,
         [VisualScaleType.COLOR_ORD]: null,
@@ -182,7 +179,6 @@ class App extends React.PureComponent<AppProps, AppState> {
     this.updateRecommendation,
     this.handleChangeVisualByUser, // for resizer, which needs direct interaction with plot
     this.handleDragEnd,
-    this.setMinimapScales,
     this.setVisualScales,
     this.updateHasSelection,
     this.updateHasActiveSelection,
@@ -700,9 +696,6 @@ class App extends React.PureComponent<AppProps, AppState> {
     this.mp.clearSelection(filteredIds);
   };
 
-  private setMinimapScales = (minimapScaleMap: MinimapScaleMap = {xScale: null, yScale: null}) => {
-    this.setState(() => ({minimapScaleMap}));
-  };
 
   private setVisualScales: SetVisualScales = (
     visualScaleType,
@@ -953,9 +946,8 @@ class App extends React.PureComponent<AppProps, AppState> {
               data={this.props.data}
               filterList={this.state.filterList}
               filteredIds={this.state.filteredIds}
-              minimapScaleMap={this.state.minimapScaleMap}
-              xAttrName={this.state.plotConfig[Field.X] && this.state.plotConfig[Field.X]!.attribute.name}
-              yAttrName={this.state.plotConfig[Field.Y] && this.state.plotConfig[Field.Y]!.attribute.name}
+              xAttr={this.state.plotConfig[Field.X] && this.state.plotConfig[Field.X]!.attribute}
+              yAttr={this.state.plotConfig[Field.Y] && this.state.plotConfig[Field.Y]!.attribute}
               onAddFilter={this.handleAddFilter}
               onSetFilter={this.handleSetFilter}
               onRemoveFilter={this.handleRemoveFilter}

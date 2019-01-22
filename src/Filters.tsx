@@ -3,14 +3,22 @@ import { ConnectDropTarget, DropTarget, DropTargetConnector, DropTargetMonitor }
 
 import { DiscreteFilterPanel } from './DiscreteFilterPanel';
 import { Drop } from './Drop';
-import { DiscreteFilter, Filter, FilterList, IdFilter, NumericRangeFilter } from './Filter';
+import {
+  DiscreteFilter,
+  Filter,
+  FilterList,
+  IdFilter,
+  IdFilterList,
+  NumericRangeFilter
+} from './Filter';
 import { FilterCard } from './FilterCard';
 import { Minimap, PointFilterMinimap } from './Minimap';
 import { NumericRangeFilterPanel } from './NumericRangeFilterPanel';
 import { Panel } from './Panel';
 
+import { Attribute } from './Attribute';
 
-import { memoizedGetExtent, memoizedGetValueSet, memoizeLast } from './commons/memoized';
+import { memoizedGetExtent, memoizedGetValueSet } from './commons/memoized';
 import {
   Data,
   DraggableType,
@@ -19,7 +27,6 @@ import {
   HandleHoverFilter,
   HandleRemoveFilter,
   HandleSetFilter,
-  MinimapScaleMap,
 } from './commons/types';
 import { getDropBackgroundColor } from './commons/util';
 
@@ -34,9 +41,8 @@ interface FiltersProps {
   readonly onHoverFilter: HandleHoverFilter,
   readonly onHoverDrop: HandleHoverDrop,
   readonly isDragging: boolean,
-  readonly minimapScaleMap: Readonly<MinimapScaleMap>,
-  readonly xAttrName?: string,
-  readonly yAttrName?: string,
+  readonly xAttr?: Attribute,
+  readonly yAttr?: Attribute,
   random: number,
 }
 
@@ -87,7 +93,7 @@ class Filters extends React.PureComponent<FiltersProps> {
     </div>
   )
 
-  private renderIdFilterMinimaps = (idFilterList: FilterList) => (
+  private renderIdFilterMinimaps = (idFilterList: IdFilterList) => (
     <div>
       {idFilterList.length > 0 && 
         <div className="p-1">Custom point-filters: </div>
@@ -102,9 +108,8 @@ class Filters extends React.PureComponent<FiltersProps> {
               filter={filter}
               onRemove={this.props.onRemoveFilter}
               onHover={this.props.onHoverFilter}
-              scales={this.props.minimapScaleMap}
-              xAttrName={this.props.xAttrName}
-              yAttrName={this.props.yAttrName}
+              xAttr={this.props.xAttr}
+              yAttr={this.props.yAttr}
             />
           )
         }
@@ -112,26 +117,23 @@ class Filters extends React.PureComponent<FiltersProps> {
     </div>
   );
 
-  // This must be memoized to prevent unnecessary rerender
-  private memoizedGetFilteredData = memoizeLast((filteredIds: ReadonlySet<string>) => 
-    this.props.data.filter(d => filteredIds.has(d.__id_extra__)));
-
 
   private renderFilteredPointsMinimap = (filteredIds: ReadonlySet<string>) => (
     <div className="flex">
       <div id="filtered-point-minimap" className="d-flex justify-content-center">
         <Minimap
-          filteredData={this.memoizedGetFilteredData(filteredIds)}
-          scales={this.props.minimapScaleMap}
-          xAttrName={this.props.xAttrName}
-          yAttrName={this.props.yAttrName}
+          filteredIds={filteredIds}
+          data={this.props.data}
+          xAttr={this.props.xAttr}
+          yAttr={this.props.yAttr}
         />
       </div>
     </div>
   );
 
   private renderContent = () => {
-    const idFilterList = this.props.filterList.filter(d => (d.filter instanceof IdFilter))
+    const idFilterList = 
+      this.props.filterList.filter(d => (d.filter instanceof IdFilter)) as IdFilterList;
     const valueFilterList = this.props.filterList.filter(d => !(d.filter instanceof IdFilter))
 
     return (

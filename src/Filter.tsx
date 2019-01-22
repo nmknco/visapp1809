@@ -116,6 +116,13 @@ export interface FilterListEntry {
 
 export type FilterList = FilterListEntry[];
 
+export interface IdFilterListEntry {
+  readonly fid: number,
+  filter: IdFilter,
+};
+
+export type IdFilterList = IdFilterListEntry[];
+
 
 const REC_FILTER_TEXTS = {
   [RFkey.SELECTED]: () => <span>the points you <strong>selected</strong></span>,

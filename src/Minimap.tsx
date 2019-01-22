@@ -1,7 +1,10 @@
 import * as d3 from 'd3';
 import * as React from 'react';
 
-import { Filter } from './Filter';
+import { FAButton } from './FAButton';
+import { IdFilter } from './Filter';
+
+import { Attribute } from './Attribute';
 
 import {
   MINIMAP_D,
@@ -9,59 +12,74 @@ import {
   MINIMAP_MAR,
   MINIMAP_PAD,
 } from './commons/constants';
+import { memoizedGetExtent, memoizedGetValueList } from './commons/memoized';
 import {
   Data,
   HandleHoverFilter,
   HandleRemoveFilter,
-  MinimapScaleMap,
 } from './commons/types';
-import { FAButton } from './FAButton';
+import { expandRange } from './commons/util';
 
 interface MinimapPropsWithoutFilteredData {
-  readonly scales: Readonly<MinimapScaleMap>,
-  readonly xAttrName?: string,
-  readonly yAttrName?: string,
+  readonly data: Data,
+  readonly xAttr?: Attribute,
+  readonly yAttr?: Attribute,
   readonly dimension?: number,
   readonly isPreview?: boolean,
   readonly overlay?: JSX.Element,
 }
 
 interface MinimapProps extends MinimapPropsWithoutFilteredData {
-  readonly filteredData: Data,
+  readonly filteredIds: ReadonlySet<string>,
 }
 
 class Minimap extends React.PureComponent<MinimapProps> {
   
   private getDimension = () => 
-  this.props.dimension || this.props.isPreview ? MINIMAP_D_PREVIEW : MINIMAP_D;
+    this.props.dimension || this.props.isPreview ? MINIMAP_D_PREVIEW : MINIMAP_D;
   
   private renderDots = () => {
-    const { filteredData, xAttrName, yAttrName } = this.props;
+    const { filteredIds, data, xAttr, yAttr } = this.props;
+    const filteredData = data.filter(d => filteredIds.has(d.__id_extra__));
     
     // const r = this.props.isPreview ? 1 : 2;
     const r = 1;
     const dimension = this.getDimension();
     
-    const {scales: {xScale, yScale}} = this.props;
-    if (!xScale || !yScale) {
-      return;
-    }
-    const xMiniScale = d3.scaleLinear().domain(xScale.range()).range([MINIMAP_PAD, dimension - MINIMAP_PAD]);
-    const yMiniScale = d3.scaleLinear().domain(xScale.range()).range([dimension - MINIMAP_PAD, MINIMAP_PAD]);
-    
-    if (xAttrName && yAttrName && xScale && yScale) {
-      return filteredData.map(d => 
-        <circle
-          key={d.__id_extra__}
-          className="minimap__dot"
-          cx={xMiniScale(xScale(d[xAttrName]))} 
-          cy={yMiniScale(yScale(d[yAttrName]))} 
-          r={r}
-        />
-      );
-    } else {
+    if (!xAttr || !yAttr) {
       return null;
     }
+
+    // scales: can't please d3's ts typing without setting range separately
+    const xMiniScale = (xAttr.type === 'number') ?
+        d3.scaleLinear()
+          .domain(expandRange(memoizedGetExtent(data, xAttr.name)))
+          .range([MINIMAP_PAD, dimension - MINIMAP_PAD]) :
+        d3.scalePoint()
+          .domain(memoizedGetValueList(data, xAttr.name) as ReadonlyArray<string>)
+          .range([MINIMAP_PAD, dimension - MINIMAP_PAD])
+          .padding(0.2)
+
+    const yMiniScale = (yAttr.type === 'number') ?
+        d3.scaleLinear()
+          .domain(expandRange(memoizedGetExtent(data, yAttr.name)))
+          .range([dimension - MINIMAP_PAD, MINIMAP_PAD]) :
+        d3.scalePoint()
+          .domain(memoizedGetValueList(data, yAttr.name) as ReadonlyArray<string>)
+          .range([dimension - MINIMAP_PAD, MINIMAP_PAD])
+          .padding(0.2)
+    
+    return filteredData.map(d => 
+      <circle
+        key={d.__id_extra__}
+        className="minimap__dot"
+        // @ts-ignore
+        cx={xMiniScale(d[xAttr.name])} 
+        // @ts-ignore
+        cy={yMiniScale(d[yAttr.name])} 
+        r={r}
+      />
+    );
   }
 
   render() {
@@ -102,9 +120,8 @@ class Minimap extends React.PureComponent<MinimapProps> {
 interface PointFilterMinimapProps extends MinimapPropsWithoutFilteredData {
   // passing data instead of filtered ones to avoid unnecessary rerender
   // will recompute filtered data only if props change
-  readonly data: Data,
   readonly fid: number,
-  readonly filter: Filter,
+  readonly filter: IdFilter,
   readonly onRemove: HandleRemoveFilter,
   readonly onHover: HandleHoverFilter,
 }
@@ -147,7 +164,7 @@ class PointFilterMinimap extends React.PureComponent<PointFilterMinimapProps> {
     return (
       <Minimap
         {...this.props}
-        filteredData={this.props.data.filter(this.props.filter.filterFn)}
+        filteredIds={this.props.filter.seed}
         overlay={this.renderOverlay()}
       />
     )

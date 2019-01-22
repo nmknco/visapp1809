@@ -19,7 +19,6 @@ class MainPlotter {
     updateRecommendation,
     handleChangeVisualByUser,
     handleDragEnd,
-    setMinimapScales,
     setVisualScales,
     updateHasSelection,
     updateHasActiveSelection,
@@ -34,7 +33,6 @@ class MainPlotter {
     this.onDataPointHover = onDataPointHover;
     this.handleChangeVisualByUser = handleChangeVisualByUser;
     this.handleDragEnd = handleDragEnd;
-    this.setMinimapScales = setMinimapScales;
     this.setVisualScales = setVisualScales;
     this.updateHasSelection = updateHasSelection;
     this.updateHasActiveSelection = updateHasActiveSelection;
@@ -156,6 +154,9 @@ class MainPlotter {
     //  i.e. Don't rely on these values' changes when writing event handlers 
     //  (unless we store them in a persistent source, for exmaple, `this`,)
 
+
+    // TODO: Compute the scales with the same memoized function that is
+    //  to be shared with Minimap.tsx
     const x_attr = x.attribute.name;
     const y_attr = y.attribute.name;
     const xScale = this.scales.x[x_attr] || (
@@ -179,8 +180,6 @@ class MainPlotter {
     // cache
     this.scales.x[x_attr] = xScale;
     this.scales.y[y_attr] = yScale;
-    // pass to the minimaps
-    this.setMinimapScales({xScale, yScale});
 
     const xg = this.chart.select('.x-axis');
     const yg = this.chart.select('.y-axis');
