@@ -136,9 +136,13 @@ class BarPlotter {
         ]);
 
         // clean-up
-        this.chart.selectAll('.bar__drop').classed('hovered', false);
         this.xKeyDraggedOver = null;
       }
+      // clean-up
+      this.chart
+        .selectAll('.bar__drop')
+        .classed('bar__drop--active', false);
+    
       handleDragEnd(idSetDropped);
     };
 
@@ -176,6 +180,14 @@ class BarPlotter {
       updateRecommendedEncodings,
       this.handleActiveSelectionChange,
     );
+  }
+
+  // @ts-ignore // this is called in dragger
+  private handleDragStart = () => {
+    // Set the bar drop areas interactable
+    this.chart
+      .selectAll('.bar__drop')
+      .classed('bar__drop--active', true);
   }
 
   private getGroupData = () => this.groupData;
@@ -443,13 +455,11 @@ class BarPlotter {
       .on('mouseenter', d => {
         if (this.dragger.getIsDragging()) {
           this.xKeyDraggedOver = d.key;
-          d3.event.target.classList.add('hovered');
         }
       })
       .on('mouseleave', d => {
         if (this.dragger.getIsDragging()) {
-          this.xKeyDraggedOver = d.key;
-          d3.event.target.classList.remove('hovered');
+          this.xKeyDraggedOver = null;
         }
       });
 

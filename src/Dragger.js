@@ -6,8 +6,12 @@ import { Pos } from './commons/util';
 class Dragger {
   constructor(plotter) {
 
+    // TODO: MOVE setIsDragging calls to handleDragStart/End
+    //    in App.tsx
+
     // TODO: Make a copy of the selected at the beginning and use the copy 
     //    instead of querying the selector for the live selection (just to be safe)
+
 
     this.plotter = plotter;
 
@@ -36,6 +40,7 @@ class Dragger {
         // Do the clone upon the first drag event rather than start - otherwise
         //    the click behavior may be prevented
         this.isDragging = true;
+        this.plotter.handleDragStart();
         this.plotter.setIsDragging(true);
 
         const e = d3.event.sourceEvent;
