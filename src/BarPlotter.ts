@@ -182,8 +182,7 @@ class BarPlotter {
     );
   }
 
-  // @ts-ignore // this is called in dragger
-  private handleDragStart = () => {
+  handleDragStart = () => {
     // Set the bar drop areas interactable
     this.chart
       .selectAll('.bar__drop')
