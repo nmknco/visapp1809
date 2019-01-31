@@ -24,3 +24,5 @@ export const DEFAULT_BAR_SIZE_RANGE: Readonly<[number, number]> = [10, 64];
 export const MAX_BAR_SIZE_RANGE: Readonly<[number, number]> = [5, 128];
 export const BAR_PADDING = 20;
 export const BAR_XBORDER_W = 3;
+export const BAR_DROP_PADDING = 2;
+export const BAR_DROP_WIDTH = BAR_PADDING - BAR_DROP_PADDING * 2;

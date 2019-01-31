@@ -14,6 +14,7 @@ import {
 } from './OverlayMenus';
 import { RecommendedEncodings } from './RecommendedEncodings';
 import { RecommendedFilters } from './RecommendedFilters';
+import { RecommendedOrders } from './RecommendedOrders';
 import { Search } from './Search';
 import { VisualAllPanel } from './VisualAllPanel';
 
@@ -52,10 +53,12 @@ import {
   Field, 
   HandleAcceptRecommendedEncoding,
   HandleAcceptRecommendedFilter,
+  HandleAcceptRecommendedOrder,
   HandleAddFilter,
   HandleDismissAllRecommendations,
   HandleDismissRecommendedEncoding,
   HandleDismissRecommendedFilter,
+  HandleDismissRecommendedOrder,
   HandleFilterListChange,
   HandleHoverDrop,
   HandleHoverFilter,
@@ -71,10 +74,12 @@ import {
   PointState,
   PointStateGetter,
   RecommendedEncoding,
+  RecommendedOrder,
   SetPlotConfig,
   SetVisualScales,
   ToggleColorPicker,
-  UpdateRecommendation,
+  UpdateRecommendedEncodings,
+  UpdateRecommendedOrders,
   VField,
   VisualScaleMap,
   VisualScaleRanges,
@@ -112,6 +117,8 @@ interface AppState {
   readonly hasSelection: boolean,
   readonly hasActiveSelection: Readonly<{[VField.COLOR]: boolean, [VField.SIZE]: boolean}>,
   readonly recommendedEncodings: ReadonlyArray<RecommendedEncoding>,
+
+  readonly recommendedOrders: ReadonlyArray<RecommendedOrder>,
   
   readonly searchResultsIdSet: ReadonlySet<string> | null, // null for empty keyword
   readonly isSearchResultSelected: boolean;
@@ -165,6 +172,7 @@ class App extends React.PureComponent<AppProps, AppState> {
       hasSelection: false,
       hasActiveSelection: {[VField.COLOR]: false, [VField.SIZE]: false}, // i.e. has visuals set on user selection
       recommendedEncodings: [],
+      recommendedOrders: [],
       searchResultsIdSet: null,
       isSearchResultSelected: false,
       shouldHideCustomAttrTag: {[VField.COLOR]: false, [VField.SIZE]: false}
@@ -176,7 +184,7 @@ class App extends React.PureComponent<AppProps, AppState> {
     this.d3ContainerRef.current,
     this.updateColorPicker,
     this.handleHoverDataPoint,
-    this.updateRecommendation,
+    this.updateRecommendedEncodings,
     this.handleChangeVisualByUser, // for resizer, which needs direct interaction with plot
     this.handleDragEnd,
     this.setVisualScales,
@@ -196,7 +204,8 @@ class App extends React.PureComponent<AppProps, AppState> {
       this.props.data,
       this.d3ContainerRef.current,
       this.toggleColorPicker,
-      this.updateRecommendation,
+      this.updateRecommendedEncodings,
+      this.updateRecommendedOrder,
       this.setVisualScales,
       this.getVisualScaleRange,
       this.getDefaultVisualValue,
@@ -398,8 +407,9 @@ class App extends React.PureComponent<AppProps, AppState> {
     });
   };
 
-  // Note: now no need to call updateRecommendation the three methods below
-  // as recommendations are sync-ed in ActiveSelectionsWithRec
+  // Note: now no need to call updateRecommendation (oldname for updateRecommendedEncodings) 
+  //   in the three methods below
+  //   as recommendations are sync-ed in ActiveSelectionsWithRec
   private handleChangeVisualByUser = (field: VField, value: string, clearSelection?: boolean) => {
     const update = () => {
       // @ts-ignore
@@ -459,7 +469,7 @@ class App extends React.PureComponent<AppProps, AppState> {
       this.state.hasActiveSelection[field];
   };
 
-  private updateRecommendation: UpdateRecommendation = (
+  private updateRecommendedEncodings: UpdateRecommendedEncodings = (
     recommendedEncodings: ReadonlyArray<RecommendedEncoding>
   ) => {
     this.setState(() => ({ recommendedEncodings }));
@@ -520,7 +530,7 @@ class App extends React.PureComponent<AppProps, AppState> {
         // @ts-ignore
         this.plt.syncVisualToUserSelection(field); // manually reset since mouseleave is not fired
       }
-    })
+    });
   }
 
   private handleDismissAllRecommendedEncodings: HandleDismissAllRecommendations = () => {
@@ -531,6 +541,41 @@ class App extends React.PureComponent<AppProps, AppState> {
       this.unVisualAll(field);
     }
   };
+
+
+  private updateRecommendedOrder: UpdateRecommendedOrders = (recommendedOrders) => {
+    this.setState(() => ({ recommendedOrders }));
+  };
+
+  private handleAcceptRecommendedOrder: HandleAcceptRecommendedOrder = (
+    attrName,
+    asce,
+  ) => {
+    this.bp.updateOrderAndPlot(attrName, asce);
+    this.bp.clearSelection();
+  };
+
+  private handleDismissRecommendedOrder: HandleDismissRecommendedOrder = (
+    attrName,
+    asce,
+  ) => {
+    if (this.state.recommendedOrders.length === 1) {
+      this.handleDismissAllRecommendedOrders();
+    } else {
+      this.setState((prevState) => ({
+        recommendedOrders: prevState.recommendedOrders
+            .filter(d => !(d.attrName === attrName && d.asce === asce))
+      }));
+    }
+  };
+
+  private handleDismissAllRecommendedOrders: HandleDismissAllRecommendations = () => {
+    this.setState(() => ({
+      recommendedOrders: [],
+    }));
+    this.bp.redrawAll(this.state.plotConfig);
+    this.bp.clearSelection();
+  }
 
   private setIsHoveringFilterPanel = (isHoveringFilterPanel: boolean) => {
     this.setState({isHoveringFilterPanel});
@@ -969,6 +1014,12 @@ class App extends React.PureComponent<AppProps, AppState> {
               onDismissRecommendedEncoding={this.handleDismissRecommendedEncoding}
               onHoverRecommendedEncoding={this.handleHoverRecommendedEncoding}
               onDismissAllRecommendedEncodings={this.handleDismissAllRecommendedEncodings}
+            />
+            <RecommendedOrders
+              recommendedOrders={this.state.recommendedOrders}
+              onAcceptRecommendedOrder={this.handleAcceptRecommendedOrder}
+              onDismissRecommendedOrder={this.handleDismissRecommendedOrder}
+              onDismissAllRecommendedOrders={this.handleDismissAllRecommendedOrders}
             />
 
             {/* for debugging only */}

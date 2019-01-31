@@ -8,6 +8,8 @@ import { PlotConfigEntry } from './PlotConfigEntry';
 import { BarSelector } from './Selector';
 
 import {
+  BAR_DROP_PADDING,
+  BAR_DROP_WIDTH,
   BAR_PADDING,
   BAR_XBORDER_W,
   CHARTCONFIG, 
@@ -20,6 +22,7 @@ import {
   ChartType,
   Data,
   DataEntry,
+  GeneralDataEntry,
   GetDefaultVisualValue,
   GetVisualScaleRange,
   GroupData,
@@ -33,12 +36,12 @@ import {
   SetVisualScales,
   StringRangeScale,
   ToggleColorPicker,
-  UpdateRecommendation,
+  UpdateRecommendedEncodings,
+  UpdateRecommendedOrders,
   VField,
   VisualScaleType,
 } from './commons/types';
 import { ColorUtil } from './commons/util';
-
 
 
 class BarPlotter {
@@ -46,6 +49,7 @@ class BarPlotter {
   private readonly container: HTMLDivElement;
   private readonly toggleColorPicker: ToggleColorPicker;
   private readonly getVisualScaleRange: GetVisualScaleRange;
+  private readonly updateRecommendedOrders: UpdateRecommendedOrders
   private readonly setVisualScales: SetVisualScales;
   private readonly getDefaultVisualValue: GetDefaultVisualValue;
   private readonly handleChangeVisualByUser: HandleChangeVisualByUser;
@@ -79,13 +83,16 @@ class BarPlotter {
   private readonly resizer: BarResizer;
   private readonly dragger: Dragger;
   
-
+  // The between-bar slot that selected bars are being dragged over for reorder
+  // TODO: Use '' (emptry str) for the first slot
+  private xKeyDraggedOver: string | null; 
   
   constructor(
     data: Data,
     container: HTMLDivElement,
     toggleColorPicker: ToggleColorPicker,
-    updateRecommendation: UpdateRecommendation,
+    updateRecommendedEncodings: UpdateRecommendedEncodings,
+    updateRecommendedOrders: UpdateRecommendedOrders,
     setVisualScales: SetVisualScales,
     getVisualScaleRange: GetVisualScaleRange,
     getDefaultVisualValue: GetDefaultVisualValue,
@@ -98,11 +105,43 @@ class BarPlotter {
     this.container = container;
     this.toggleColorPicker = toggleColorPicker;
     this.getVisualScaleRange = getVisualScaleRange;
+    this.updateRecommendedOrders = updateRecommendedOrders;
     this.setVisualScales = setVisualScales;
     this.getDefaultVisualValue = getDefaultVisualValue;
     this.handleChangeVisualByUser = handleChangeVisualByUser;
     this.setIsDragging = setIsDragging;
-    this.handleDragEnd = handleDragEnd;
+
+    // add drag-n-reorder logic to dragend handler
+    this.handleDragEnd = (idSetDropped: ReadonlySet<string>) => {
+      if (this.xKeyDraggedOver !== null) {
+        console.log('bars dropped for reorder');
+        const insertKey = this.xKeyDraggedOver;
+        const selectedIds = this.selector.getSelectedIds();
+        let customOrderedNestedData: NestedDataEntry[] = [];
+        for (const entry of this.fdataNested) {
+          if (!selectedIds.has(entry.key)) {
+            customOrderedNestedData.push(entry);
+          }
+          if (entry.key === insertKey) {
+            customOrderedNestedData = customOrderedNestedData.concat(
+              this.fdataNested.filter(d => selectedIds.has(d.key))
+            );
+          }
+        }
+        // console.log(customOrderedNestedData);
+        this.reorderDataAndPlot(customOrderedNestedData);
+        this.updateRecommendedOrders([
+          {attrName: 'Horsepower', asce: true},
+          {attrName: 'Horsepower', asce: false},
+        ]);
+
+        // clean-up
+        this.chart.selectAll('.bar__drop').classed('hovered', false);
+        this.xKeyDraggedOver = null;
+      }
+      handleDragEnd(idSetDropped);
+    };
+
 
     this.xName = null;
     this.zName = null; // important to not left this undefined - see updateVisualSize()
@@ -128,12 +167,13 @@ class BarPlotter {
     );
 
     this.dragger = new Dragger(this);
+    this.xKeyDraggedOver = null;
 
     this.setFilteredData(new Set());
     
     this.activeSelections = new ActiveSelectionsWithRec(
       this.getGroupData,
-      updateRecommendation,
+      updateRecommendedEncodings,
       this.handleActiveSelectionChange,
     );
   }
@@ -150,7 +190,7 @@ class BarPlotter {
     this.updateSizes();
   }
 
-  private updateDerivedFields = () => {
+  private updateDerivedFields = (customOrderedNestedData?: NestedDataEntry[]) => {
     const {xName} = this;
     
     if (!xName) {
@@ -158,47 +198,62 @@ class BarPlotter {
       //  check xName before using the derived fields.
       return;
     }
-    this.fdataNested = d3.nest()
-      .key(d => d[xName])
-      .sortKeys(d3.ascending)
-      .entries(this.fdata);
 
-    this.groupData = this.fdataNested.map(({key, values}) => {
+    if (customOrderedNestedData) {
+      this.fdataNested = customOrderedNestedData;
+    } else {
+      this.fdataNested = (d3.nest() as d3.Nest<GeneralDataEntry, {}>)
+        .key(d => d[xName] as string)
+        .sortKeys(d3.ascending)
+        .rollup(values => {
+          const means = {};
+          for (const attrName of this.numericAttrList) {
+            means[attrName] = this.getMean(values, attrName);
+          }
+          return means;
+        })
+        .entries(this.fdata);
+    }
+
+    this.groupData = this.fdataNested.map(({key, value}) => {
       const gEntry = {
         __is_group__: 1,
         __id_extra__: key,
       };
       for (const attr of this.numericAttrList) {
-        gEntry[attr] = d3.mean(values, d => d[attr] as number)
+        gEntry[attr] = value![attr];
       }
       return gEntry;
     })
 
     this.xDomain = this.fdataNested.map(d => d.key);
-    this.updateSizes();
+    this.updateSizes(!!customOrderedNestedData);
   };
 
-  private updateSizes = () => {
+  private updateSizes = (keepCustomSizes: boolean = false) => {
     // size only makes sense when there is an x attribute
     if (!this.xName) {
       return;
     }
-    const {zName} = this;
-    if (!zName) {
-      this.sizes = {};
-      for (const x of this.xDomain) {
-        this.sizes[x] = this.getDefaultVisualValue(VField.SIZE) as number;
-      };
-    } else {
-      this.sizes = {};
-      const [zmin, zmax] = this.getExtent(zName);
-      const zScale = d3.scaleLinear()
-        .domain([zmin, zmax])
-        .range(this.getVisualScaleRange(VisualScaleType.SIZE) as [number, number]);
-      this.setVisualScales(VisualScaleType.SIZE, zScale);
-      for (const {key, values} of this.fdataNested) {
-        const m = this.getMean(values, zName);
-        this.sizes[key] = zScale(m);
+
+    if (!keepCustomSizes) {  
+      const {zName} = this;
+      if (!zName) {
+        this.sizes = {};
+        for (const x of this.xDomain) {
+          this.sizes[x] = this.getDefaultVisualValue(VField.SIZE) as number;
+        };
+      } else {
+        this.sizes = {};
+        const [zmin, zmax] = this.getExtent(zName);
+        const zScale = d3.scaleLinear()
+          .domain([zmin, zmax])
+          .range(this.getVisualScaleRange(VisualScaleType.SIZE) as [number, number]);
+        this.setVisualScales(VisualScaleType.SIZE, zScale);
+        for (const {key, value} of this.fdataNested) {
+          const m = value![zName];
+          this.sizes[key] = zScale(m);
+        }
       }
     }
 
@@ -229,7 +284,7 @@ class BarPlotter {
   }
 
   private getExtent = (attrName: string): Readonly<[number, number]> => {
-    const [min, max] = d3.extent(this.fdataNested, e => d3.mean(e.values, d => d[attrName] as number));
+    const [min, max] = d3.extent(this.fdataNested, e => e.value![attrName]);
     if (min === undefined || max === undefined) {
       throw new NoStatError(`AVG(${attrName})`, 'extent');
     }
@@ -256,12 +311,7 @@ class BarPlotter {
     return {xRange, xRight};
   };
 
-  // public
-  setFilteredData = (filteredIds: ReadonlySet<string>) => {
-    this.fdata = this.data.filter(d => !filteredIds.has(d.__id_extra__));
-    this.updateDerivedFields();
-  };
-
+  
 
   init = () => {
 
@@ -306,7 +356,24 @@ class BarPlotter {
   };
 
 
+  private reorderDataAndPlot = (customOrderedNestedData: NestedDataEntry[]) => {
+    this.updateDerivedFields(customOrderedNestedData);
+    this.syncVisualSize();
+  };
 
+  updateOrderAndPlot = (attrName: string, asce: boolean) => {
+    const customOrderedNestedData = [...this.fdataNested];
+    customOrderedNestedData.sort((a, b) => {
+      return (asce ? d3.ascending : d3.descending)(a.value![attrName], b.value![attrName])
+    });
+    this.reorderDataAndPlot(customOrderedNestedData);
+    this.updateRecommendedOrders([]);
+  }
+
+  setFilteredData = (filteredIds: ReadonlySet<string>) => {
+    this.fdata = this.data.filter(d => !filteredIds.has(d.__id_extra__));
+    this.updateDerivedFields();
+  };
 
   updateDataAndPlot = (filteredIds: ReadonlySet<string>, plotConfig: PlotConfig) => {
     // filtering has a much more global effect on bar chart than on scatterplot.
@@ -333,7 +400,7 @@ class BarPlotter {
     const { x, y, size } = plotConfig;
 
     if (!x || !y) {
-      this.chart.selectAll('.bar').remove();
+      this.chart.selectAll('.bar-section').remove();
       this.chart.selectAll('.axis-container').selectAll('*').remove();
       this.canvas.attr('width', CHARTCONFIG.svgW);
       this.chartBox.attr('width', CHARTCONFIG.svgW);
@@ -359,14 +426,36 @@ class BarPlotter {
     xg.select('.label').text(xName);
     yg.select('.label').text(yName);
 
-    const bars = this.chart
-      .selectAll('.bar')
+    const barSections = this.chart
+      .selectAll('.bar-section')
       .data([...this.fdataNested], (d: NestedDataEntry) => d.key);
 
-    const newBars = bars.enter()
+    const newSections = barSections.enter()
+      .append('g')
+      .classed('bar-section', true);
+    
+
+    newSections.append('rect')
+      .classed('bar__drop', true)
+      // .attr('stroke', 'black')
+      .attr('width', BAR_DROP_WIDTH)
+      .attr('height', svgH - pad.t - pad.b)
+      .on('mouseenter', d => {
+        if (this.dragger.getIsDragging()) {
+          this.xKeyDraggedOver = d.key;
+          d3.event.target.classList.add('hovered');
+        }
+      })
+      .on('mouseleave', d => {
+        if (this.dragger.getIsDragging()) {
+          this.xKeyDraggedOver = d.key;
+          d3.event.target.classList.remove('hovered');
+        }
+      });
+
+    const newBars = newSections
       .append('g')
       .classed('bar', true)
-      .attr('data-cx', d => this.xScale(d.key) as number)
       .on('click', d => {
         const id = d.key
         if (!this.resizer.getIsHovering()) {
@@ -410,28 +499,34 @@ class BarPlotter {
     }
 
 
-    const allBars = bars.merge(newBars)
+    const allBarSections = barSections.merge(newSections)
+      .attr('data-cx', d => this.xScale(d.key) as number)
 
-    allBars.select('.bar__rect')
+    allBarSections.select('.bar__rect')
       .transition()
       .duration(1000)
       .attr('x', d => (this.xScale(d.key) as number) - this.sizes[d.key] / 2)
       .attr('width', d => this.sizes[d.key])
-      .attr('y', d => yScale(this.getMean(d.values, yName)))
-      .attr('height', d => svgH - pad.t - pad.b - yScale(this.getMean(d.values, yName)))
+      .attr('y', d => yScale(d.value![yName]))
+      .attr('height', d => svgH - pad.t - pad.b - yScale(d.value![yName]))
 
     for (const b of ['left', 'right']) {
-      allBars.select('.bar__xborder--' + b)
+      allBarSections.select('.bar__xborder--' + b)
         .transition()
         .duration(1000)
         .attr('x', d => (this.xScale(d.key) as number) 
           + (b === 'left' ? -this.sizes[d.key] / 2 : this.sizes[d.key] / 2 - BAR_XBORDER_W)
         )
-        .attr('y', d => yScale(this.getMean(d.values, yName)))
-        .attr('height', d => svgH - pad.t - pad.b - yScale(this.getMean(d.values, yName)))
+        .attr('y', d => yScale(d.value![yName]))
+        .attr('height', d => svgH - pad.t - pad.b - yScale(d.value![yName]))
     }
 
-    bars.exit()
+    allBarSections.select('.bar__drop')
+      .attr('x', d => (this.xScale(d.key) as number) 
+          + this.sizes[d.key] / 2 + BAR_PADDING / 2 - BAR_DROP_WIDTH / 2);
+      
+
+    barSections.exit()
       .each((d: NestedDataEntry) => this.selector.unselectOne(d.key))
       .remove();
 
@@ -441,17 +536,30 @@ class BarPlotter {
 
   private syncVisualSize = () => {
     // sync the visual (x and size) to this.sizes
-    const bars = this.chart.selectAll('.bar');
-    bars
+    
+    // this is used for updating x/size after internal changes (no plotconfig or data change),
+    //    such as resizing or ordering
+
+    const barSections = this.chart.selectAll('.bar-section');
+    barSections
       .attr('data-cx', (d: NestedDataEntry) => this.xScale(d.key) as number)
-    bars
+      .select('.bar__drop')
+      .transition()
+      .duration(1000)
+      .attr('x', (d: NestedDataEntry) => (this.xScale(d.key) as number) + this.sizes[d.key] / 2 + BAR_DROP_PADDING);
+
+    barSections
       .select('.bar__rect')
+      .transition()
+      .duration(1000)
       .attr('x', (d: NestedDataEntry) => (this.xScale(d.key) as number) - this.sizes[d.key] / 2)
       .attr('width', (d: NestedDataEntry) => this.sizes[d.key]);
 
     for (const b of ['left', 'right']) {
-      bars
+      barSections
         .select('.bar__xborder--' + b)
+        .transition()
+        .duration(1000)
         .attr('x', (d: NestedDataEntry) => (this.xScale(d.key) as number) 
           + (b === 'left' ? -this.sizes[d.key] / 2 : this.sizes[d.key] / 2 - BAR_XBORDER_W)
         );
@@ -462,7 +570,7 @@ class BarPlotter {
       // @ts-ignore
       this.chart.select('.x-axis').call(d3.axisBottom(this.xScale));
     }
-  }
+  };
 
 
   // updateVisual = (fields: VField[], plotConfig: PlotConfig) => {
@@ -555,13 +663,13 @@ class BarPlotter {
     }
     this.setVisualScales(VisualScaleType.COLOR_NUM, cScale, shouldUpdateRange);
     this.activeSelections.resetValue(VField.COLOR);
-    bars.attr('fill', (d: NestedDataEntry) => cScale(this.getMean(d.values, cName)));
+    bars.attr('fill', (d: NestedDataEntry) => cScale(d.value![cName]));
   };
 
   updateVisualWithRecommendation = (vfield: VField, attrName: string) => {
     if (vfield === VField.COLOR) {
       const cScale = this.activeSelections.getInterpolatedScale(VField.COLOR, attrName) as StringRangeScale<number>;
-      this.chart.selectAll('.bar__rect').attr('fill', (d: NestedDataEntry) => cScale(this.getMean(d.values, attrName)));
+      this.chart.selectAll('.bar__rect').attr('fill', (d: NestedDataEntry) => cScale(d.value![attrName]));
     } else if (vfield === VField.SIZE) {
       console.log('(No preview for bar size change yet.)');
     }
@@ -594,8 +702,7 @@ class BarPlotter {
   syncVisualToUserSelection = (vfield: VField) => {
     if (vfield === VField.COLOR) {
       this.chart
-        .selectAll('.bar')
-        .select('.bar__rect')
+        .selectAll('.bar__rect')
         .attr('fill', 
           (d: NestedDataEntry) =>
             this.activeSelections.getValue(VField.COLOR, d.key) || 
@@ -632,7 +739,7 @@ class BarPlotter {
     console.log();
   };
   
-  clearSelection = (idSet: ReadonlySet<string>) => {
+  clearSelection = (idSet?: ReadonlySet<string>) => {
     this.selector.clearSelection(idSet);
   };
 

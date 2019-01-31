@@ -12,7 +12,7 @@ import {
   RecommendedAttrListsByField,
   RecommendedEncoding,
   StringRangeScale,
-  UpdateRecommendation,
+  UpdateRecommendedEncodings,
   VField,
 } from './commons/types';
 import { ColorUtil, expandRange } from './commons/util';
@@ -85,7 +85,7 @@ class ActiveSelectionsWithRec {
   // Active selections that computes recommendation and keep it sync-ed
   // Also computes interpolated scales and caches them
   private readonly getData: () => GeneralData;
-  private readonly updateRecommendation: UpdateRecommendation;
+  private readonly updateRecommendation: UpdateRecommendedEncodings;
 
   private readonly as: ActiveSelections;
   private readonly classifier: Classifier;
@@ -97,7 +97,7 @@ class ActiveSelectionsWithRec {
 
   constructor(
     getData: () => GeneralData,
-    updateRecommendation: UpdateRecommendation,
+    updateRecommendation: UpdateRecommendedEncodings,
     onActiveSelectionChange: HandleActiveSelectionChange,
   ){
     this.getData = getData;

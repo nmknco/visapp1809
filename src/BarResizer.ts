@@ -44,7 +44,7 @@ class BarResizer {
     if (!e.target) {
       return;
     }
-    this.currentBar = (e.target as SVGElement).parentNode as SVGGElement;
+    this.currentBar = (e.target as SVGElement).parentNode!.parentNode as SVGGElement;
     this.isResizingX = true;
   };
 

@@ -71,7 +71,7 @@ abstract class Selector {
       this.selNode.classList.add('selection-shade');
       Rect.updateNodeByRect(this.selNode, new Rect(this.origin, this.origin));
       const chartNode = this.chartBoxNode.parentNode!;
-      chartNode.insertBefore(this.selNode, chartNode.firstChild);
+      chartNode.append(this.selNode);
     });
 
     document.addEventListener('mousemove', (e) => {

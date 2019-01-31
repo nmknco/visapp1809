@@ -23,8 +23,8 @@ export type GeneralData = ReadonlyArray<GeneralDataEntry>;
 
 export interface NestedDataEntry {
   key: string;
-  values: DataEntry[];
-  value: undefined;
+  values: any;
+  value: {} | undefined;
 }
 
 export type AttrType = 'number' | 'string';
@@ -183,6 +183,8 @@ export type SetPlotConfig = (
   callback?: () => void,
 ) => void;
 
+
+
 export interface RecommendedEncoding {
   readonly field: VField;
   readonly attrName: string;
@@ -217,6 +219,23 @@ export type HandleHoverRecommendedEncoding = (
   field: VField,
   attrName: string,
 ) => void;
+
+
+export interface RecommendedOrder {
+  readonly attrName: string;
+  readonly asce: boolean;
+}
+
+export type HandleAcceptRecommendedOrder = (
+  attrName: string,
+  asce: boolean,
+) => void;
+
+export type HandleDismissRecommendedOrder = (
+  attrName: string,
+  asce: boolean,
+) => void;
+
 
 export type HandleAcceptRecommendedFilter = (
   filter: Filter,
@@ -325,8 +344,12 @@ export type HandleActiveSelectionChange = (
   vfield: VField,
 ) => void;
 
-export type UpdateRecommendation = (
+export type UpdateRecommendedEncodings = (
   recommendedEncodings: ReadonlyArray<RecommendedEncoding>
+) => void;
+
+export type UpdateRecommendedOrders = (
+  recommendedOrders: ReadonlyArray<RecommendedOrder>
 ) => void;
 
 export type HandleResize = (
