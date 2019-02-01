@@ -55,6 +55,7 @@ import {
   HandleAcceptRecommendedFilter,
   HandleAcceptRecommendedOrder,
   HandleAddFilter,
+  HandleChangeVisualByUser,
   HandleDismissAllRecommendations,
   HandleDismissRecommendedEncoding,
   HandleDismissRecommendedFilter,
@@ -410,10 +411,16 @@ class App extends React.PureComponent<AppProps, AppState> {
   // Note: now no need to call updateRecommendation (oldname for updateRecommendedEncodings) 
   //   in the three methods below
   //   as recommendations are sync-ed in ActiveSelectionsWithRec
-  private handleChangeVisualByUser = (field: VField, value: string, clearSelection?: boolean) => {
+  private handleChangeVisualByUser: HandleChangeVisualByUser = (
+    field,
+    value,
+    options?,
+  ) => {
+    const clearSelection = options && options.clearSelection;
+    
     const update = () => {
       // @ts-ignore
-      this.plt.assignVisual(field, value);
+      this.plt.assignVisual(field, value, options);
       if (clearSelection) {
         // @ts-ignore
         this.plt.clearSelection();
@@ -434,7 +441,9 @@ class App extends React.PureComponent<AppProps, AppState> {
     this.handleChangeVisualByUser(
       VField.COLOR,
       ColorUtil.hslToString(colorObj.hsl),
-      true,
+      {
+        clearSelection: true,
+      }
     );
     this.updateColorPicker({display: 'none'});
   }

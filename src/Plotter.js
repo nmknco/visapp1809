@@ -102,6 +102,7 @@ class MainPlotter {
     this.resizer = new Resizer(
       chartBox.node(),
       this.handleResizing,
+      this.handleResizingFinish,
     );
 
     this.dragger = new Dragger(this);
@@ -364,8 +365,13 @@ class MainPlotter {
     );
   };
 
-  assignVisual = (field, value) => {
-    this.activeSelections.assignValue(field, this.selector.getSelectedIds(), value);
+  assignVisual = (field, value, options) => {
+    this.activeSelections.assignValue(
+      field,
+      this.selector.getSelectedIds(),
+      value,
+      options,
+    );
     this.syncVisualToUserSelection(field);
   };
 
@@ -414,9 +420,15 @@ class MainPlotter {
     this.selector.clearSelection(idSet);
   };
 
-  handleResizing = (r) => {
-    this.handleChangeVisualByUser('size', r.toString());
+  handleResizing = (r, preventUpdateRecommendation = true) => {
+    this.handleChangeVisualByUser(
+      'size',
+      r.toString(),
+      { preventUpdateRecommendation }
+    );
   };
+
+  handleResizingFinish = (r) => this.handleResizing(r, false);
 
   _closeColorPicker = () => {
     this.updateColorPicker({display: 'none'});

@@ -124,10 +124,17 @@ class ActiveSelectionsWithRec {
     vfield: VField,
     selectedIds?: ReadonlySet<string>,
     value?: string,
+    options?: {
+      preventUpdateRecommendation?: boolean,
+    },
   ) => {
+
+    const preventUpdateRecommendation = options && options.preventUpdateRecommendation;
     this.as.assignValue(vfield, selectedIds, value);
-    this.computeAndUpdateRecommendation(vfield);
-    this.updateInterpolatedScales(vfield);
+    if (!preventUpdateRecommendation) {
+      this.computeAndUpdateRecommendation(vfield);
+      this.updateInterpolatedScales(vfield);
+    }
   };
 
   resetValue = (vfield: VField, selectedIds?: ReadonlySet<string>) => {

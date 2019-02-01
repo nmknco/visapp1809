@@ -12,7 +12,8 @@ import {
   BAR_DROP_WIDTH,
   BAR_PADDING,
   BAR_XBORDER_W,
-  CHARTCONFIG, 
+  BAR_YBORDER_W, 
+  CHARTCONFIG,
 } from './commons/constants';
 import {
   NoStatError, 
@@ -74,6 +75,8 @@ class BarPlotter {
   private sizes: {[key: string]: number};
   private xScale: d3.ScaleOrdinal<string, {}>;
   private cCustomScale: StringRangeScale<number> | null;
+
+  private heights: {[key: string]: number};
 
   private canvas: d3.Selection<d3.BaseType, {}, null, undefined>;
   private chart: d3.Selection<d3.BaseType, {}, null, undefined>;
@@ -166,8 +169,9 @@ class BarPlotter {
     this.resizer = new BarResizer(
       this.chartBox.node() as SVGRectElement,
       this.handleResizeX,
-      (d: number) => {console.log(d)},
+      this.handleResizeY,
       this.handleResizeXFinish,
+      this.handleResizeYFinish,
     );
 
     this.dragger = new Dragger(this);
@@ -491,6 +495,7 @@ class BarPlotter {
       newBars.append('rect')
         .classed('bar__xborder', true)
         .classed('bar__xborder--' + b, true)
+        .attr('data-xborder-side', b)
         .attr('width', BAR_XBORDER_W)
         .on('mousedown', d => {
           if (this.selector.getIsSelected(d.key)) {
@@ -499,7 +504,7 @@ class BarPlotter {
         })
         .on('mouseenter', d => {
           if (this.selector.getIsSelected(d.key)) {
-            this.resizer.handleMouseEnter(d3.event);
+            this.resizer.handleMouseEnterX(d3.event);
           }
         })
         .on('mouseleave', () => 
@@ -507,17 +512,39 @@ class BarPlotter {
         );
     }
 
+    newBars.append('rect')
+      .classed('bar__yborder', true)
+      .attr('height', BAR_YBORDER_W)
+      .on('mousedown', d => {
+        if (this.selector.getIsSelected(d.key)) {
+          this.resizer.handleMouseDownY(d3.event);
+        }
+      })
+      .on('mouseenter', d => {
+        if (this.selector.getIsSelected(d.key)) {
+          this.resizer.handleMouseEnterY(d3.event);
+        }
+      })
+      .on('mouseleave', () =>
+        this.resizer.handleMouseLeave(d3.event)
+      );
+
 
     const allBarSections = barSections.merge(newSections)
       .attr('data-cx', d => this.xScale(d.key) as number)
-
+      
+    this.heights = {};
     allBarSections.select('.bar__rect')
       .transition()
       .duration(1000)
-      .attr('x', d => (this.xScale(d.key) as number) - this.sizes[d.key] / 2)
       .attr('width', d => this.sizes[d.key])
+      .attr('x', d => (this.xScale(d.key) as number) - this.sizes[d.key] / 2)
       .attr('y', d => yScale(d.value![yName]))
-      .attr('height', d => svgH - pad.t - pad.b - yScale(d.value![yName]))
+      .attr('height', d => {
+        const h = svgH - pad.t - pad.b - yScale(d.value![yName]);
+        this.heights[d.key] = h;
+        return h;
+      });
 
     for (const b of ['left', 'right']) {
       allBarSections.select('.bar__xborder--' + b)
@@ -529,6 +556,13 @@ class BarPlotter {
         .attr('y', d => yScale(d.value![yName]))
         .attr('height', d => svgH - pad.t - pad.b - yScale(d.value![yName]))
     }
+
+    allBarSections.select('.bar__yborder')
+      .transition()
+      .duration(1000)
+      .attr('width', d => this.sizes[d.key])
+      .attr('x', d => (this.xScale(d.key) as number) - this.sizes[d.key] / 2)
+      .attr('y', d => yScale(d.value![yName]));
 
     allBarSections.select('.bar__drop')
       .attr('x', d => (this.xScale(d.key) as number) 
@@ -543,32 +577,32 @@ class BarPlotter {
   };
 
 
-  private syncVisualSize = () => {
+  private syncVisualSize = (
+    options: {animation: boolean} = {animation: true}
+  ) => {
     // sync the visual (x and size) to this.sizes
     
     // this is used for updating x/size after internal changes (no plotconfig or data change),
     //    such as resizing or ordering
 
-    const barSections = this.chart.selectAll('.bar-section');
-    barSections
-      .attr('data-cx', (d: NestedDataEntry) => this.xScale(d.key) as number)
-      .select('.bar__drop')
-      .transition()
-      .duration(1000)
+    const { animation } = options;
+
+    const barSections = this.chart
+      .selectAll('.bar-section')
+      .attr('data-cx', (d: NestedDataEntry) => this.xScale(d.key) as number);
+
+    const barDrops = barSections.select('.bar__drop');
+    (animation ? barDrops.transition().duration(1000) : barDrops)
       .attr('x', (d: NestedDataEntry) => (this.xScale(d.key) as number) + this.sizes[d.key] / 2 + BAR_DROP_PADDING);
 
-    barSections
-      .select('.bar__rect')
-      .transition()
-      .duration(1000)
-      .attr('x', (d: NestedDataEntry) => (this.xScale(d.key) as number) - this.sizes[d.key] / 2)
-      .attr('width', (d: NestedDataEntry) => this.sizes[d.key]);
+    const barRects = this.chart.selectAll('.bar__rect, .bar__yborder');
+    (animation ? barRects.transition().duration(1000) : barRects)
+      .attr('width', (d: NestedDataEntry) => this.sizes[d.key])
+      .attr('x', (d: NestedDataEntry) => (this.xScale(d.key) as number) - this.sizes[d.key] / 2);
 
     for (const b of ['left', 'right']) {
-      barSections
-        .select('.bar__xborder--' + b)
-        .transition()
-        .duration(1000)
+      const barXs = barSections.select('.bar__xborder--' + b);
+      (animation ? barXs.transition().duration(1000) : barXs)
         .attr('x', (d: NestedDataEntry) => (this.xScale(d.key) as number) 
           + (b === 'left' ? -this.sizes[d.key] / 2 : this.sizes[d.key] / 2 - BAR_XBORDER_W)
         );
@@ -580,6 +614,7 @@ class BarPlotter {
       this.chart.select('.x-axis').call(d3.axisBottom(this.xScale));
     }
   };
+
 
 
   // updateVisual = (fields: VField[], plotConfig: PlotConfig) => {
@@ -724,12 +759,16 @@ class BarPlotter {
             this.getDefaultVisualValue(VField.SIZE);
       }
       this.updateCustomSizes(customSizes);
-      this.syncVisualSize();
+      this.syncVisualSize({animation: false});
     }
   };
   
-  assignVisual = (vfield: VField, value: string) => {
-    this.activeSelections.assignValue(vfield, this.selector.getSelectedIds(), value);
+  assignVisual = (
+    vfield: VField,
+    value: string,
+    options?: { preventUpdateRecommendation?: boolean },
+  ) => {
+    this.activeSelections.assignValue(vfield, this.selector.getSelectedIds(), value, options);
     this.syncVisualToUserSelection(vfield);
     if (vfield === VField.COLOR) {
       this.cCustomScale = null;
@@ -745,7 +784,7 @@ class BarPlotter {
   };
   
   private handleActiveSelectionChange = (vfield: VField) => {
-    console.log();
+    // @ts-ignore
   };
   
   clearSelection = (idSet?: ReadonlySet<string>) => {
@@ -754,12 +793,40 @@ class BarPlotter {
 
 
   private handleResizeX = (size: number) => {
-    this.handleChangeVisualByUser(VField.SIZE, size.toString());
+    this.handleChangeVisualByUser(VField.SIZE, size.toString(), {preventUpdateRecommendation: true});
   };
-
-  private handleResizeXFinish = () => {
+  
+  private handleResizeXFinish = (size: number) => {
+    this.handleChangeVisualByUser(VField.SIZE, size.toString());
     this.updateXWithSize();
     this.syncVisualSize();
+  };
+
+
+  // TODO: Move some of the height functions to a height manager
+  private updateCustomHeightsForSelected = (height: number) => {
+    for (const xkey of this.selector.getSelectedIds()) {
+      this.heights[xkey] = height;
+    }
+  }
+
+  private syncHeight = () => {
+    const { pad: {t, b}, svgH } = CHARTCONFIG;
+    this.chart
+      .selectAll('.bar__rect, .bar__xborder, .bar__yborder')
+      .attr('y', (d: NestedDataEntry) => svgH - t - b - this.heights[d.key])
+    this.chart
+      .selectAll('.bar__rect, .bar__xborder')
+      .attr('height', (d: NestedDataEntry) => this.heights[d.key]);
+  }
+
+  private handleResizeY = (height: number) => {
+    this.updateCustomHeightsForSelected(height);
+    this.syncHeight();
+  };
+
+  private handleResizeYFinish = () => {
+    console.log('handling resizing Y finish');
   };
 
 }

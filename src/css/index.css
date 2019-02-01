@@ -389,7 +389,8 @@
   opacity: 0.2;
 }
 
-.bar__xborder {
+.bar__xborder,
+.bar__yborder {
   fill: black;
 }
 

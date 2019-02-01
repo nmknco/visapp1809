@@ -1,13 +1,18 @@
 import { Pos, SelUtil } from './commons/util';
 
 class Resizer {
-  constructor(chartBoxNode, onResizing) {
+  constructor(chartBoxNode, onResizing, onResizingFinish) {
     this.chartBoxNode = chartBoxNode;
     this.onResizing = onResizing;
+    this.onResizingFinish = onResizingFinish;
 
     this.isResizing = false;
     this.isHovering = false;
     this.currentDot = null;
+
+    this.cbClone = null;
+
+    this.r = null; // current size
 
     this.init();
   }
@@ -23,6 +28,10 @@ class Resizer {
     e.preventDefault();
     this.currentDot = e.target.parentNode;
     this.isResizing = true;
+
+    this.cbClone = this.chartBoxNode.cloneNode(false);
+    this.cbClone.id = 'cb-clone';
+    this.chartBoxNode.parentNode.appendChild(this.cbClone);
   };
 
   handleMouseMove = (e) => {
@@ -32,17 +41,28 @@ class Resizer {
         this.currentDot.getAttribute('data-y')
       );
       const r = SelUtil.getEventPosRelativeToBoxClipped(e, this.chartBoxNode).distTo(cPos);
+      this.r = r;
       this.onResizing(r);
+
+      this.cbClone.style.cursor = this._getCursorStyle(e, this.currentDot);
     }
   };
 
   handleMouseUp = (e) => {
-    this.isResizing = false;
+    if (this.isResizing && this.r) {
+      this.onResizingFinish(this.r);
+    
+      this.r = null;
+      this.isResizing = false;
+      this.currentDot = null;
+      this.cbClone.remove();
+      this.cbClone = null;
+    }
   };
 
   handleMouseEnter = (e) => {
     this.isHovering = true;
-    e.target.style.cursor = this._getCursorStyle(e);
+    e.target.style.cursor = this._getCursorStyle(e, e.target.parentNode);
   }
 
   handleMouseLeave = (e) => {
@@ -50,11 +70,10 @@ class Resizer {
     e.target.style.cursor = 'pointer';
   }
 
-  _getCursorStyle = (e) => {
+  _getCursorStyle = (e, dotG) => {
     const {x, y} = SelUtil.getEventPosRelativeToBoxClipped(e, this.chartBoxNode);
-    const g = e.target.parentNode;
-    const dx = x - g.getAttribute('data-x');
-    const dy = y - g.getAttribute('data-y');
+    const dx = x - dotG.getAttribute('data-x');
+    const dy = y - dotG.getAttribute('data-y');
     const a = Math.abs(Math.atan(dy / dx));
     if (a < Math.PI / 8) {
       return 'ew-resize';

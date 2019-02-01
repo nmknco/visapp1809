@@ -71,6 +71,11 @@ export enum OverlayMenu {
   SIZE = 'size',
 }
 
+export enum ResizingDirection {
+  X = 'x',
+  Y = 'y',
+}
+
 export enum VisualScaleType {
   COLOR_NUM = 'color_num',
   COLOR_ORD = 'color_ord',
@@ -353,13 +358,20 @@ export type UpdateRecommendedOrders = (
 ) => void;
 
 export type HandleResize = (
-  size: number
+  size: number,
+) => void;
+
+export type HandleResizeFinish = (
+  size: number,
 ) => void;
 
 export type HandleChangeVisualByUser = (
   vfield: VField,
   value: string,
-  clearSelection? : boolean,
+  options?: {
+    clearSelection?: boolean,
+    preventUpdateRecommendation?: boolean,
+  },
 ) => void;
 
 export type SetIsDragging = (
