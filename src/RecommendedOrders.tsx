@@ -9,12 +9,12 @@ import {
   HandleDismissAllRecommendations, 
   HandleDismissRecCard,
   HandleDismissRecommendedOrder,
-  RecommendedOrder,
+  Order,
 } from './commons/types';
 
 
 interface RecommendedOrdersProps {
-  readonly recommendedOrders: ReadonlyArray<RecommendedOrder>,
+  readonly recommendedOrders: ReadonlyArray<Order>,
   readonly onAcceptRecommendedOrder: HandleAcceptRecommendedOrder,
   readonly onDismissRecommendedOrder: HandleDismissRecommendedOrder,
   readonly onDismissAllRecommendedOrders?: HandleDismissAllRecommendations,
@@ -39,10 +39,11 @@ class RecommendedOrders extends React.PureComponent<RecommendedOrdersProps> {
         onClickDismissAll={this.props.onDismissAllRecommendedOrders}
       >
         {recommendedOrders.map(
-          ({ attrName, asce }) =>
+          (order) =>
             <RecommendedOrdersCard
-              key={`${attrName}-${asce ? 'ascending' : 'descending'}`}
-              {...{ attrName, asce,
+              key={`${order.attrName}-${order.asce ? 'ascending' : 'descending'}`}
+              {...{
+                order,
                 onAcceptRecommendedOrder,
                 onDismissRecommendedOrder,
               }}
@@ -54,8 +55,7 @@ class RecommendedOrders extends React.PureComponent<RecommendedOrdersProps> {
 }
 
 interface RecommendedOrdersCardProps {
-  readonly attrName: string,
-  readonly asce: boolean,
+  readonly order: Order,
   readonly onAcceptRecommendedOrder: HandleAcceptRecommendedOrder,
   readonly onDismissRecommendedOrder: HandleDismissRecommendedOrder,
 }
@@ -63,14 +63,14 @@ interface RecommendedOrdersCardProps {
 class RecommendedOrdersCard extends React.PureComponent<RecommendedOrdersCardProps> {
   
   private handleAcceptCard: HandleAcceptRecCard =
-    () => this.props.onAcceptRecommendedOrder(this.props.attrName, this.props.asce);
+    () => this.props.onAcceptRecommendedOrder(this.props.order);
   
   private handleDismissCard: HandleDismissRecCard =
-    () => this.props.onDismissRecommendedOrder(this.props.attrName, this.props.asce);
+    () => this.props.onDismissRecommendedOrder(this.props.order);
 
   render() {
     console.log('Recommended encoding cards render')
-    const { attrName, asce } = this.props;
+    const { attrName, asce } = this.props.order;
     return (
       <RecCard
         key={`${attrName}-${asce ? 'ascending' : 'descending'}`}

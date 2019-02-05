@@ -24,7 +24,7 @@ export type GeneralData = ReadonlyArray<GeneralDataEntry>;
 export interface NestedDataEntry {
   key: string;
   values: any;
-  value: {} | undefined;
+  value: {} | undefined; // seems unavoidable
 }
 
 export type AttrType = 'number' | 'string';
@@ -33,17 +33,18 @@ export enum DraggableType {
   ATTRIBUTE = 'attribute',
 };
 
-export enum Field {
+export enum PField {
   X = 'x',
   Y = 'y',
-  COLOR = 'color',
-  SIZE = 'size',
 }
 
 export enum VField {
   COLOR = 'color',
   SIZE = 'size',
 }
+
+export type Field = PField | VField;
+export const Fields = Object.values(PField).concat(Object.values(VField));
 
 export enum RFkey { // recommended filter keys
   SELECTED = 'selected',
@@ -108,10 +109,10 @@ export interface StringRangeScale<Domain> {
 
 // Used as Readonly in props/states, but may be mutated in other context
 export interface PlotConfig {
-  [Field.X]?: PlotConfigEntry;
-  [Field.Y]?: PlotConfigEntry;
-  [Field.COLOR]?: PlotConfigEntry;
-  [Field.SIZE]?: PlotConfigEntry;
+  [PField.X]?: PlotConfigEntry;
+  [PField.Y]?: PlotConfigEntry;
+  [VField.COLOR]?: PlotConfigEntry;
+  [VField.SIZE]?: PlotConfigEntry;
 }
 
 // Used as Readonly in props/states, but may be mutated in other context
@@ -191,7 +192,7 @@ export type SetPlotConfig = (
 
 
 export interface RecommendedEncoding {
-  readonly field: VField;
+  readonly field: Field;
   readonly attrName: string;
 }
 
@@ -210,35 +211,33 @@ export type HandleHoverRecCard = (
 export type HandleDismissRecCard = () => void;
 
 export type HandleAcceptRecommendedEncoding = (
-  field: VField,
+  field: Field,
   attrName: string,
 ) => void;
 
 export type HandleDismissRecommendedEncoding = (
-  field: VField,
+  field: Field,
   attrName: string,
 ) => void;
 
-export type HandleHoverRecommendedEncoding = (
+export type HandleHoverRecommendedEncoding= (
   ev: React.MouseEvent<Element>,
-  field: VField,
+  field: Field,
   attrName: string,
 ) => void;
 
 
-export interface RecommendedOrder {
+export interface Order {
   readonly attrName: string;
   readonly asce: boolean;
 }
 
 export type HandleAcceptRecommendedOrder = (
-  attrName: string,
-  asce: boolean,
+  order: Order,
 ) => void;
 
 export type HandleDismissRecommendedOrder = (
-  attrName: string,
-  asce: boolean,
+  order: Order,
 ) => void;
 
 
@@ -354,7 +353,7 @@ export type UpdateRecommendedEncodings = (
 ) => void;
 
 export type UpdateRecommendedOrders = (
-  recommendedOrders: ReadonlyArray<RecommendedOrder>
+  recommendedOrders: ReadonlyArray<Order>
 ) => void;
 
 export type HandleResize = (

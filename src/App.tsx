@@ -50,7 +50,6 @@ import {
   Data,
   DataEntry,
   DefaultVisualValues,
-  Field, 
   HandleAcceptRecommendedEncoding,
   HandleAcceptRecommendedFilter,
   HandleAcceptRecommendedOrder,
@@ -70,12 +69,13 @@ import {
   HandleSearchInputChange,
   HandleSelectChartType,
   HandleSetFilter,
+  Order,
   OverlayMenu,
+  PField,
   PlotConfig,
   PointState,
   PointStateGetter,
   RecommendedEncoding,
-  RecommendedOrder,
   SetPlotConfig,
   SetVisualScales,
   ToggleColorPicker,
@@ -119,7 +119,7 @@ interface AppState {
   readonly hasActiveSelection: Readonly<{[VField.COLOR]: boolean, [VField.SIZE]: boolean}>,
   readonly recommendedEncodings: ReadonlyArray<RecommendedEncoding>,
 
-  readonly recommendedOrders: ReadonlyArray<RecommendedOrder>,
+  readonly recommendedOrders: ReadonlyArray<Order>,
   
   readonly searchResultsIdSet: ReadonlySet<string> | null, // null for empty keyword
   readonly isSearchResultSelected: boolean;
@@ -231,8 +231,8 @@ class App extends React.PureComponent<AppProps, AppState> {
     });
     this.setPlotConfig(VField.COLOR, undefined);
     this.setPlotConfig(VField.SIZE, undefined);
-    this.setPlotConfig(Field.X, new PlotConfigEntry(attrs[0]));
-    this.setPlotConfig(Field.Y, new PlotConfigEntry(attrs[attrs.length ? 1 : 0]));
+    this.setPlotConfig(PField.X, new PlotConfigEntry(attrs[0]));
+    this.setPlotConfig(PField.Y, new PlotConfigEntry(attrs[attrs.length ? 1 : 0]));
   };
 
   private setupAndRedrawMainPlot = () => {
@@ -279,10 +279,10 @@ class App extends React.PureComponent<AppProps, AppState> {
 
     const {x, y} = this.state.plotConfig;
     if (!x || x && x.attribute.type === 'number') {
-      this.setPlotConfig(Field.X, new PlotConfigEntry(new Attribute('Year', 'string')));
+      this.setPlotConfig(PField.X, new PlotConfigEntry(new Attribute('Year', 'string')));
     }
     if (!y) {
-      this.setPlotConfig(Field.Y, new PlotConfigEntry(new Attribute('Miles_per_Gallon', 'number')));
+      this.setPlotConfig(PField.Y, new PlotConfigEntry(new Attribute('Miles_per_Gallon', 'number')));
     }
     this.dropCustomScales();
     
@@ -314,10 +314,10 @@ class App extends React.PureComponent<AppProps, AppState> {
   private dropCustomScales = () => {
     const {[VField.COLOR]: color, [VField.SIZE]: size} = this.state.plotConfig;
     if (color && color.useCustomScale) {
-      this.setPlotConfig(Field.COLOR, {...color, useCustomScale: false});
+      this.setPlotConfig(VField.COLOR, {...color, useCustomScale: false});
     }
     if (size && size.useCustomScale) {
-      this.setPlotConfig(Field.SIZE, {...size, useCustomScale: false});
+      this.setPlotConfig(VField.SIZE, {...size, useCustomScale: false});
     }
   };
 
@@ -518,6 +518,9 @@ class App extends React.PureComponent<AppProps, AppState> {
 
   private handleHoverRecommendedEncoding: HandleHoverRecommendedEncoding = (ev, field, attrName) => {
     if (!this.state.isDragging) {
+      if (field === PField.X || field === PField.Y) {
+        return;
+      }
       if (ev.type === 'mouseenter') {
         // @ts-ignore
         this.plt.updateVisualWithRecommendation(field, attrName);
@@ -533,6 +536,9 @@ class App extends React.PureComponent<AppProps, AppState> {
       recommendedEncodings: prevState.recommendedEncodings
           .filter(d => !(d.field === field && d.attrName === attrName))
     }), () => {
+      if (field === PField.X || field === PField.Y) {
+        return;
+      }
       if (this.state.recommendedEncodings.filter(d => d.field === field).length === 0) {
         this.unVisualAll(field);
       } else {
@@ -557,23 +563,21 @@ class App extends React.PureComponent<AppProps, AppState> {
   };
 
   private handleAcceptRecommendedOrder: HandleAcceptRecommendedOrder = (
-    attrName,
-    asce,
+    order: Order,
   ) => {
-    this.bp.updateOrderAndPlot(attrName, asce);
+    this.bp.updateOrderAndPlot(order);
     this.bp.clearSelection();
   };
 
   private handleDismissRecommendedOrder: HandleDismissRecommendedOrder = (
-    attrName,
-    asce,
+    order: Order,
   ) => {
     if (this.state.recommendedOrders.length === 1) {
       this.handleDismissAllRecommendedOrders();
     } else {
       this.setState((prevState) => ({
         recommendedOrders: prevState.recommendedOrders
-            .filter(d => !(d.attrName === attrName && d.asce === asce))
+            .filter(d => !(d.attrName === order.attrName && d.asce === order.asce))
       }));
     }
   };
@@ -616,7 +620,7 @@ class App extends React.PureComponent<AppProps, AppState> {
   };
 
   private handleDragBarsEnd = (xSetDroppedToFilter: ReadonlySet<string>) => {
-    const xAttr = this.state.plotConfig[Field.X];
+    const xAttr = this.state.plotConfig[PField.X];
     if (this.state.isHoveringFilterPanel && xAttr) {
       // console.log('Points dropped in filter');
       const recommendedFilters = FilterManager.getBarRecommendedFilters({
@@ -1000,8 +1004,8 @@ class App extends React.PureComponent<AppProps, AppState> {
               data={this.props.data}
               filterList={this.state.filterList}
               filteredIds={this.state.filteredIds}
-              xAttr={this.state.plotConfig[Field.X] && this.state.plotConfig[Field.X]!.attribute}
-              yAttr={this.state.plotConfig[Field.Y] && this.state.plotConfig[Field.Y]!.attribute}
+              xAttr={this.state.plotConfig[PField.X] && this.state.plotConfig[PField.X]!.attribute}
+              yAttr={this.state.plotConfig[PField.Y] && this.state.plotConfig[PField.Y]!.attribute}
               onAddFilter={this.handleAddFilter}
               onSetFilter={this.handleSetFilter}
               onRemoveFilter={this.handleRemoveFilter}

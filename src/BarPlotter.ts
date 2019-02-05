@@ -4,6 +4,7 @@ import { ActiveSelectionsWithRec } from './ActiveSelections';
 import { Attribute } from './Attribute';
 import { BarResizer } from './BarResizer';
 import { Dragger } from './Dragger';
+import { OrderManager, OrderUtil } from './OrderManager';
 import { PlotConfigEntry } from './PlotConfigEntry';
 import { BarSelector } from './Selector';
 
@@ -32,6 +33,7 @@ import {
   HandlePendingSelectionChange,
   HandleSelectionChange,
   NestedDataEntry,
+  Order,
   PlotConfig,
   SetIsDragging,
   SetVisualScales,
@@ -50,7 +52,8 @@ class BarPlotter {
   private readonly container: HTMLDivElement;
   private readonly toggleColorPicker: ToggleColorPicker;
   private readonly getVisualScaleRange: GetVisualScaleRange;
-  private readonly updateRecommendedOrders: UpdateRecommendedOrders
+  private readonly updateRecommendedEncodings: UpdateRecommendedEncodings;
+  private readonly updateRecommendedOrders: UpdateRecommendedOrders;
   private readonly setVisualScales: SetVisualScales;
   private readonly getDefaultVisualValue: GetDefaultVisualValue;
   private readonly handleChangeVisualByUser: HandleChangeVisualByUser;
@@ -85,6 +88,7 @@ class BarPlotter {
   private readonly selector: BarSelector;
   private readonly resizer: BarResizer;
   private readonly dragger: Dragger;
+  private readonly orderManager: OrderManager;
   
   // The between-bar slot that selected bars are being dragged over for reorder
   // TODO: Use '' (emptry str) for the first slot
@@ -108,11 +112,13 @@ class BarPlotter {
     this.container = container;
     this.toggleColorPicker = toggleColorPicker;
     this.getVisualScaleRange = getVisualScaleRange;
+    this.updateRecommendedEncodings = updateRecommendedEncodings;
     this.updateRecommendedOrders = updateRecommendedOrders;
     this.setVisualScales = setVisualScales;
     this.getDefaultVisualValue = getDefaultVisualValue;
     this.handleChangeVisualByUser = handleChangeVisualByUser;
     this.setIsDragging = setIsDragging;
+
 
     // add drag-n-reorder logic to dragend handler
     this.handleDragEnd = (idSetDropped: ReadonlySet<string>) => {
@@ -133,10 +139,7 @@ class BarPlotter {
         }
         // console.log(customOrderedNestedData);
         this.reorderDataAndPlot(customOrderedNestedData);
-        this.updateRecommendedOrders([
-          {attrName: 'Horsepower', asce: true},
-          {attrName: 'Horsepower', asce: false},
-        ]);
+        this.updateRecommendedOrders(OrderUtil.getRecommendedOrder(customOrderedNestedData, 3));
 
         // clean-up
         this.xKeyDraggedOver = null;
@@ -184,6 +187,8 @@ class BarPlotter {
       updateRecommendedEncodings,
       this.handleActiveSelectionChange,
     );
+
+    this.orderManager = new OrderManager();
   }
 
   handleDragStart = () => {
@@ -228,6 +233,10 @@ class BarPlotter {
           return means;
         })
         .entries(this.fdata);
+      const order = this.orderManager.getOrder();
+      if (order) {
+        this.fdataNested.sort(OrderUtil.getOrderFunction(order));
+      }
     }
 
     this.groupData = this.fdataNested.map(({key, value}) => {
@@ -376,11 +385,10 @@ class BarPlotter {
     this.syncVisualSize();
   };
 
-  updateOrderAndPlot = (attrName: string, asce: boolean) => {
+  updateOrderAndPlot = (order: Order) => {
+    this.orderManager.setOrder(order);
     const customOrderedNestedData = [...this.fdataNested];
-    customOrderedNestedData.sort((a, b) => {
-      return (asce ? d3.ascending : d3.descending)(a.value![attrName], b.value![attrName])
-    });
+    customOrderedNestedData.sort(OrderUtil.getOrderFunction(order));
     this.reorderDataAndPlot(customOrderedNestedData);
     this.updateRecommendedOrders([]);
   }
@@ -822,6 +830,13 @@ class BarPlotter {
 
   private handleResizeY = (height: number) => {
     this.updateCustomHeightsForSelected(height);
+    this.updateRecommendedEncodings(
+      OrderUtil.getRecommendedYByOrder(
+        this.fdataNested,
+        this.heights,
+        2,
+      )
+    );
     this.syncHeight();
   };
 

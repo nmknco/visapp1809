@@ -4,6 +4,7 @@ import { PanelWithDismiss } from './Panel';
 import { RecCard } from './RecCard';
 
 import { 
+  Field,
   HandleAcceptRecCard,
   HandleAcceptRecommendedEncoding,
   HandleDismissAllRecommendations, 
@@ -58,7 +59,7 @@ class RecommendedEncodings extends React.PureComponent<RecommendedEncodingsProps
 }
 
 interface RecommendedEncodingsCardProps {
-  readonly field: VField,
+  readonly field: VField | Field,
   readonly attrName: string,
   readonly onAcceptRecommendedEncoding: HandleAcceptRecommendedEncoding,
   readonly onDismissRecommendedEncoding: HandleDismissRecommendedEncoding,

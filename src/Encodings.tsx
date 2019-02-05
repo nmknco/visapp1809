@@ -9,6 +9,8 @@ import { PlotConfigEntry } from './PlotConfigEntry';
 import { 
   DraggableType,
   Field,
+  Fields,
+  PField,
   PlotConfig,
   SetPlotConfig,
   VField,
@@ -16,10 +18,10 @@ import {
 import { getDropBackgroundColor } from './commons/util';
 
 const DISPLAYNAME = {
-  [Field.X]: 'X axis',
-  [Field.Y]: 'Y axis',
-  [Field.COLOR]: 'Color',
-  [Field.SIZE]: 'Size',
+  [PField.X]: 'X axis',
+  [PField.Y]: 'Y axis',
+  [VField.COLOR]: 'Color',
+  [VField.SIZE]: 'Size',
 }
 
 interface EncodingsProps {
@@ -39,7 +41,7 @@ class Encodings extends React.PureComponent<EncodingsProps> {
         heading="Encodings"
       >
         <div className="card-body d-flex flex-wrap p-0">
-          {Object.values(Field).map((field: Field) =>
+          {Fields.map((field: Field) =>
             <DroppableEncodingField
               key={field}
               field={field}

@@ -444,6 +444,8 @@ class MainPlotter {
 
   selectByIds = (idSet) => this.selector.selectByIds(idSet);
 
+  handleDragStart = () => {};
+
 }
 
 export { MainPlotter };
