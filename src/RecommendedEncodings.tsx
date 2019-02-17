@@ -13,7 +13,6 @@ import {
   HandleHoverRecCard,
   HandleHoverRecommendedEncoding,
   RecommendedEncoding,
-  VField,
 } from './commons/types';
 
 
@@ -59,7 +58,7 @@ class RecommendedEncodings extends React.PureComponent<RecommendedEncodingsProps
 }
 
 interface RecommendedEncodingsCardProps {
-  readonly field: VField | Field,
+  readonly field: Field,
   readonly attrName: string,
   readonly onAcceptRecommendedEncoding: HandleAcceptRecommendedEncoding,
   readonly onDismissRecommendedEncoding: HandleDismissRecommendedEncoding,

@@ -43,8 +43,15 @@ export enum VField {
   SIZE = 'size',
 }
 
-export type Field = PField | VField;
-export const Fields = Object.values(PField).concat(Object.values(VField));
+export enum GField {
+  GROUP = 'group',
+}
+
+export type Field = PField | VField | GField;
+export const Fields = 
+  Object.values(PField)
+    .concat(Object.values(VField))
+    .concat(Object.values(GField));
 
 export enum RFkey { // recommended filter keys
   SELECTED = 'selected',
@@ -63,6 +70,7 @@ export enum PointState {
 
 export enum ChartType {
   BAR_CHART = 'barchart',
+  BAR_STACK = 'barstack',
   SCATTER_PLOT = 'scatterplot',
 }
 
@@ -113,6 +121,7 @@ export interface PlotConfig {
   [PField.Y]?: PlotConfigEntry;
   [VField.COLOR]?: PlotConfigEntry;
   [VField.SIZE]?: PlotConfigEntry;
+  [GField.GROUP]?: PlotConfigEntry;
 }
 
 // Used as Readonly in props/states, but may be mutated in other context
@@ -138,6 +147,11 @@ export interface VisualScaleMap {
   [VisualScaleType.COLOR_NUM]: StringRangeScale<number> | null;
   [VisualScaleType.COLOR_ORD]: StringRangeScale<string> | null;
   [VisualScaleType.SIZE]: NumericRangeScale<number> | null;
+}
+
+export enum Stat {
+  SUM = 'sum',
+  MEAN = 'mean',
 }
 
 export enum D3Interpolate {

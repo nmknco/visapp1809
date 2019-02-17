@@ -10,6 +10,7 @@ import {
   DraggableType,
   Field,
   Fields,
+  GField,
   PField,
   PlotConfig,
   SetPlotConfig,
@@ -22,6 +23,7 @@ const DISPLAYNAME = {
   [PField.Y]: 'Y axis',
   [VField.COLOR]: 'Color',
   [VField.SIZE]: 'Size',
+  [GField.GROUP]: 'Group',
 }
 
 interface EncodingsProps {

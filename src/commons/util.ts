@@ -10,6 +10,9 @@ import { memoizedGetExtent } from './memoized';
 import {
   Data,
   GeneralData,
+  GeneralDataEntry,
+  NestedDataEntry,
+  Stat,
   StringRangeScale,
 } from './types';
 
@@ -319,3 +322,31 @@ export const sumTo = (a: number[], count: number) => {
   }
   return sum;
 }
+
+export const getNestedExtent = (
+  nestedData: NestedDataEntry[],
+  attrName: string,
+  depth: 1 | 2 = 1,
+): Readonly<[number, number]> => {
+  const [min, max] = d3.extent(nestedData, e => 
+    depth === 1 ? e.value![attrName] : 
+    d3.sum(e.values.map((e2: NestedDataEntry) => e2.value![attrName]))
+  );
+  if (min === undefined || max === undefined) {
+    throw new NoStatError(attrName, 'extent');
+  }
+  return [min, max];
+};
+
+export const getStat = (
+  values: Data,
+  attrName: string,
+  stat: Stat,
+) => {
+  // @ts-ignore
+  const m = d3[stat](values, (d: GeneralDataEntry) => d[attrName] as number);
+  if (m === undefined) {
+    throw new NoStatError(attrName, stat);
+  }
+  return m;
+};

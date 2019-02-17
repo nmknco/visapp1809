@@ -20,6 +20,7 @@ import { VisualAllPanel } from './VisualAllPanel';
 
 import { Attribute } from './Attribute';
 import { BarPlotter } from './BarPlotter';
+import { BarStackPlotter } from './BarStackPlotter';
 import { DragAnimator } from './DragAnimator';
 import { FilterList, RecommendedFilter } from './Filter';
 import { FilterManager } from './FilterManager';
@@ -50,6 +51,7 @@ import {
   Data,
   DataEntry,
   DefaultVisualValues,
+  GField,
   HandleAcceptRecommendedEncoding,
   HandleAcceptRecommendedFilter,
   HandleAcceptRecommendedOrder,
@@ -135,8 +137,9 @@ class App extends React.PureComponent<AppProps, AppState> {
   private searcher: Searcher;
 
   private bp: BarPlotter;
+  private bsp: BarStackPlotter;
 
-  private plt: MainPlotter | BarPlotter;
+  private plt: MainPlotter | BarPlotter | BarStackPlotter;
 
   constructor(props: AppProps) {
     super(props);
@@ -213,8 +216,21 @@ class App extends React.PureComponent<AppProps, AppState> {
       this.handleChangeVisualByUser,
       this.setIsDragging,
       this.handleDragBarsEnd,
-    )
+    );
   };
+
+  private createNewBarStackPlotter = (): BarStackPlotter => {
+    if (!this.d3ContainerRef.current) {
+      throw new ElementNotFoundError();
+    }
+    return new BarStackPlotter(
+      this.props.data,
+      this.d3ContainerRef.current,
+      this.setVisualScales,
+      this.getVisualScaleRange,
+      this.getDefaultVisualValue,
+    );
+  }
 
   private setupInitialMainPlot = () => {
     if (!this.props.data.length) {
@@ -233,6 +249,8 @@ class App extends React.PureComponent<AppProps, AppState> {
     this.setPlotConfig(VField.SIZE, undefined);
     this.setPlotConfig(PField.X, new PlotConfigEntry(attrs[0]));
     this.setPlotConfig(PField.Y, new PlotConfigEntry(attrs[attrs.length ? 1 : 0]));
+    this.setPlotConfig(GField.GROUP, undefined);
+
   };
 
   private setupAndRedrawMainPlot = () => {
@@ -270,7 +288,9 @@ class App extends React.PureComponent<AppProps, AppState> {
     this.updateScatterPlotOnFilter(this.state.filteredIds);
   };
 
-  private setupAndRedrawBarChart = () => {
+  private setupAndRedrawBarChart = (
+    barChartType: ChartType.BAR_CHART | ChartType.BAR_STACK = ChartType.BAR_CHART,
+  ) => {
     //  (0) Set default X and Y attribute if not present
     //  (1) replace X attr with ordinal if current is numeric
     //  (2) drop custom status of color/size if present
@@ -278,13 +298,20 @@ class App extends React.PureComponent<AppProps, AppState> {
     //  (4) change default size/color to bar size/color defaults
 
     const {x, y} = this.state.plotConfig;
-    if (!x || x && x.attribute.type === 'number') {
+    if (barChartType === ChartType.BAR_STACK) {
+      const xDefault = (x && x.attribute.name === 'Year') ? 'Origin' : 'Year';
+      this.setPlotConfig(PField.X, new PlotConfigEntry(new Attribute(xDefault, 'string')));
+    } else if (!x || x && x.attribute.type === 'number') {
       this.setPlotConfig(PField.X, new PlotConfigEntry(new Attribute('Year', 'string')));
     }
     if (!y) {
       this.setPlotConfig(PField.Y, new PlotConfigEntry(new Attribute('Miles_per_Gallon', 'number')));
     }
     this.dropCustomScales();
+
+    if (barChartType === ChartType.BAR_CHART) {
+      this.setPlotConfig(GField.GROUP, undefined);
+    }
     
     this.setState(
       prevState => ({
@@ -297,18 +324,26 @@ class App extends React.PureComponent<AppProps, AppState> {
           [VField.SIZE]: DEFAULT_BAR_SIZE,
         },
       }),
-      () => this.bp.redrawAll(this.state.plotConfig),
+      // @ts-ignore
+      () => this.plt.redrawAll(this.state.plotConfig),
     );
   };
   
   
-  private initializeBarChart = () => {
-    this.bp = this.createNewBarPlotter();
-    this.plt = this.bp;
+  private initializeBarChart = (
+    barChartType: ChartType.BAR_CHART | ChartType.BAR_STACK = ChartType.BAR_CHART,
+  ) => {
+    if (barChartType === ChartType.BAR_STACK) {
+      this.bsp = this.createNewBarStackPlotter();
+      this.plt = this.bsp; 
+    } else {
+      this.bp = this.createNewBarPlotter();
+      this.plt = this.bp;
+    }
     
-    this.bp.setFilteredData(this.state.filteredIds);
+    this.plt.setFilteredData(this.state.filteredIds);
     
-    this.setupAndRedrawBarChart();
+    this.setupAndRedrawBarChart(barChartType);
   };
 
   private dropCustomScales = () => {
@@ -495,7 +530,12 @@ class App extends React.PureComponent<AppProps, AppState> {
     this.plt.clearSelection();
     this.setPlotConfig(
       field, 
-      new PlotConfigEntry(new Attribute(attrName, 'number'), true)
+      new PlotConfigEntry(new Attribute(attrName, 'number'), field !== GField.GROUP),
+      () => {
+        if (field === GField.GROUP) {
+          this.handleSelectChartType(ChartType.BAR_STACK);
+        }
+      }
     );
 
     // // Drag Animation
@@ -536,7 +576,12 @@ class App extends React.PureComponent<AppProps, AppState> {
       recommendedEncodings: prevState.recommendedEncodings
           .filter(d => !(d.field === field && d.attrName === attrName))
     }), () => {
-      if (field === PField.X || field === PField.Y) {
+      if (field === PField.X) {
+        return;
+      }
+      if (field === PField.Y || field === GField.GROUP) {
+        // @ts-ignore
+        this.plt.redrawAll();
         return;
       }
       if (this.state.recommendedEncodings.filter(d => d.field === field).length === 0) {
@@ -660,8 +705,9 @@ class App extends React.PureComponent<AppProps, AppState> {
         this.fm.getNewFilteredIds()
       ).then(() => console.log('Points drag animation finished'));
     }
-    if (this.state.chartType === ChartType.BAR_CHART) {
-      this.bp.updateDataAndPlot(filteredIds, this.state.plotConfig);
+    if (this.state.chartType === ChartType.BAR_CHART || this.state.chartType === ChartType.BAR_STACK) {
+      // @ts-ignore
+      this.plt.updateDataAndPlot(filteredIds, this.state.plotConfig);
     }
   };
 
@@ -935,6 +981,8 @@ class App extends React.PureComponent<AppProps, AppState> {
       this.initializeMainPlot();
     } else if (chartType === ChartType.BAR_CHART) {
       this.initializeBarChart();
+    } else if (chartType === ChartType.BAR_STACK) {
+      this.initializeBarChart(ChartType.BAR_STACK);
     }
   }
 

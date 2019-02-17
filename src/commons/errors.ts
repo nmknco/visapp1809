@@ -1,3 +1,5 @@
+import { Stat } from './types';
+
 export class CustomError extends Error {
   constructor(message?: string) {
     super(message);
@@ -12,7 +14,7 @@ export class CustomError extends Error {
 
 
 export class NoStatError extends CustomError {
-  constructor(attrName: string, statName: 'median' | 'average' | 'extent', message?: string) {
+  constructor(attrName: string, statName: 'median' | 'extent' | Stat, message?: string) {
     super(message || `Can't find ${statName} for attribute ${attrName}. (d3.mean() returns undefined)`);
     this.name = 'NoStatError';
   }
