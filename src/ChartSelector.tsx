@@ -6,7 +6,7 @@ import { ChartType, HandleSelectChartType } from './commons/types';
 
 
 const IMAGE_SOURCES = {
-  [ChartType.BAR_CHART]: 'images/showme-bar.png',
+  [ChartType.BAR_CHART]: 'images/showme-bar3.png',
   [ChartType.BAR_STACK]: 'images/showme-bar.png',
   [ChartType.SCATTER_PLOT]: 'images/showme-scatter.png',
 }

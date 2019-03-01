@@ -117,7 +117,7 @@ class BarStackPlotter {
       .classed('x-axis', true)
       .classed('axis-container', true)
       .append('text')
-      .attr('x', 250).attr('y', 80)
+      .attr('x', 250).attr('y', 104)
       .classed('label', true);
     this.chart.append('g')
       .classed('y-axis', true)
@@ -218,7 +218,7 @@ class BarStackPlotter {
     const w = xRight + l + r;
     const newW = (w > svgW) ? w : CHARTCONFIG.svgW;
     this.canvas.attr('width', newW);
-    this.chartBox.attr('width', newW);
+    this.chartBox.attr('width', newW - l - r);
     this.xScale = d3.scaleOrdinal()
       .domain(this.xDomain)
       .range(xRange);

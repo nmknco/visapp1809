@@ -112,7 +112,7 @@ class MainPlotter {
       .classed('x-axis', true)
       .classed('axis-container', true)
       .append('text')
-      .attr('x', 250).attr('y', 80)
+      .attr('x', 250).attr('y', 104)
       .classed('label', true);
     chart.append('g')
       .classed('y-axis', true)

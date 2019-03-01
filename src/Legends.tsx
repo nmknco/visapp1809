@@ -1,5 +1,6 @@
 import * as React from 'react';
 
+import { FAButton } from './FAButton';
 import { Panel } from './Panel';
 
 import { Attribute } from './Attribute';
@@ -48,7 +49,15 @@ class Legends extends React.PureComponent<LegendsProps> {
 
     return (
       <div className="legend__box legend__box--color">
-        <div className="py-1">{cName}</div>
+        <div className="py-1">
+          {cName}
+          <FAButton 
+            faName="caret-down"
+            onClick={this.props.onOpenColorNumMenu}
+            hoverEffect={true}
+            size={20}
+          />
+        </div>
         <div>
           <div>
             <svg width={NUMERIC_W + 40} height="60">
@@ -88,9 +97,6 @@ class Legends extends React.PureComponent<LegendsProps> {
               </g>
             </svg>
           </div>
-          <button className="btn btn-sm btn-outline-secondary px-1" onClick={this.props.onOpenColorNumMenu}>
-            Change Palette
-          </button>
         </div>
       </div>
     );
@@ -151,7 +157,15 @@ class Legends extends React.PureComponent<LegendsProps> {
     if (chartType === ChartType.SCATTER_PLOT) {
       return (
         <div className="legend__box legend__box--size">
-          <div className="py-1">{zName}</div>
+          <div className="py-1">
+            {zName} 
+            <FAButton 
+              faName="caret-down"
+              onClick={this.props.onOpenSizeMenu}
+              hoverEffect={true}
+              size={20}
+            />
+          </div>
           <div>
             <svg width="184" height={(minr + maxr + padding) * 5 + 24}>
               <g transform={`translate(32, ${16 + minr / 2})`}>
@@ -181,16 +195,21 @@ class Legends extends React.PureComponent<LegendsProps> {
               </g>
             </svg>
           </div>
-          <button className="btn btn-sm btn-outline-secondary px-1" onClick={this.props.onOpenSizeMenu}>
-            Change Size
-          </button>
         </div>
       );
     } else if (chartType === ChartType.BAR_CHART) {
       const barH = 24;
       return (
         <div className="legend__box legend__box--size">
-          <div className="py-1">{zName}</div>
+          <div className="py-1">
+            {zName} 
+            <FAButton 
+              faName="caret-down"
+              onClick={this.props.onOpenSizeMenu}
+              hoverEffect={true}
+              size={20}
+            />
+          </div>
           <div>
             <svg width="184" height={(barH + padding) * 5 + 24}>
               <g transform={`translate(32, 16)`}>
@@ -221,9 +240,6 @@ class Legends extends React.PureComponent<LegendsProps> {
               </g>
             </svg>
           </div>
-          <button className="btn btn-sm btn-outline-secondary px-1" onClick={this.props.onOpenSizeMenu}>
-            Change Size
-          </button>
         </div>
       );     
     }
@@ -246,9 +262,9 @@ class Legends extends React.PureComponent<LegendsProps> {
     return (
       <Panel
         className="legends-panel"
-        heading="Legends"
+        // heading="Legends"
       >
-        <div className="">
+        <div className="ml-2">
           <div className="p-1">{}</div>
           <div className="p-1 legends__container legends__container--color">
             {

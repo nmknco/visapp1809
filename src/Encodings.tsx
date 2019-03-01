@@ -5,12 +5,15 @@ import { DraggableAttrTag } from './Attributes';
 import { FAButton } from './FAButton';
 import { Panel } from './Panel';
 import { PlotConfigEntry } from './PlotConfigEntry';
+import { SetAllColor, SetAllSize } from './VisualAllPanel';
 
 import { 
   DraggableType,
   Field,
   Fields,
   GField,
+  HandlePickColor,
+  HandlePickSize,
   PField,
   PlotConfig,
   SetPlotConfig,
@@ -30,6 +33,10 @@ interface EncodingsProps {
   readonly setPlotConfig: SetPlotConfig,
   readonly plotConfig: PlotConfig,
   readonly shouldHideCustomAttrTag: Readonly<{[VField.COLOR]: boolean, [VField.SIZE]: boolean}>,
+  readonly onPickColor: HandlePickColor,
+  readonly onPickSize: HandlePickSize,
+  readonly currentDefaultSize: number,
+  readonly currentDefaultColor: string,
 }
 
 class Encodings extends React.PureComponent<EncodingsProps> {
@@ -50,6 +57,10 @@ class Encodings extends React.PureComponent<EncodingsProps> {
               plotConfigEntry={plotConfig[field]}
               setPlotConfig={setPlotConfig}
               shouldHideTag={shouldHideCustomAttrTag[field]}
+              onPickColor={this.props.onPickColor}
+              onPickSize={this.props.onPickSize}
+              currentDefaultSize={this.props.currentDefaultSize}
+              currentDefaultColor={this.props.currentDefaultColor}
             />
           )}
         </div>
@@ -99,20 +110,31 @@ interface EncodingFieldProps {
   readonly setPlotConfig: SetPlotConfig,
   readonly plotConfigEntry?: PlotConfigEntry,
   readonly shouldHideTag: boolean,
+  readonly onPickColor?: HandlePickColor,
+  readonly onPickSize?: HandlePickSize,
+  readonly currentDefaultSize?: number,
+  readonly currentDefaultColor?: string,
   readonly connectDropTarget?: ConnectDropTarget,
   readonly isOver?: boolean,
   readonly canDrop?: boolean,
 }
 
-class EncodingField extends React.PureComponent<EncodingFieldProps> {
+interface EncodingFieldState {
+  readonly shouldShowPopup: boolean,
+}
+
+class EncodingField extends React.PureComponent<EncodingFieldProps, EncodingFieldState> {
   constructor(props: EncodingFieldProps) {
     super(props);
+    this.state = {
+      shouldShowPopup: false,
+    };
   }
 
   private removeAttribute = 
     () => this.props.setPlotConfig(this.props.field, undefined);
 
-  renderContent = () => {
+  private renderContent = () => {
     const { plotConfigEntry, field, shouldHideTag } = this.props;
     if (plotConfigEntry) {
       const {attribute, useCustomScale} = plotConfigEntry
@@ -137,6 +159,32 @@ class EncodingField extends React.PureComponent<EncodingFieldProps> {
     }
   };
 
+  private togglePopup = () => this.setState((prevState) => ({
+    shouldShowPopup: !prevState.shouldShowPopup,
+  }));
+
+  private renderPopupContent = (vfield: VField) => {
+    return (
+      <div 
+        className="encode-field__set-all-popup card p-1"
+        style={{visibility: this.state.shouldShowPopup ? 'visible' : 'hidden'}}
+      >
+        {(vfield === VField.COLOR && this.props.onPickColor && this.props.currentDefaultColor) &&
+          <SetAllColor
+            onPickColor={this.props.onPickColor}
+            currentDefaultColor={this.props.currentDefaultColor}
+          />
+        }
+        {(vfield === VField.SIZE && this.props.onPickSize && this.props.currentDefaultSize) &&
+          <SetAllSize
+            onPickSize={this.props.onPickSize}
+            currentDefaultSize={this.props.currentDefaultSize}
+          />
+        }
+      </div>
+    );
+  }
+
   render() {
     console.log('Encoding fields render');
     const { connectDropTarget, isOver, canDrop, field } = this.props;
@@ -146,6 +194,18 @@ class EncodingField extends React.PureComponent<EncodingFieldProps> {
       >
         <div className="encode-field__header border border-light rounded-left d-flex align-items-center justify-content-end px-2 bg-secondary text-white">
           {DISPLAYNAME[field]}
+          {(field === VField.COLOR || field === VField.SIZE) && (
+            <div className="encode-field__set-all">
+              <FAButton
+                faName={this.state.shouldShowPopup ? "caret-up" : "caret-down"}
+                onClick={this.togglePopup}
+                hoverEffect={true}
+                title="Change All"
+              />
+              {this.renderPopupContent(field)}
+            </div>
+          )
+          }
         </div>
         <div
           id={'encoding-' + field}

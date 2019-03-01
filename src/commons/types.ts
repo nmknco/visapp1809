@@ -50,8 +50,8 @@ export enum GField {
 export type Field = PField | VField | GField;
 export const Fields = 
   Object.values(PField)
-    .concat(Object.values(VField))
-    .concat(Object.values(GField));
+    .concat(Object.values(GField))
+    .concat(Object.values(VField));
 
 export enum RFkey { // recommended filter keys
   SELECTED = 'selected',
@@ -69,9 +69,9 @@ export enum PointState {
 }
 
 export enum ChartType {
+  SCATTER_PLOT = 'scatterplot',
   BAR_CHART = 'barchart',
   BAR_STACK = 'barstack',
-  SCATTER_PLOT = 'scatterplot',
 }
 
 export enum OverlayMenu {
@@ -195,6 +195,10 @@ export interface DefaultVisualValues {
 
 export type HandlePickColor = (
   colorObj: ColorObj,
+) => void;
+
+export type HandlePickSize = (
+  size: number,
 ) => void;
 
 export type SetPlotConfig = (

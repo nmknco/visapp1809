@@ -11,7 +11,7 @@ export const MINIMAP_D_PREVIEW = 50;
 export const CHARTCONFIG = {
   pad: {t: 40, r: 40, b: 160, l: 160},
   svgW: 720,
-  svgH: 720
+  svgH: 720,
 };
 
 export const DEFAULT_DOT_COLOR = 'hsl(0, 0%, 60%)'; // #999999
@@ -27,3 +27,5 @@ export const BAR_XBORDER_W = 3;
 export const BAR_YBORDER_W = BAR_XBORDER_W;
 export const BAR_DROP_PADDING = 2;
 export const BAR_DROP_WIDTH = BAR_PADDING - BAR_DROP_PADDING * 2;
+
+export const DEBUG = false;

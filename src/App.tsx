@@ -3,7 +3,9 @@ import * as React from 'react';
 import { Attributes } from './Attributes';
 import { ChartSelector } from './ChartSelector';
 import { ColorPicker, LIT, SAT } from './ColorPicker';
+import { Dropdown } from './DropDown';
 import { Encodings } from './Encodings';
+import { FAButton } from './FAButton';
 import { FileSelector } from './FileSelector';
 import { Filters } from './Filters';
 import { Legends } from './Legends';
@@ -16,7 +18,6 @@ import { RecommendedEncodings } from './RecommendedEncodings';
 import { RecommendedFilters } from './RecommendedFilters';
 import { RecommendedOrders } from './RecommendedOrders';
 import { Search } from './Search';
-import { VisualAllPanel } from './VisualAllPanel';
 
 import { Attribute } from './Attribute';
 import { BarPlotter } from './BarPlotter';
@@ -29,6 +30,7 @@ import { MainPlotter } from './Plotter';
 import { Searcher } from './Searcher';
 
 import {
+  DEBUG,
   DEFAULT_BAR_COLOR,
   DEFAULT_BAR_SIZE,
   DEFAULT_BAR_SIZE_RANGE,
@@ -89,7 +91,6 @@ import {
   VisualScaleType,
 } from './commons/types';
 import { ColorUtil, HSLColor, SelUtil } from './commons/util';
-import { Dropdown } from './DropDown';
 
 
 interface AppProps {
@@ -633,7 +634,25 @@ class App extends React.PureComponent<AppProps, AppState> {
     }));
     this.bp.redrawAll(this.state.plotConfig);
     this.bp.clearSelection();
-  }
+  };
+
+
+  private handleOrderBarsByCurrentYAsce = () => 
+    this.handleOrderBarsByCurrentY(true);
+  
+  private handleOrderBarsByCurrentYDesc = () => 
+    this.handleOrderBarsByCurrentY(false);
+
+  private handleOrderBarsByCurrentY = (asce: boolean) => {
+    const yEntry = this.state.plotConfig[PField.Y];
+    if (yEntry) {
+      const order = {
+        attrName: yEntry.attribute.name,
+        asce,
+      };
+      this.handleAcceptRecommendedOrder(order);
+    }
+  };
 
   private setIsHoveringFilterPanel = (isHoveringFilterPanel: boolean) => {
     this.setState({isHoveringFilterPanel});
@@ -1029,6 +1048,24 @@ class App extends React.PureComponent<AppProps, AppState> {
                   />
                 </Dropdown>
               </li>
+              <li 
+                className="nav-item mx-2 align-items-center d-flex"
+                style={{visibility: this.state.chartType === ChartType.BAR_CHART ? 'visible' : 'hidden'}}
+              >
+                <div className="p-1">Sort Bars:</div>
+                <div className="align-items-center" style={{fontSize: 18}}>
+                  <FAButton
+                    faName="sort-amount-up"
+                    onClick={this.handleOrderBarsByCurrentYAsce}
+                    title="Sort Bars Ascending"
+                  />
+                  <FAButton
+                    faName="sort-amount-down"
+                    onClick={this.handleOrderBarsByCurrentYDesc}
+                    title="Sort Bars Descending"
+                  />
+                </div>
+              </li>
             </ul>
           </div>
         </nav>
@@ -1084,7 +1121,7 @@ class App extends React.PureComponent<AppProps, AppState> {
             />
 
             {/* for debugging only */}
-            {Object.values(VField).map(field => {
+            {DEBUG && Object.values(VField).map(field => {
               const handleClickClearSelected = () => 
                 this.unVisualSelected(field)
               const handleClickClearAll = () => 
@@ -1117,37 +1154,44 @@ class App extends React.PureComponent<AppProps, AppState> {
               setPlotConfig={this.setPlotConfig}
               plotConfig={this.state.plotConfig}
               shouldHideCustomAttrTag={this.state.shouldHideCustomAttrTag}
-            />
-            <div className="plot-container">
-              <div ref={this.d3ContainerRef} className="plot-container__scroll">
-                <div style={{height: 0}}>
-                  <ColorPicker 
-                    style={this.state.colorPickerStyle} 
-                    onChangeComplete={this.handlePickColor}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="panel-4">
-            <Legends
-              data={this.props.data}
-              visualScaleMap={this.state.visualScaleMap}
-              plotConfig={this.state.plotConfig}
-              chartType={this.state.chartType}
-              onOpenColorNumMenu={this.handleOpenColorNumMenu}
-              onOpenColorOrdMenu={this.handleOpenColorOrdMenu}
-              onOpenSizeMenu={this.handleOpenSizeMenu}
-            />
-            <VisualAllPanel
               onPickColor={this.handlePickColorAll}
               onPickSize={this.handlePickSizeAll}
               currentDefaultSize={this.state.defaultVisualValues[VField.SIZE]}
               currentDefaultColor={this.state.defaultVisualValues[VField.COLOR]}
             />
-          </div>
 
+            <div className="d-flex">
+              <div className="plot-container">
+                <div ref={this.d3ContainerRef} className="plot-container__scroll">
+                  <div style={{height: 0}}>
+                    <ColorPicker 
+                      style={this.state.colorPickerStyle} 
+                      onChangeComplete={this.handlePickColor}
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="panel-4">
+                {(this.state.plotConfig[VField.COLOR] || this.state.plotConfig[VField.SIZE]) &&
+                  <Legends
+                    data={this.props.data}
+                    visualScaleMap={this.state.visualScaleMap}
+                    plotConfig={this.state.plotConfig}
+                    chartType={this.state.chartType}
+                    onOpenColorNumMenu={this.handleOpenColorNumMenu}
+                    onOpenColorOrdMenu={this.handleOpenColorOrdMenu}
+                    onOpenSizeMenu={this.handleOpenSizeMenu}
+                  />
+                }
+                {/* <VisualAllPanel
+                  onPickColor={this.handlePickColorAll}
+                  onPickSize={this.handlePickSizeAll}
+                  currentDefaultSize={this.state.defaultVisualValues[VField.SIZE]}
+                  currentDefaultColor={this.state.defaultVisualValues[VField.COLOR]}
+                /> */}
+              </div>
+            </div>
+          </div>
 
         </div>
 
