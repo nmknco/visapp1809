@@ -5,6 +5,7 @@ import { DoubleSlider } from './DoubleSlider';
 import { GradientBar } from './GradientBar';
 
 import {
+  ChartType,
   ColorNumRange,
   HandleSetColorNumRange,
   HandleSetSizeRange,
@@ -13,8 +14,8 @@ import {
 import { ColorObj, ColorUtil } from './commons/util';
 
 interface OverlayMenuContainerProps {
-  readonly isHidden: boolean,
-  readonly onClose: () => void,
+  readonly isHidden: boolean;
+  readonly onClose: () => void;
 }
 
 class OverlayMenuContainer extends React.PureComponent<OverlayMenuContainerProps> {
@@ -47,9 +48,9 @@ class OverlayMenuContainer extends React.PureComponent<OverlayMenuContainerProps
 
 
 interface OverlayMenuColorNumPageProps {
-  readonly range: ColorNumRange,
-  readonly scale: StringRangeScale<number>,
-  readonly onSetColorNumRange: HandleSetColorNumRange,
+  readonly range: ColorNumRange;
+  readonly scale: StringRangeScale<number>;
+  readonly onSetColorNumRange: HandleSetColorNumRange;
 }
 
 const COLORNUMHEIGHT = 30;
@@ -106,9 +107,9 @@ class OverlayMenuColorNumPage extends React.PureComponent<OverlayMenuColorNumPag
 
 
 interface OverlayMenuSizePageProps {
-  onSetSizeRange: HandleSetSizeRange,
-  currentRange: Readonly<[number, number]>,
-  maxRange: Readonly<[number, number]>,
+  onSetSizeRange: HandleSetSizeRange;
+  currentRange: Readonly<[number, number]>;
+  maxRange: Readonly<[number, number]>;
 }
 
 class OverlayMenuSizePage extends React.PureComponent<OverlayMenuSizePageProps> {
@@ -126,10 +127,41 @@ class OverlayMenuSizePage extends React.PureComponent<OverlayMenuSizePageProps> 
   }
 }
 
+interface OverlayMenuAffordancePageProps {
+  chartType: ChartType;
+  onClickDisableAffordance: (chartType: ChartType) => void;
+}
+
+class OverlayMenuAffordancePage extends React.PureComponent<OverlayMenuAffordancePageProps> {
+  private handleClickDisableAffordance = () => 
+    this.props.onClickDisableAffordance(this.props.chartType);
+
+  render() {
+    const files = {
+      [ChartType.BAR_CHART]: 'thumbnail_affordance1.png',
+      [ChartType.SCATTER_PLOT]: 'thumbnail_affordance2.png',
+    }
+    return (
+      <div className="">
+        <img src={'images/' + files[this.props.chartType]} />
+        <div className="d-flex justify-content-center p-2">
+          <button
+            className="btn btn-sm btn-outline-secondary"
+            onClick={this.handleClickDisableAffordance}
+          >
+            Close and do not show this tip again
+          </button>
+        </div>
+      </div>
+    );
+  }
+}
+
 
 
 export {
-  OverlayMenuContainer, 
+  OverlayMenuContainer,
   OverlayMenuColorNumPage,
   OverlayMenuSizePage,
+  OverlayMenuAffordancePage,
 };

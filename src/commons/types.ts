@@ -78,6 +78,7 @@ export enum OverlayMenu {
   COLOR_NUM = 'color_num',
   COLOR_ORD = 'color_ord',
   SIZE = 'size',
+  AFFORDANCE = 'affordance',
 }
 
 export enum ResizingDirection {

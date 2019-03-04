@@ -10,7 +10,7 @@ interface FileSelectorProps {
   readonly onUpdateDataFile: HandleUpdateDataFile;
 }
 
-class FileSelector extends React.Component<FileSelectorProps> {
+class FileSelector extends React.PureComponent<FileSelectorProps> {
   private clickHandler: {[key: string]: () => void} = {};
   
   constructor(props: FileSelectorProps) {

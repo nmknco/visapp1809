@@ -10,6 +10,7 @@ import { FileSelector } from './FileSelector';
 import { Filters } from './Filters';
 import { Legends } from './Legends';
 import {
+  OverlayMenuAffordancePage,
   OverlayMenuColorNumPage,
   OverlayMenuContainer,
   OverlayMenuSizePage,
@@ -96,8 +97,8 @@ import { ColorUtil, HSLColor, SelUtil } from './commons/util';
 
 
 interface AppProps {
-  readonly data: Data,
-  readonly fileName: string,
+  readonly data: Data;
+  readonly fileName: string;
   readonly onUpdateDataFile: HandleUpdateDataFile;
 }
 
@@ -106,32 +107,35 @@ interface AppProps {
 //  a new object is always created when updating its value, 
 //  so components receiving them can be PURE.
 interface AppState {
-  readonly activeEntry: DataEntry | undefined,
-  readonly colorPickerStyle: Readonly<ColorPickerStyle>,
-  readonly plotConfig: Readonly<PlotConfig>,
-  readonly filterList: Readonly<FilterList>,
-  readonly filteredIds: ReadonlySet<string>,
-  readonly visualScaleMap: Readonly<VisualScaleMap>,
-  readonly visualScaleRanges: Readonly<VisualScaleRanges>,
-  readonly isDragging: boolean,
-  readonly isHoveringFilterPanel: boolean,
-  readonly recommendedFilters: ReadonlyArray<RecommendedFilter>
+  readonly activeEntry: DataEntry | undefined;
+  readonly colorPickerStyle: Readonly<ColorPickerStyle>;
+  readonly plotConfig: Readonly<PlotConfig>;
+  readonly filterList: Readonly<FilterList>;
+  readonly filteredIds: ReadonlySet<string>;
+  readonly visualScaleMap: Readonly<VisualScaleMap>;
+  readonly visualScaleRanges: Readonly<VisualScaleRanges>;
+  readonly isDragging: boolean;
+  readonly isHoveringFilterPanel: boolean;
+  readonly recommendedFilters: ReadonlyArray<RecommendedFilter>;
 
-  readonly activeOverlayMenu: OverlayMenu | null,
-  readonly chartType: ChartType,
-  readonly defaultVisualValues: DefaultVisualValues
+  readonly chartType: ChartType;
+
+  readonly activeOverlayMenu: OverlayMenu | null;
+  readonly showAffordance: {[ChartType.SCATTER_PLOT]: boolean, [ChartType.BAR_CHART]: boolean};
+
+  readonly defaultVisualValues: DefaultVisualValues;
   
   // Plotter knows the following but they need to be in the state to trigger render on change
-  readonly hasSelection: boolean,
-  readonly hasActiveSelection: Readonly<{[VField.COLOR]: boolean, [VField.SIZE]: boolean}>,
-  readonly recommendedEncodings: ReadonlyArray<RecommendedEncoding>,
+  readonly hasSelection: boolean;
+  readonly hasActiveSelection: Readonly<{[VField.COLOR]: boolean, [VField.SIZE]: boolean}>;
+  readonly recommendedEncodings: ReadonlyArray<RecommendedEncoding>;
 
-  readonly recommendedOrders: ReadonlyArray<Order>,
+  readonly recommendedOrders: ReadonlyArray<Order>;
   
-  readonly searchResultsIdSet: ReadonlySet<string> | null, // null for empty keyword
+  readonly searchResultsIdSet: ReadonlySet<string> | null; // null for empty keyword
   readonly isSearchResultSelected: boolean;
 
-  readonly shouldHideCustomAttrTag: Readonly<{[VField.COLOR]: boolean, [VField.SIZE]: boolean}>,
+  readonly shouldHideCustomAttrTag: Readonly<{[VField.COLOR]: boolean, [VField.SIZE]: boolean}>;
 }
 
 class App extends React.PureComponent<AppProps, AppState> {
@@ -175,8 +179,9 @@ class App extends React.PureComponent<AppProps, AppState> {
       isDragging: false,
       isHoveringFilterPanel: false,
       recommendedFilters: [],
-      activeOverlayMenu: null,
       chartType: ChartType.SCATTER_PLOT,
+      activeOverlayMenu: null,
+      showAffordance: {[ChartType.BAR_CHART]: true, [ChartType.SCATTER_PLOT]: true},
       defaultVisualValues: {[VField.COLOR]: DEFAULT_DOT_COLOR, [VField.SIZE]: DEFAULT_DOT_SIZE},
       hasSelection: false,
       hasActiveSelection: {[VField.COLOR]: false, [VField.SIZE]: false}, // i.e. has visuals set on user selection
@@ -392,6 +397,7 @@ class App extends React.PureComponent<AppProps, AppState> {
         () => {
           this.setState({chartType: ChartType.BAR_CHART});
           this.initializeBarChart();
+          this.showOverlayMenu(OverlayMenu.AFFORDANCE);
         }
       );
     }
@@ -965,11 +971,24 @@ class App extends React.PureComponent<AppProps, AppState> {
             maxRange={this.state.chartType === ChartType.SCATTER_PLOT ? MAX_DOT_SIZE_RANGE : MAX_BAR_SIZE_RANGE}
           />
         );
+      case OverlayMenu.AFFORDANCE:
+        return <OverlayMenuAffordancePage 
+          chartType={this.state.chartType}
+          onClickDisableAffordance={this.handleClickDisableAffordance}
+        />;
       default:
         return;
     }
   };
 
+  private handleClickDisableAffordance = (chartType: ChartType) =>
+    this.setState((prevState) => ({
+      showAffordance: {
+        ...prevState.showAffordance,
+        [chartType]: false,
+      },
+      activeOverlayMenu: null,
+    }));
 
   private getDefaultVisualValue = (vfield: VField) => this.state.defaultVisualValues[vfield];
 
@@ -1022,6 +1041,9 @@ class App extends React.PureComponent<AppProps, AppState> {
     } else if (chartType === ChartType.BAR_STACK) {
       this.initializeBarChart(ChartType.BAR_STACK);
       this.handleSearchInputChange('');
+    }
+    if (this.state.showAffordance[chartType]) {
+      this.showOverlayMenu(OverlayMenu.AFFORDANCE);
     }
   };
 
