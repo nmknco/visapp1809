@@ -38,6 +38,7 @@ import {
   DEFAULT_DOT_SIZE,
   DEFAULT_DOT_SIZE_RANGE,
   FILTER_PANEL_WIDTH,
+  INITIAL_ATTR,
   MAX_BAR_SIZE_RANGE,
   MAX_DOT_SIZE_RANGE,
 } from './commons/constants';
@@ -73,6 +74,7 @@ import {
   HandleSearchInputChange,
   HandleSelectChartType,
   HandleSetFilter,
+  HandleUpdateDataFile,
   Order,
   OverlayMenu,
   PField,
@@ -95,6 +97,8 @@ import { ColorUtil, HSLColor, SelUtil } from './commons/util';
 
 interface AppProps {
   readonly data: Data,
+  readonly fileName: string,
+  readonly onUpdateDataFile: HandleUpdateDataFile;
 }
 
 // For all the object states, such as plotConfig or colorPickerStyle,
@@ -237,19 +241,21 @@ class App extends React.PureComponent<AppProps, AppState> {
     if (!this.props.data.length) {
       return;
     };
-    const attrs = [
-      ...memoizedGetAttributes(this.props.data)
-    ].sort((a1: Attribute, a2: Attribute) => {
-      if (a1.type === a2.type || (a1.type !== 'number' && a2.type !== 'number')) {
-        return -a1.name.localeCompare(a2.name)
-      } else {
-        return a1.type === 'number' ? -1 : 1; 
-      } 
-    });
+    // const attrs = [
+    //   ...memoizedGetAttributes(this.props.data)
+    // ].sort((a1: Attribute, a2: Attribute) => {
+    //   if (a1.type === a2.type || (a1.type !== 'number' && a2.type !== 'number')) {
+    //     return -a1.name.localeCompare(a2.name)
+    //   } else {
+    //     return a1.type === 'number' ? -1 : 1; 
+    //   } 
+    // });
     this.setPlotConfig(VField.COLOR, undefined);
     this.setPlotConfig(VField.SIZE, undefined);
-    this.setPlotConfig(PField.X, new PlotConfigEntry(attrs[0]));
-    this.setPlotConfig(PField.Y, new PlotConfigEntry(attrs[attrs.length ? 1 : 0]));
+    // this.setPlotConfig(PField.X, new PlotConfigEntry(attrs[0]));
+    // this.setPlotConfig(PField.Y, new PlotConfigEntry(attrs[attrs.length ? 1 : 0]));
+    this.setPlotConfig(PField.X, new PlotConfigEntry(INITIAL_ATTR[this.props.fileName][PField.X]));
+    this.setPlotConfig(PField.Y, new PlotConfigEntry(INITIAL_ATTR[this.props.fileName][PField.Y]));
     this.setPlotConfig(GField.GROUP, undefined);
 
   };
@@ -298,21 +304,29 @@ class App extends React.PureComponent<AppProps, AppState> {
     //  (3) change default size ranges to bar sizes
     //  (4) change default size/color to bar size/color defaults
 
+    const {
+      [PField.X]: x1,
+      [PField.Y]: y1,
+      x2,
+    } = INITIAL_ATTR[this.props.fileName];
+
     const {x, y} = this.state.plotConfig;
     if (barChartType === ChartType.BAR_STACK) {
-      const xDefault = (x && x.attribute.name === 'Year') ? 'Origin' : 'Year';
-      this.setPlotConfig(PField.X, new PlotConfigEntry(new Attribute(xDefault, 'string')));
+      this.setPlotConfig(PField.X,
+          new PlotConfigEntry((x && x.attribute.name === x1.name) ? x2 : x1));
     } else if (!x || x && x.attribute.type === 'number') {
-      this.setPlotConfig(PField.X, new PlotConfigEntry(new Attribute('Year', 'string')));
+      this.setPlotConfig(PField.X, new PlotConfigEntry(x1));
     }
     if (!y) {
-      this.setPlotConfig(PField.Y, new PlotConfigEntry(new Attribute('Miles_per_Gallon', 'number')));
+      this.setPlotConfig(PField.Y, new PlotConfigEntry(y1));
+    }
+    if (barChartType === ChartType.BAR_STACK) {
+      this.setPlotConfig(VField.COLOR, undefined);
+      this.setPlotConfig(VField.SIZE, undefined);
+      this.setPlotConfig(GField.GROUP,
+        new PlotConfigEntry((x && x.attribute) || x2));
     }
     this.dropCustomScales();
-
-    if (barChartType === ChartType.BAR_CHART) {
-      this.setPlotConfig(GField.GROUP, undefined);
-    }
     
     this.setState(
       prevState => ({
@@ -341,6 +355,8 @@ class App extends React.PureComponent<AppProps, AppState> {
       this.bp = this.createNewBarPlotter();
       this.plt = this.bp;
     }
+
+    this.searcher = new Searcher(this.props.data, (id: string) => this.fm.getIsFiltered(id));
     
     this.plt.setFilteredData(this.state.filteredIds);
     
@@ -357,12 +373,12 @@ class App extends React.PureComponent<AppProps, AppState> {
     }
   };
 
-  componentDidMount() {
-    if (this.props.data) {
-      this.fm = new FilterManager(this.props.data, this.handleFilterListChange);
-      this.initializeMainPlot(true);
-    }
-  }
+  // componentDidMount() {
+  //   if (this.props.data) {
+  //     this.fm = new FilterManager(this.props.data, this.handleFilterListChange);
+  //     this.initializeMainPlot(true);
+  //   }
+  // }
 
   componentDidUpdate(prevProps: AppProps) {
     if (prevProps.data !== this.props.data) {
@@ -843,7 +859,9 @@ class App extends React.PureComponent<AppProps, AppState> {
 
   private handleSearchInputChange: HandleSearchInputChange = (keyword) => {
     this.updateSearchResult(keyword);
-    this.selectSearchResult();
+    if (this.state.chartType === ChartType.SCATTER_PLOT) {
+      this.selectSearchResult();
+    }
   };
 
   private updateSearchResult = (keyword?: string) => {
@@ -1000,12 +1018,27 @@ class App extends React.PureComponent<AppProps, AppState> {
       this.initializeMainPlot();
     } else if (chartType === ChartType.BAR_CHART) {
       this.initializeBarChart();
+      this.handleSearchInputChange('');
     } else if (chartType === ChartType.BAR_STACK) {
       this.initializeBarChart(ChartType.BAR_STACK);
+      this.handleSearchInputChange('');
+    }
+  };
+
+  private handleUpdateDataFile: HandleUpdateDataFile = (fileName) => {
+    this.setState(
+      () => ({plotConfig: {}}),
+      () => this.props.onUpdateDataFile(fileName),
+    );
+  };
+
+  private shouldShowLegend = () => {
+    if (this.state.chartType === ChartType.BAR_STACK) {
+      return !!this.state.plotConfig[GField.GROUP]
+    } else {
+      return !!(this.state.plotConfig[VField.COLOR] || this.state.plotConfig[VField.SIZE])
     }
   }
-
-
 
 
   render() {
@@ -1021,7 +1054,10 @@ class App extends React.PureComponent<AppProps, AppState> {
                   text="Data"
                   width={240}
                 >
-                  <FileSelector />
+                  <FileSelector 
+                    currentFile={this.props.fileName}
+                    onUpdateDataFile={this.handleUpdateDataFile}
+                  />
                 </Dropdown>
               </li>
               <li className="nav-item mx-2">
@@ -1035,7 +1071,7 @@ class App extends React.PureComponent<AppProps, AppState> {
                   />
                 </Dropdown>
               </li>
-              <li className="nav-item mx-2">
+              {/* <li className="nav-item mx-2">
                 <Dropdown
                   text="Search"
                   width={240}
@@ -1047,7 +1083,7 @@ class App extends React.PureComponent<AppProps, AppState> {
                     onClickSelectSearchButton={this.handleClickSelectSearchButton}
                   />
                 </Dropdown>
-              </li>
+              </li> */}
               <li 
                 className="nav-item mx-2 align-items-center d-flex"
                 style={{visibility: this.state.chartType === ChartType.BAR_CHART ? 'visible' : 'hidden'}}
@@ -1070,10 +1106,17 @@ class App extends React.PureComponent<AppProps, AppState> {
           </div>
         </nav>
         
-        <div className="d-flex m-2">
+        <div className="d-flex m-2 content">
           <div
             className="left-panel"
           >
+            <Search
+              onSearchInputChange={this.handleSearchInputChange}
+              resultsIdSet={this.state.searchResultsIdSet}
+              shouldShowSelectButton={!this.state.isSearchResultSelected}
+              onClickSelectSearchButton={this.handleClickSelectSearchButton}
+              shouldDisableSearch={this.state.chartType !== ChartType.SCATTER_PLOT}
+            />
             <Attributes 
               attributes={memoizedGetAttributes(this.props.data)}  
               activeEntry={this.state.activeEntry}
@@ -1153,6 +1196,7 @@ class App extends React.PureComponent<AppProps, AppState> {
             <Encodings 
               setPlotConfig={this.setPlotConfig}
               plotConfig={this.state.plotConfig}
+              chartType={this.state.chartType}
               shouldHideCustomAttrTag={this.state.shouldHideCustomAttrTag}
               onPickColor={this.handlePickColorAll}
               onPickSize={this.handlePickSizeAll}
@@ -1172,7 +1216,7 @@ class App extends React.PureComponent<AppProps, AppState> {
                 </div>
               </div>
               <div className="panel-4">
-                {(this.state.plotConfig[VField.COLOR] || this.state.plotConfig[VField.SIZE]) &&
+                {this.shouldShowLegend() &&
                   <Legends
                     data={this.props.data}
                     visualScaleMap={this.state.visualScaleMap}

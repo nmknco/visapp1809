@@ -8,6 +8,7 @@ import { PlotConfigEntry } from './PlotConfigEntry';
 import { SetAllColor, SetAllSize } from './VisualAllPanel';
 
 import { 
+  ChartType,
   DraggableType,
   Field,
   Fields,
@@ -32,6 +33,7 @@ const DISPLAYNAME = {
 interface EncodingsProps {
   readonly setPlotConfig: SetPlotConfig,
   readonly plotConfig: PlotConfig,
+  readonly chartType: ChartType,
   readonly shouldHideCustomAttrTag: Readonly<{[VField.COLOR]: boolean, [VField.SIZE]: boolean}>,
   readonly onPickColor: HandlePickColor,
   readonly onPickSize: HandlePickSize,
@@ -55,6 +57,7 @@ class Encodings extends React.PureComponent<EncodingsProps> {
               key={field}
               field={field}
               plotConfigEntry={plotConfig[field]}
+              chartType={this.props.chartType}
               setPlotConfig={setPlotConfig}
               shouldHideTag={shouldHideCustomAttrTag[field]}
               onPickColor={this.props.onPickColor}
@@ -87,13 +90,15 @@ const encodingTarget = {
     props: EncodingFieldProps,
     monitor: DropTargetMonitor,
   ): boolean => {
-    const { plotConfigEntry, field } = props;
+    const { plotConfigEntry, field, chartType } = props;
     const { sourceAttribute, sourceField } = monitor.getItem();
     return (
       !(
-        (sourceAttribute.type === 'string' && field === 'size') || 
+        (sourceAttribute.type === 'string' && field === VField.SIZE) || 
         (plotConfigEntry && plotConfigEntry.attribute && 
-          plotConfigEntry.attribute.type === 'string' && sourceField === 'size')
+          plotConfigEntry.attribute.type === 'string' && sourceField === VField.SIZE) ||
+        (sourceAttribute.type === 'number' && field === GField.GROUP) ||
+        (chartType === ChartType.BAR_STACK && (field === VField.SIZE|| field === VField.COLOR))
       )
     );
   }
@@ -108,6 +113,7 @@ const collect = (connect: DropTargetConnector, monitor: DropTargetMonitor) => ({
 interface EncodingFieldProps {
   readonly field: Field,
   readonly setPlotConfig: SetPlotConfig,
+  readonly chartType: ChartType,
   readonly plotConfigEntry?: PlotConfigEntry,
   readonly shouldHideTag: boolean,
   readonly onPickColor?: HandlePickColor,

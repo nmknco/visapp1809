@@ -1,3 +1,6 @@
+import { Attribute } from 'src/Attribute';
+import { PField } from './types';
+
 export const MINIMAP_PERROW = 3;
 export const FILTER_PANEL_WIDTH = 300;
 export const MINIMAP_MAR = 3; // margin around svg (used as padding of container)
@@ -29,3 +32,28 @@ export const BAR_DROP_PADDING = 2;
 export const BAR_DROP_WIDTH = BAR_PADDING - BAR_DROP_PADDING * 2;
 
 export const DEBUG = false;
+
+export const FILES = [
+  'cars.json',
+  'movies.json',
+  'colleges.json',
+]
+
+export const INITIAL_ATTR = {
+  'cars.json': {
+    [PField.X]: new Attribute('Year', 'string'),
+    [PField.Y]: new Attribute('Miles_per_Gallon', 'number'),
+    // second nominal attribute used when switching from bar to stacked-bar chart
+    x2: new Attribute('Origin', 'string'),
+  },
+  'movies.json': {
+    [PField.X]: new Attribute('Genre', 'string'),
+    [PField.Y]: new Attribute('IMDb Rating', 'number'),
+    x2: new Attribute('Year', 'string'),
+  },
+  'colleges.json': {
+    [PField.X]: new Attribute('Locale', 'string'),
+    [PField.Y]: new Attribute('Average Cost', 'number'),
+    x2: new Attribute('Region', 'string'),
+  },
+}

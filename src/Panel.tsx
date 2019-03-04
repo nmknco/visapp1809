@@ -14,7 +14,7 @@ class Panel extends React.Component<PanelProps & React.HTMLAttributes<HTMLDivEle
   render() {
     // console.log('Panel render');
     return (
-      <div className={`card border-light m-${this.props.noMargin ? 0 : 1} ${this.props.className}`}>
+      <div className={`card border-light m-${this.props.noMargin ? 0 : 1} ${this.props.className || ''}`}>
         {this.props.heading && 
           <div className="card-header"> {this.props.heading} </div>
         }
@@ -48,7 +48,7 @@ class PanelWithDismiss extends React.Component<PanelWithDismissProps & React.HTM
 
     return (
       <Panel
-        className="recommended-filters-panel"
+        className={this.props.className + ' panel-with-dismiss'}
         heading={headingWithCancel}
       >
         {this.props.children}

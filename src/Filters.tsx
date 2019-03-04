@@ -157,6 +157,7 @@ class Filters extends React.PureComponent<FiltersProps> {
     return (
       <Panel
         heading="Filters"
+        className="filters-panel"
         noPadding={true}
       >
         <div>

@@ -398,3 +398,7 @@ export type SetIsDragging = (
 export type HandleDragEnd = (
   idSetDroppedToFilter: ReadonlySet<string>,
 ) => void;
+
+export type HandleUpdateDataFile = (
+  fileName: string,
+) => void;

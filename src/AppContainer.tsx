@@ -5,26 +5,25 @@ import HTML5Backend from 'react-dnd-html5-backend';
 import { App } from './App';
 import { Data, DataEntry } from './commons/types';
 
+
+const INITIAL_FILE = 'cars.json'
+
 interface AppContainerState {
-  data: Data,
+  fileName: string;
+  data: Data;
 }
 
 class AppContainer extends React.PureComponent<{}, AppContainerState> {
   constructor(props: {}) {
     super(props);
     this.state = {
+      fileName: INITIAL_FILE,
       data: [], // instead of null to show the UI without typing issues
     }
   }
 
   componentDidMount() {
-    fetch('data/cars.json')
-    .then(res => res.json())
-    .then(data => {
-      data = data.filter((d: object, i: number) => i % 2 === 0); // dev. Do this first so that id_extra is correct
-      // console.table(data);
-      this.setState({data: this.preProcess(data)});
-    });
+    this.handleUpdateDataFile(this.state.fileName);
   }
 
   componentWillUnmount() {
@@ -32,8 +31,30 @@ class AppContainer extends React.PureComponent<{}, AppContainerState> {
     console.log('App will unmount');
   }
 
+  private handleUpdateDataFile = (fileName: string) => {
+    fetch(`data/${fileName}`)
+    .then(res => res.json())
+    .then(data => {
+      // console.log(data);
+      data = data.filter((d: object, i: number) => i % 2 === 0); // dev. Do this first so that id_extra is correct
+      // console.table(data);
+      this.setState({
+        fileName,
+        data: this.preProcess(data)
+      });
+    });
+  };
+
   render() {
-    return <div><App data={this.state.data} /></div>;
+    return  (
+      <div className="app-container">
+        <App
+          data={this.state.data}
+          fileName={this.state.fileName}
+          onUpdateDataFile={this.handleUpdateDataFile}
+        />
+      </div>
+    );
   }
 
   private preProcess = (data: object[]): Data => {

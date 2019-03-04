@@ -8,6 +8,7 @@ import { Attribute } from './Attribute';
 import {
   ChartType,
   Data,
+  GField,
   NumericRangeScale,
   PlotConfig,
   StringRangeScale,
@@ -251,9 +252,11 @@ class Legends extends React.PureComponent<LegendsProps> {
     const {visualScaleMap: vs, plotConfig: pc} = this.props;
     const cnScale = vs[VisualScaleType.COLOR_NUM];
     const coScale = vs[VisualScaleType.COLOR_ORD];
-    const cEntry = pc[VField.COLOR];
-    const cType = cEntry && cEntry.attribute.type === 'number' ?
-      VisualScaleType.COLOR_NUM : VisualScaleType.COLOR_ORD
+    const cEntry = this.props.chartType === ChartType.BAR_STACK ? pc[GField.GROUP] : pc[VField.COLOR];
+    const cType = this.props.chartType === ChartType.BAR_STACK ?
+        VisualScaleType.COLOR_ORD :
+        (cEntry && cEntry.attribute.type === 'number' ?
+          VisualScaleType.COLOR_NUM : VisualScaleType.COLOR_ORD)
 
     const zScale = vs[VField.SIZE];
     const zEntry = pc[VField.SIZE];

@@ -288,6 +288,8 @@ class BarStackPlotter {
     const gScale = d3.scaleOrdinal()
       .domain(this.gDomain)
       .range(d3.schemeCategory10.concat(d3.schemePastel1));
+    // @ts-ignore
+    this.setVisualScales(VisualScaleType.COLOR_ORD, gScale);
 
     const xg = this.chart.select('.x-axis');
     const yg = this.chart.select('.y-axis');

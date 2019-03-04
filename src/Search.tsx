@@ -13,6 +13,7 @@ interface SearchProps {
   readonly resultsIdSet: ReadonlySet<string> | null,
   readonly shouldShowSelectButton: boolean,
   readonly onClickSelectSearchButton: () => void,
+  readonly shouldDisableSearch?: boolean
 }
 
 class Search extends React.PureComponent<SearchProps> {
@@ -35,12 +36,14 @@ class Search extends React.PureComponent<SearchProps> {
     return (
       <Panel
         heading="Search"
-        noMargin={true}
+        className="search-panel"
+        // noMargin={true}
       >
         <div>
           <div className="p-1">
             <Input 
               onInputChange={this.handleSearchInputChange}
+              shouldDisable={this.props.shouldDisableSearch}
             />
           </div>
           { (this.props.resultsIdSet) &&
@@ -67,6 +70,7 @@ class Search extends React.PureComponent<SearchProps> {
 
 interface InputProps {
   readonly onInputChange: HandleInputChange,
+  readonly shouldDisable?: boolean,
 }
 
 interface InputState {
@@ -79,6 +83,12 @@ class Input extends React.PureComponent<InputProps, InputState>{
     this.state = {
       value: '',
     };
+  }
+
+  componentDidUpdate() {
+    if (this.props.shouldDisable) {
+      this.setState(() => ({value: ''}));
+    }
   }
 
   private handleInputChange = (ev: React.FormEvent<HTMLInputElement>) => {
@@ -97,6 +107,7 @@ class Input extends React.PureComponent<InputProps, InputState>{
             value={this.state.value}
             onChange={this.handleInputChange}
             placeholder="e.g. 1980, toyota, japan"
+            disabled={this.props.shouldDisable}
           />
         </label>
       </div>
