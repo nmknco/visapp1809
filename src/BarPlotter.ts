@@ -389,12 +389,14 @@ class BarPlotter {
 
 
   private reorderDataAndPlot = (customOrderedNestedData: NestedDataEntry[]) => {
+    // this is called to adopt order from user's dragging
     this.updateDerivedFields(customOrderedNestedData);
     this.syncVisualSize();
   };
 
   updateOrderAndPlot = (order: Order) => {
     this.orderManager.setOrder(order);
+    this.orderManager.resetReorderedIds();
     const customOrderedNestedData = [...this.fdataNested];
     customOrderedNestedData.sort(OrderUtil.getOrderFunction(order));
     this.reorderDataAndPlot(customOrderedNestedData);
@@ -416,6 +418,7 @@ class BarPlotter {
   redrawAll = (plotConfig: PlotConfig) => {
     this.updatePositionAndSize(plotConfig);
     this.updateVisualColor(plotConfig[VField.COLOR]);
+    this.orderManager.resetReorderedIds();
   };
 
 

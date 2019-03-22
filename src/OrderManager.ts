@@ -58,8 +58,9 @@ class OrderUtil {
     numberOfResult: number,
     reorderedIds?: ReadonlySet<string>,
   ): Order[] => {
-    // Always recommand 
-    console.log(customOrderedNestedData);
+    // Recommending order-by attributes. The current yName is always the top recommendation
+
+    // console.log(customOrderedNestedData);
     const e0 = customOrderedNestedData[0];
     if (!e0 || !e0.value) {
       return [];
@@ -75,7 +76,7 @@ class OrderUtil {
       });
     }
 
-    console.log(scores);
+    console.log('Order scores', scores);
     scores.sort((a: {attrName: string, score: number}, b: {attrName: string, score: number}) =>
       Math.abs(b.score) - Math.abs(a.score) // score ordered by abs (so that both asce/desc covered)
     );
@@ -106,9 +107,9 @@ class OrderUtil {
       const {key} = data[i]
       if (!reorderedIds || reorderedIds.has(key)) {
         const rankasc = asc.findIndex(e => e.key === key);
-        const rankdesc = data.length - rankasc;
-        score.asc += Math.abs(i - rankasc);
-        score.desc += Math.abs(i - rankdesc);
+        const rankdesc = data.length - 1 - rankasc;
+        score.asc += Math.abs(i - rankasc) + 0.1; // to avoid the 0
+        score.desc += Math.abs(i - rankdesc) + 0.1;
       }
     }
     return score.asc <= score.desc ? score.asc : -score.desc;
