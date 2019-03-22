@@ -4,7 +4,7 @@ import { Resizer } from './Resizer';
 import { Dragger } from './Dragger';
 import { ActiveSelectionsWithRec } from './ActiveSelections';
 import { expandRange, SelUtil, ColorUtil } from './commons/util';
-import { CHARTCONFIG, DEFAULT_DOT_COLOR, DEFAULT_DOT_SIZE } from './commons/constants';
+import { CHARTCONFIG, DEFAULT_DOT_COLOR, DEFAULT_DOT_SIZE, ORD_COLORS } from './commons/constants';
 import { memoizedGetExtent } from './commons/memoized';
 
 const SVGATTR_BY_FIELD = {color: 'stroke', size: 'r'};
@@ -54,6 +54,7 @@ class MainPlotter {
     this.customScales = {color: null, size: null}; // preserve this for toggle on and off x/y axis 
                                          // (as active selection is cleared and can't be used for restoration)
 
+    this.canvas = null;
     this.chart = null;
     this.selector = null;
     this.resizer = null;
@@ -91,6 +92,7 @@ class MainPlotter {
       .attr('width', svgW - l - r)
       .attr('height', svgH - t - b);
     
+    this.canvas = canvas;
     this.chart = chart;
 
     this.selector = new DotSelector(
@@ -284,7 +286,9 @@ class MainPlotter {
       if (entry) {
         attrName = entry.attribute.name;
         if (entry.useCustomScale) {
-          scaleType = field === 'size' ? 'size' : 'color_num';
+          scaleType = (field === 'size') ?
+            'size' : 
+            (entry.attribute.type === 'number' ? 'color_num' : 'color_ord');
           visualScale = this.customScales[field] || this.activeSelections.getInterpolatedScale(field, attrName);
           this.customScales[field] = visualScale;
           shouldUpdateRange = true;
@@ -298,7 +302,8 @@ class MainPlotter {
                 [ColorUtil.stringToHSL(hslStr1), ColorUtil.stringToHSL(hslStr2)]);
             } else {
               scaleType = 'color_ord';
-              visualScale = d3.scaleOrdinal(d3['scheme' + this.getVisualScaleRange(scaleType)])
+              // visualScale = d3.scaleOrdinal(d3['scheme' + this.getVisualScaleRange(scaleType)])
+              visualScale = d3.scaleOrdinal(ORD_COLORS)
                 .domain(d3.map(data, d => d[attrName]).keys());
             }
           } else if (field === 'size') {

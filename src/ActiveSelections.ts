@@ -1,10 +1,10 @@
-import * as d3 from 'd3';
+// import * as d3 from 'd3';
 
 import { Classifier } from './Classifier';
 
-import { DEFAULT_DOT_SIZE_RANGE } from './commons/constants';
+// import { DEFAULT_DOT_SIZE_RANGE } from './commons/constants';
 import { CustomError } from './commons/errors';
-import { memoizedGetExtent } from './commons/memoized';
+// import { memoizedGetExtent } from './commons/memoized';
 import {
   GeneralData,
   HandleActiveSelectionChange,
@@ -15,7 +15,11 @@ import {
   UpdateRecommendedEncodings,
   VField,
 } from './commons/types';
-import { ColorUtil, expandRange } from './commons/util';
+import {
+  ColorUtil,
+  // expandRange,
+  interpolateSizeScaleWithData,
+} from './commons/util';
 
 
 class ActiveSelections {
@@ -91,7 +95,7 @@ class ActiveSelectionsWithRec {
   private readonly classifier: Classifier;
   private readonly recommendedAttrListsByField: RecommendedAttrListsByField;
   private readonly interpolatedScales: {
-    [VField.COLOR]: {[key: string]: StringRangeScale<number>},
+    [VField.COLOR]: {[key: string]: StringRangeScale<number> | StringRangeScale<string>},
     [VField.SIZE]: {[key: string]: NumericRangeScale<number>},
   }
 
@@ -145,6 +149,8 @@ class ActiveSelectionsWithRec {
     this.recommendedAttrListsByField[vfield] = this.classifier.getMostSimilarAttr(
       this.getAllGroups(vfield),
       2,
+      vfield === VField.SIZE,
+      2,
     );
     this.updateRecommendation(this.flatten(this.recommendedAttrListsByField));
   };
@@ -155,16 +161,31 @@ class ActiveSelectionsWithRec {
     let scale;
     for (const attrName of this.recommendedAttrListsByField[vfield]) {
       if (vfield === VField.COLOR) {
-        scale = ColorUtil.interpolateColorScaleWithData(
-          this.as.getAllGroupsWithValue(VField.COLOR),
-          data,
-          attrName,
-        );
+        if (typeof data[0][attrName] === 'number') {
+          scale = ColorUtil.interpolateColorScaleWithData(
+            this.as.getAllGroupsWithValue(VField.COLOR),
+            data,
+            attrName,
+          );
+        } else {
+          scale = ColorUtil.interpolateOrdinalColorScaleWithData(
+            this.as.getAllGroupsWithValue(VField.COLOR),
+            data,
+            attrName,
+          );
+        }
       } else if (vfield === VField.SIZE) {
-        // We do not actually interpolate size scales. Using the generic one instead
-        scale = d3.scaleLinear()
-          .domain(expandRange(memoizedGetExtent(data, attrName)))
-          .range(DEFAULT_DOT_SIZE_RANGE) as NumericRangeScale<number>;
+        //// We do not actually interpolate size scales. Using the generic one instead
+        // scale = d3.scaleLinear()
+        //   .domain(expandRange(memoizedGetExtent(data, attrName)))
+        //   .range(DEFAULT_DOT_SIZE_RANGE) as NumericRangeScale<number>;
+
+        // we now interpolate size scales
+        scale = interpolateSizeScaleWithData(
+          this.as.getAllGroupsWithValue(VField.SIZE),
+          data,
+          attrName, 
+        )
       }
       if (!scale) {
         throw new CustomError('Error generating custom scale');

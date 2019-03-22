@@ -173,7 +173,7 @@ class App extends React.PureComponent<AppProps, AppState> {
           ColorUtil.hslToString(new HSLColor(5, SAT, LIT)), 
           ColorUtil.hslToString(new HSLColor(275, SAT, LIT))
         ],
-        [VisualScaleType.COLOR_ORD]: D3Scheme.CATEGORY10,
+        [VisualScaleType.COLOR_ORD]: D3Scheme.CATEGORY10, // not used now
         [VisualScaleType.SIZE]: DEFAULT_DOT_SIZE_RANGE,
       },
       isDragging: false,
@@ -325,9 +325,12 @@ class App extends React.PureComponent<AppProps, AppState> {
     if (!y) {
       this.setPlotConfig(PField.Y, new PlotConfigEntry(y1));
     }
+
+    // we clear both color/size (thought we can allow numeric ones on bar chart)
+    this.setPlotConfig(VField.COLOR, undefined);
+    this.setPlotConfig(VField.SIZE, undefined);
+
     if (barChartType === ChartType.BAR_STACK) {
-      this.setPlotConfig(VField.COLOR, undefined);
-      this.setPlotConfig(VField.SIZE, undefined);
       this.setPlotConfig(GField.GROUP,
         new PlotConfigEntry((x && x.attribute) || x2));
     }
@@ -553,7 +556,10 @@ class App extends React.PureComponent<AppProps, AppState> {
     this.plt.clearSelection();
     this.setPlotConfig(
       field, 
-      new PlotConfigEntry(new Attribute(attrName, 'number'), field !== GField.GROUP),
+      new PlotConfigEntry(
+        new Attribute(attrName, (typeof this.props.data[0][attrName] === 'number') ? 'number' : 'string'),
+        field !== GField.GROUP
+      ),
       () => {
         if (field === GField.GROUP) {
           this.handleSelectChartType(ChartType.BAR_STACK);
@@ -804,6 +810,9 @@ class App extends React.PureComponent<AppProps, AppState> {
   };
 
   private handleHoverFilter: HandleHoverFilter = (ev, filter) => {
+    if (this.state.chartType !== ChartType.SCATTER_PLOT) {
+      return;
+    }
     if (ev.type === 'mouseenter') {
       this.hideOrDimPointsByState(this.fm.getStateGetterOnPreviewRemove(filter.filterFn))
     } else if (ev.type === 'mouseleave') {

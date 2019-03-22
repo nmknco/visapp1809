@@ -8,6 +8,7 @@ import {
   DataEntry,
   DraggableType,
   Field,
+  Stat,
 } from './commons/types';
 
 
@@ -47,22 +48,25 @@ class Attributes extends React.PureComponent<AttributesProps> {
 interface AttrTagProps {
   readonly attribute: Attribute,
   readonly isCustom?: boolean,
+  readonly stat?: Stat
 }
 
 class AttrTag extends React.PureComponent<AttrTagProps> {
   // AttrTag is a representational component
   // AttrTag knows some extra info that Attribute does not: 
   //  (1) if it's using custom color/size scale (from recommendation)
+
   render() {
-    const { attribute: {name, type}, isCustom } = this.props;
+    const displayName = {[Stat.SUM]: 'SUM', [Stat.MEAN]: 'AVG'}
+    const { attribute: {name, type}, isCustom, stat } = this.props;
     return (
       <div
-        style={{width: isCustom ? 180 : 120 }}
+        style={{width: isCustom ? 208 : 166 }}
         className={`attr__tag btn`
           + ` btn-outline-${ type === 'number' ? 'info' : 'success'}`}
         id={'attr-' + name}
       >
-        {name + (isCustom ? ' (custom) ' : '')}
+        {name + (stat ? ` (${displayName[stat]})` : '') + (isCustom ? ' (custom) ' : '')}
       </div>
     );
   }
@@ -97,7 +101,7 @@ class DraggableAttrTagBare extends React.PureComponent<DraggableAttrTagProps> {
   //  (2) if it's in an encoding field (for drag-swapping)
   render() {
     console.log('Attribute tags render')
-    const { connectDragSource, isDragging, attribute, isCustom } = this.props;
+    const { connectDragSource, isDragging, attribute, isCustom, stat } = this.props;
     return connectDragSource!(
       <div
         style={{
@@ -105,7 +109,7 @@ class DraggableAttrTagBare extends React.PureComponent<DraggableAttrTagProps> {
         }}
       >
         <AttrTag
-          {...{attribute, isCustom}}
+          {...{attribute, isCustom, stat}}
         />
       </div>
     );

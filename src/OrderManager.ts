@@ -62,10 +62,11 @@ class OrderUtil {
     customOrderedNestedData: NestedDataEntry[],
     attrName: string,
   ) => {
+    // positive score = ascending
     const a = customOrderedNestedData;
     let score = 0;
     for (let i = 0; i < a.length - 1; i++) {
-      const cmp = (a[i].value![attrName] - a[i + 1].value![attrName])
+      const cmp = (a[i+1].value![attrName] - a[i].value![attrName]); 
       score += Math.sign(cmp);
     }
     return score;

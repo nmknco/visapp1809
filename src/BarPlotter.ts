@@ -47,6 +47,7 @@ import {
   ColorUtil,
   getNestedExtent,
   getStat,
+  replaceWhiteSpaceWith,
 } from './commons/util';
 
 
@@ -151,7 +152,7 @@ class BarPlotter {
           this.isDraggedFor = null;
         } else if (this.isDraggedFor === 'stack') {
           const sourceXKey = this.selector.getSelectedIds().values().next().value;
-          this.handleStackBar(sourceXKey, this.xKeyDraggedOver)
+          this.handleStackBar(sourceXKey, this.xKeyDraggedOver);
         }
       }
       // clean-up
@@ -479,7 +480,7 @@ class BarPlotter {
     const newBars = newSections
       .append('g')
       .classed('bar', true)
-      .attr('id', d => 'bar--' + d.key);
+      .attr('id', d => 'bar--' + replaceWhiteSpaceWith(d.key, '_'));
 
     // revert temporary stack visuals
     barSections.select('.bar')
@@ -896,8 +897,8 @@ class BarPlotter {
   private handleStackBar = (sourceXKey: string, targetXKey: string) => {
     console.log(`stacking ${sourceXKey} on ${targetXKey}`);
 
-    const targetBarRect = d3.select(`#bar--${targetXKey} .bar__rect`);
-    const sourceBar = d3.select('#bar--' + sourceXKey);
+    const targetBarRect = d3.select(`#bar--${replaceWhiteSpaceWith(targetXKey, '_')} .bar__rect`);
+    const sourceBar = d3.select('#bar--' + replaceWhiteSpaceWith(sourceXKey, '_'));
     const sourceBarRect = sourceBar.select('.bar__rect');
     const dx = +targetBarRect.attr('x') - +sourceBarRect.attr('x');
     const dy = -targetBarRect.attr('height');

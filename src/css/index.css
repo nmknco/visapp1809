@@ -127,11 +127,16 @@ html, body, #root, .app-container {
 
 .attr__tag {
   cursor: pointer;
-  height: 24px;
+  height: 26px;
   overflow: hidden;
 }
 
+.attr__tag.btn {
+  font-size: 15px;
+}
+
 .attr__value {
+  font-size: 14px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -238,6 +243,7 @@ html, body, #root, .app-container {
 .color-picker {
   position: absolute;
   width: 115px;
+  z-index: 15;
 }
 
 .drag-clone {

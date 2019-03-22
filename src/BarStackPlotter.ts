@@ -5,6 +5,7 @@ import { Attribute } from './Attribute';;
 import {
   BAR_PADDING,
   CHARTCONFIG,
+  ORD_COLORS,
 } from './commons/constants';
 import { memoizedGetAttributes, memoizedGetUniqueValueList } from './commons/memoized';
 import {
@@ -287,7 +288,7 @@ class BarStackPlotter {
 
     const gScale = d3.scaleOrdinal()
       .domain(this.gDomain)
-      .range(d3.schemeCategory10.concat(d3.schemePastel1));
+      .range(ORD_COLORS);
     // @ts-ignore
     this.setVisualScales(VisualScaleType.COLOR_ORD, gScale);
 

@@ -1,3 +1,5 @@
+import * as d3 from 'd3';
+
 import { Attribute } from 'src/Attribute';
 import { PField } from './types';
 
@@ -20,7 +22,7 @@ export const CHARTCONFIG = {
 export const DEFAULT_DOT_COLOR = 'hsl(0, 0%, 60%)'; // #999999
 export const DEFAULT_DOT_SIZE = 7;
 export const DEFAULT_DOT_SIZE_RANGE: Readonly<[number, number]> = [3, 15];
-export const MAX_DOT_SIZE_RANGE: Readonly<[number, number]> = [2, 30];
+export const MAX_DOT_SIZE_RANGE: Readonly<[number, number]> = [3, 20];
 export const DEFAULT_BAR_COLOR = 'hsl(0, 0%, 60%)';
 export const DEFAULT_BAR_SIZE = 30;
 export const DEFAULT_BAR_SIZE_RANGE: Readonly<[number, number]> = [10, 64];
@@ -57,3 +59,5 @@ export const INITIAL_ATTR = {
     x2: new Attribute('Region', 'string'),
   },
 }
+
+export const ORD_COLORS = d3.schemeCategory10.concat(d3.schemeSet3);

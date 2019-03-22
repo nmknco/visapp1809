@@ -18,6 +18,7 @@ import {
   PField,
   PlotConfig,
   SetPlotConfig,
+  Stat,
   VField,
 } from './commons/types';
 import { getDropBackgroundColor } from './commons/util';
@@ -92,13 +93,42 @@ const encodingTarget = {
   ): boolean => {
     const { plotConfigEntry, field, chartType } = props;
     const { sourceAttribute, sourceField } = monitor.getItem();
+    const check = (type: 'number' | 'string') => 
+      plotConfigEntry && plotConfigEntry.attribute && plotConfigEntry.attribute.type === type;
+    
     return (
       !(
-        (sourceAttribute.type === 'string' && field === VField.SIZE) || 
-        (plotConfigEntry && plotConfigEntry.attribute && 
-          plotConfigEntry.attribute.type === 'string' && sourceField === VField.SIZE) ||
-        (sourceAttribute.type === 'number' && field === GField.GROUP) ||
-        (chartType === ChartType.BAR_STACK && (field === VField.SIZE|| field === VField.COLOR))
+        (sourceAttribute.type === 'string' && 
+          field === VField.SIZE
+        ) || 
+        (sourceAttribute.type === 'number' &&
+          field === GField.GROUP
+        ) ||
+        (chartType === ChartType.BAR_CHART && 
+          (sourceAttribute.type === 'string' && 
+            (field === VField.COLOR || field === VField.SIZE || field === PField.Y)
+          )
+        ) ||
+        (chartType === ChartType.BAR_STACK && 
+          (field === VField.SIZE || field === VField.COLOR || 
+          (sourceAttribute.type === 'string' && field === PField.Y))
+        ) ||
+        // swapping (isomorphic to above)
+        (check('string') && 
+          sourceField === VField.SIZE
+        ) || 
+        (check('number') &&
+          sourceField === GField.GROUP
+        ) ||
+        (chartType === ChartType.BAR_CHART && 
+          (check('string') && 
+            (sourceField === VField.COLOR || sourceField === VField.SIZE || sourceField === PField.Y)
+          )
+        ) ||
+        (chartType === ChartType.BAR_STACK && 
+          (sourceField === VField.SIZE || sourceField === VField.COLOR || 
+          (check('string') && sourceField === PField.Y))
+        )
       )
     );
   }
@@ -142,6 +172,7 @@ class EncodingField extends React.PureComponent<EncodingFieldProps, EncodingFiel
 
   private renderContent = () => {
     const { plotConfigEntry, field, shouldHideTag } = this.props;
+    const statName = {[ChartType.BAR_CHART]: Stat.MEAN, [ChartType.BAR_STACK]: Stat.SUM}
     if (plotConfigEntry) {
       const {attribute, useCustomScale} = plotConfigEntry
       return (
@@ -151,6 +182,7 @@ class EncodingField extends React.PureComponent<EncodingFieldProps, EncodingFiel
             attribute={attribute}
             field={field}
             isCustom={useCustomScale}
+            stat={field !== PField.X && field !== GField.GROUP && statName[this.props.chartType]}
           />
           <FAButton
             faName="times"

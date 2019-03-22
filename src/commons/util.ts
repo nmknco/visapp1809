@@ -2,16 +2,23 @@ import * as d3 from 'd3';
 
 import { LIT, SAT } from '../ColorPicker';
 
+import { DEFAULT_DOT_SIZE, MAX_DOT_SIZE_RANGE, ORD_COLORS } from './constants';
 import { 
+  CustomError,
   InvalidHSLStringError,
-  NoStatError
+  NoStatError,
 } from './errors';
-import { memoizedGetExtent } from './memoized';
+import {
+  memoizedGetExtent,
+  memoizedGetUniqueValueList,
+  memoizedGetValueList,
+} from './memoized';
 import {
   Data,
   GeneralData,
   GeneralDataEntry,
   NestedDataEntry,
+  NumericRangeScale,
   Stat,
   StringRangeScale,
 } from './types';
@@ -212,6 +219,37 @@ export class ColorUtil {
     return colorScale;
   };
 
+
+  static interpolateOrdinalColorScaleWithData = (
+    idsByHSL: {[key: string]: ReadonlySet<string>},
+    data: GeneralData,
+    colorAttrName: string,
+  ): StringRangeScale<string> => {
+    const colorByValue: {[key: string]: string} = {};
+    const customColors: string[] = [];
+    for (const [color, idGroup] of Object.entries(idsByHSL)) {
+      // assuming threshold > 0.5, just use mid value as the majority
+      const vals = data.filter(d => idGroup.has(d.__id_extra__))
+        .map(d => d[colorAttrName] as string)
+        .sort((a, b) => (a).localeCompare(b));
+      const majVal = vals[Math.floor(vals.length / 2)];
+      colorByValue[majVal] = color;
+      customColors.push(color);
+    }
+    let customValIndex = 0;
+    for (const val of memoizedGetValueList(data, colorAttrName)) {
+      if (!colorByValue.hasOwnProperty(val)) {
+        colorByValue[val] = ORD_COLORS[customValIndex++ % ORD_COLORS.length];
+      }
+    }
+    const scale = (val: string) => colorByValue[val];
+    scale.range = () => ORD_COLORS.concat(customColors);
+    scale.domain = () => memoizedGetUniqueValueList(data, colorAttrName) as string[];
+
+    return scale;
+  }
+
+
   static interpolateColorScaleWithData = (
     idsByHSL: {[key: string]: ReadonlySet<string>},
     data: GeneralData,
@@ -291,6 +329,74 @@ export class ColorUtil {
   }
 }
 
+
+export const interpolateSizeScaleWithData = (
+  idsBySize: {[key: string]: ReadonlySet<string>},
+  data: GeneralData,
+  sizeAttrName: string,
+): NumericRangeScale<number> => {
+
+  let [z0, z1] = d3.extent(Object.keys(idsBySize).map(Number));
+  if (z0 === undefined || z1 === undefined) {
+    throw new CustomError('Cannot get extent from idsBySize');
+  }
+
+  // use the medians in the min and max group as value for creating the linear scale
+  let [med0, med1] = ([z0, z1])
+    .map(z => idsBySize[z.toString()])
+    .map(s => data.filter(d => s.has(d.__id_extra__)).map(d => d[sizeAttrName]) as number[])
+    .map(vals => d3.median(vals));
+
+  if (med0 === undefined || med1 === undefined) {
+    throw new CustomError('Cannot get medians from extreme size groups');
+  }
+
+  // global min/max. We use 00 and 11 instead of min/max to emphasize
+  //  that the mapping might be reversed
+  const [v00, v11] = memoizedGetExtent(data, sizeAttrName);
+
+  if (z0 === z1) {
+    // this implies med0 === med1
+    const z2 = DEFAULT_DOT_SIZE;
+    let med2 = d3.median(data, d => d[sizeAttrName] as number);
+    if (med2 === undefined) {
+      throw new NoStatError(sizeAttrName, 'median');
+    }
+    if (med2 === med0) {
+      // if median doesn't work, use extreme values (choose the one further from med0 and med1)
+      med2 = Math.abs(v00 - med0) > Math.abs(v11 - med0) ? v00 : v11;
+    }
+    if (z2 < z0) {
+      z0 = z2;
+      med0 = med2;
+    } else {
+      z1 = z2;
+      med1 = med2;
+    }
+  }
+
+
+
+  const unrestrictedScale = d3.scaleLinear().domain([med0, med1]).range([z0, z1]);
+
+
+  let [z00, z11] = ([v00, v11]).map(unrestrictedScale);
+
+  // console.log([v00, v11], [z00, z11]);
+  if (z00 < z11) {
+    z00 = Math.max(MAX_DOT_SIZE_RANGE[0], z00);
+    z11 = Math.min(MAX_DOT_SIZE_RANGE[1], z11);
+  } else {
+    z00 = Math.min(MAX_DOT_SIZE_RANGE[1], z00);
+    z11 = Math.max(MAX_DOT_SIZE_RANGE[0], z11);   
+  }
+
+  // console.log([v00, v11], [z00, z11]);
+  return d3.scaleLinear().domain([v00, v11]).range([z00, z11]);
+}
+
+
+
 export const expandRange = (extent: [number, number]) => {
   const [lo, hi] = extent;
   const len = hi - lo;
@@ -350,3 +456,7 @@ export const getStat = (
   }
   return m;
 };
+
+
+export const replaceWhiteSpaceWith = (str: string, repl: string) => 
+  str.replace(/\s/g, repl);

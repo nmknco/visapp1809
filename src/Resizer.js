@@ -1,4 +1,5 @@
 import { Pos, SelUtil } from './commons/util';
+import { MAX_DOT_SIZE_RANGE } from './commons/constants';
 
 class Resizer {
   constructor(chartBoxNode, onResizing, onResizingFinish) {
@@ -40,7 +41,8 @@ class Resizer {
         this.currentDot.getAttribute('data-x'),
         this.currentDot.getAttribute('data-y')
       );
-      const r = SelUtil.getEventPosRelativeToBoxClipped(e, this.chartBoxNode).distTo(cPos);
+      let r = SelUtil.getEventPosRelativeToBoxClipped(e, this.chartBoxNode).distTo(cPos);
+      r = Math.max(MAX_DOT_SIZE_RANGE[0], Math.min(MAX_DOT_SIZE_RANGE[1], r));
       this.r = r;
       this.onResizing(r);
 

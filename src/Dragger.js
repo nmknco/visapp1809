@@ -55,7 +55,7 @@ class Dragger {
         });
         const copyCanvas = d3.select(copyDiv)
           .append('svg')
-          .attr('width', CHARTCONFIG.svgW)
+          .attr('width', this.plotter.canvas.attr('width'))
           .attr('height', CHARTCONFIG.svgH)
           .append('g')
           .attr('transform', `translate(${CHARTCONFIG.pad.l}, ${CHARTCONFIG.pad.t})`);

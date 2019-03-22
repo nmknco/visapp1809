@@ -10,13 +10,14 @@ class Classifier {
 
     this.data = {};
     this.numericAttrList = [];
+    this.catAttrList = [];
   }
 
   _updateDataAndAttrList = () => {
     this.data = this.getData();
-    this.numericAttrList = memoizedGetAttributes(this.getData())
-      .filter(attr => attr.type === 'number')
-      .map(attr => attr.name);
+    const attrList = memoizedGetAttributes(this.getData());
+    this.numericAttrList = attrList.filter(attr => attr.type === 'number').map(attr => attr.name);
+    this.catAttrList = attrList.filter(attr => attr.type === 'string').map(attr => attr.name);
   }
 
   _updateTotalVar = () => {
@@ -47,11 +48,45 @@ class Classifier {
     return (N - k) * B / (W * (k - 1))
   };
 
-  getMostSimilarAttr = (groups, numberOfResult) => {
-    const k = groups.length;
-    if (k === 0) return [];
 
-    this._updateDataAndAttrList();
+  _getMostSimilarCatAttr = (groups, maxNumberOfResult) => {
+    // ad hoc measure for ordinal attributes
+    // pick only the categories that has the same value in at least <threshold> data points 
+    //    in all groups
+    // if (groups.length === 0) return [];
+
+
+    const threshold = 0.8;
+    const scores = {};
+    for (const ca of this.catAttrList) {
+      scores[ca] = 1;
+    }
+    for (const group of groups) {
+      const selected = this.data.filter(d => group.has(d.__id_extra__));
+      for (const catAttr of this.catAttrList) {
+        const count = {};
+        for (const datum of selected) {
+          count[datum[catAttr]] = (count[datum[catAttr]] || 0) + 1;
+        }
+        const maxRatio = d3.max(Object.values(count)) / selected.length;
+          scores[catAttr] *= (maxRatio > threshold ? maxRatio : 0);
+      }
+    }
+    // console.log(scores);
+
+    return Object.entries(scores)
+      .filter(([ca, score]) => score > 0)
+      .sort((a, b) => b[1] - a[1])
+      .map(d => d[0])
+      .slice(0, maxNumberOfResult || 2);
+  } 
+
+
+  _getMostSimilarNumAttr = (groups, numberOfResult) => {
+    const k = groups.length;
+    // if (k === 0) return [];
+
+    // this._updateDataAndAttrList();
     this._updateTotalVar();
 
     const simi = {};
@@ -91,6 +126,16 @@ class Classifier {
       .slice(0, numberOfResult);
               
   };
+
+  getMostSimilarAttr = (groups, nNum, numericOnly, nCat) => {
+    // console.log(groups);
+    if (groups.length === 0) return [];
+    this._updateDataAndAttrList();
+    const numList = this._getMostSimilarNumAttr(groups, nNum);
+    const res = numericOnly ? numList : numList.concat(this._getMostSimilarCatAttr(groups, nCat))
+
+    return res;
+  }
 
 }
 
