@@ -108,7 +108,8 @@ export const memoizedGetUniqueValueList: (
   attrName: string,
 ) => ReadonlyArray<number | string> = memoizePureDataFn(
   (data: Data, attrName: string): ReadonlyArray<number|string> => {
-    return Array.from(memoizedGetValueSet(data, attrName));
+    return Array.from(memoizedGetValueSet(data, attrName))
+      .sort((a, b) => (a === b) ? 0 :(a < b) ? -1 : 1);
   }
 );
 

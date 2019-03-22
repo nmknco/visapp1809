@@ -71,7 +71,8 @@ class BarPlotter {
   // core fields, externally provided
   private fdata: DataEntry[]; // mutable
   private xName: string | null;
-  private zName: string | null;
+  private yName: string | null;
+  private zName: string | null; // size
 
   private readonly activeSelections: ActiveSelectionsWithRec;
 
@@ -132,6 +133,8 @@ class BarPlotter {
           console.log('bars dropped for reorder');
           const insertKey = this.xKeyDraggedOver;
           const selectedIds = this.selector.getSelectedIds();
+          this.orderManager.addReorderedIds(selectedIds);
+
           let customOrderedNestedData: NestedDataEntry[] = [];
           for (const entry of this.fdataNested) {
             if (!selectedIds.has(entry.key)) {
@@ -145,7 +148,9 @@ class BarPlotter {
           }
           // console.log(customOrderedNestedData);
           this.reorderDataAndPlot(customOrderedNestedData);
-          this.updateRecommendedOrders(OrderUtil.getRecommendedOrder(customOrderedNestedData, 3));
+          this.updateRecommendedOrders(
+            this.orderManager.getRecommendedOrders(customOrderedNestedData, this.yName!, 3)
+          );
 
           // clean-up
           this.xKeyDraggedOver = null;
@@ -216,6 +221,12 @@ class BarPlotter {
     this.xName = xName;
     this.updateDerivedFields();
   };
+
+  private setYName = (yName: string | null) => {
+    // used for recommending order
+    this.yName = yName;
+  };
+
 
   private setZName = (zName: string | null) => {
     this.zName = zName;
@@ -434,6 +445,7 @@ class BarPlotter {
     const xName = x.attribute.name;
     const yName = y.attribute.name;
     this.setXName(xName);
+    this.setYName(yName);
 
     this.setZName(size ? size.attribute.name : null);
 

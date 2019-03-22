@@ -5,14 +5,14 @@ import { PlotConfigEntry } from '../PlotConfigEntry';
 import { ColorObj } from './util';
 
 export interface GeneralDataEntry {
-  readonly __id_extra__: string,
-  readonly [key: string]: number | string,
+  readonly __id_extra__: string;
+  readonly [key: string]: number | string;
 }
 
 export type DataEntry = GeneralDataEntry
 
 export interface GroupDataEntry extends GeneralDataEntry {
-  readonly __is_group__: number,
+  readonly __is_group__: number;
 }
 
 export type Data = ReadonlyArray<DataEntry>;

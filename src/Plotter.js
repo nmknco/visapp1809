@@ -5,7 +5,7 @@ import { Dragger } from './Dragger';
 import { ActiveSelectionsWithRec } from './ActiveSelections';
 import { expandRange, SelUtil, ColorUtil } from './commons/util';
 import { CHARTCONFIG, DEFAULT_DOT_COLOR, DEFAULT_DOT_SIZE, ORD_COLORS } from './commons/constants';
-import { memoizedGetExtent } from './commons/memoized';
+import { memoizedGetExtent, memoizedGetUniqueValueList } from './commons/memoized';
 
 const SVGATTR_BY_FIELD = {color: 'stroke', size: 'r'};
 
@@ -167,7 +167,7 @@ class MainPlotter {
         d3.scaleLinear()
           .domain(expandRange(memoizedGetExtent(data, x_attr))) :
         d3.scalePoint()
-          .domain(data.map(d => d[x_attr]))
+          .domain(memoizedGetUniqueValueList(data, x_attr))
           .padding(0.2)
     ).range([0, svgW - l - r]);
 
@@ -176,7 +176,7 @@ class MainPlotter {
         d3.scaleLinear()
           .domain(expandRange(memoizedGetExtent(data, y_attr))) :
         d3.scalePoint()
-          .domain(data.map(d => d[y_attr]))
+          .domain(memoizedGetUniqueValueList(data, x_attr))
           .padding(0.2)
     ).range([svgH - t - b, 0]);
 
@@ -304,7 +304,7 @@ class MainPlotter {
               scaleType = 'color_ord';
               // visualScale = d3.scaleOrdinal(d3['scheme' + this.getVisualScaleRange(scaleType)])
               visualScale = d3.scaleOrdinal(ORD_COLORS)
-                .domain(d3.map(data, d => d[attrName]).keys());
+                .domain(memoizedGetUniqueValueList(data, attrName));
             }
           } else if (field === 'size') {
             scaleType = 'size';
