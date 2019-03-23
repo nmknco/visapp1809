@@ -96,7 +96,6 @@ class BarPlotter {
   private readonly orderManager: OrderManager;
   
   // The between-bar slot that selected bars are being dragged over for reorder
-  // TODO: Use '' (emptry str) for the first slot
   private xKeyDraggedOver: string | null; 
   private isDraggedFor: 'reorder' | 'stack' | null;
   
@@ -131,19 +130,24 @@ class BarPlotter {
       if (this.xKeyDraggedOver !== null) {
         if (this.isDraggedFor === 'reorder') {
           console.log('bars dropped for reorder');
+
+          // insert the selected bars after the insert key
+          // insert key == empty string means inserting at beginning 
           const insertKey = this.xKeyDraggedOver;
           const selectedIds = this.selector.getSelectedIds();
           this.orderManager.addReorderedIds(selectedIds);
 
+          const selectedBarData = this.fdataNested.filter(d => selectedIds.has(d.key));
           let customOrderedNestedData: NestedDataEntry[] = [];
+          if (insertKey === '') {
+            customOrderedNestedData = customOrderedNestedData.concat(selectedBarData);
+          }
           for (const entry of this.fdataNested) {
             if (!selectedIds.has(entry.key)) {
               customOrderedNestedData.push(entry);
             }
             if (entry.key === insertKey) {
-              customOrderedNestedData = customOrderedNestedData.concat(
-                this.fdataNested.filter(d => selectedIds.has(d.key))
-              );
+              customOrderedNestedData = customOrderedNestedData.concat(selectedBarData);
             }
           }
           // console.log(customOrderedNestedData);
@@ -348,6 +352,8 @@ class BarPlotter {
   init = () => {
 
     const {pad: {t, b, l, r}, svgH, svgW} = CHARTCONFIG;
+    const w = svgW - l - r;
+    const h = svgH - t - b;
 
     d3.select(this.container).selectAll('svg').remove();
 
@@ -367,12 +373,12 @@ class BarPlotter {
       .attr('id', 'chart-box')
       .attr('x', 0)
       .attr('y', 0)
-      .attr('width', svgW - l - r)
-      .attr('height', svgH - t - b);
+      .attr('width', w)
+      .attr('height', h);
 
 
     this.chart.append('g')
-      .attr('transform', `translate(0, ${svgH - t - b})`)
+      .attr('transform', `translate(0, ${h})`)
       .classed('x-axis', true)
       .classed('axis-container', true)
       .append('text')
@@ -385,6 +391,27 @@ class BarPlotter {
       .attr('x', -200).attr('y', -80)
       .attr('transform', 'rotate(-90)')
       .classed('label', true);
+
+
+    this.chart.append('rect')
+      .classed('bar__drop', true)
+      .classed('bar__drop--reorder', true)
+      .classed('bar__drop--reorder-first', true)
+      // .attr('stroke', 'black')
+      .attr('width', BAR_DROP_WIDTH)
+      .attr('height', h)
+      .on('mouseenter', d => {
+        if (this.dragger.getIsDragging()) {
+          this.xKeyDraggedOver = '';
+          this.isDraggedFor = 'reorder';
+        }
+      })
+      .on('mouseleave', d => {
+        if (this.dragger.getIsDragging()) {
+          this.xKeyDraggedOver = null;
+          this.isDraggedFor = null;
+        }
+      });
   };
 
 
