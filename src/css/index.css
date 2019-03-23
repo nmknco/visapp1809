@@ -116,6 +116,16 @@ html, body, #root, .app-container {
   background-color: rgba(0, 0, 0, 0.08);
 }
 
+.version-button {
+  width: 20px;
+  height: 20px;
+}
+
+.version-button:hover {
+  background-color: #999999;
+  cursor: pointer;
+}
+
 /* ---- Left panel ---- */
 
 .search-panel {

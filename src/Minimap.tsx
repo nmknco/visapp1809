@@ -131,8 +131,8 @@ class PointFilterMinimap extends React.PureComponent<PointFilterMinimapProps> {
   private handleRemove = () =>
     this.props.onRemove(this.props.fid);
 
-  private handleHover = (ev: React.MouseEvent<Element>) =>
-    this.props.onHover(ev, this.props.filter);
+  // private handleHover = (ev: React.MouseEvent<Element>) =>
+  //   this.props.onHover(ev, this.props.filter);
 
   private renderOverlay = () => (
     <div 
@@ -140,8 +140,8 @@ class PointFilterMinimap extends React.PureComponent<PointFilterMinimapProps> {
         width: '100%',
         height: '100%',
       }}
-      onMouseEnter={this.handleHover}
-      onMouseLeave={this.handleHover}
+      // onMouseEnter={this.handleHover}
+      // onMouseLeave={this.handleHover}
     >
       <div 
         className="minimap__overlay--buttons px-1"

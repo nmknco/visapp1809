@@ -69,7 +69,7 @@ export class Rect {
   };
 
   containsCoor = (x: number, y: number): boolean => {
-    return x >= this.l && x < this.r && y > this.t && y < this.b;
+    return x >= this.l && x <= this.r && y >= this.t && y <= this.b;
   };
 
   static updateNodeByRect = (node: SVGRectElement, rect: Rect) => {

@@ -62,7 +62,7 @@ class BarPlotter {
   private readonly getDefaultVisualValue: GetDefaultVisualValue;
   private readonly handleChangeVisualByUser: HandleChangeVisualByUser;
   readonly setIsDragging: SetIsDragging;
-  readonly handleDragEnd: HandleDragEnd;
+  private readonly handleDragEndExternal: HandleDragEnd;
 
   private readonly numericAttrList: ReadonlyArray<string>;
 
@@ -111,7 +111,7 @@ class BarPlotter {
     // the next one is for size since color is handled in app and resize is handled here
     handleChangeVisualByUser: HandleChangeVisualByUser,
     setIsDragging: SetIsDragging,
-    handleDragEnd: HandleDragEnd,
+    handleDragEndExternal: HandleDragEnd,
   ){
     this.data = data;
     this.container = container;
@@ -123,55 +123,7 @@ class BarPlotter {
     this.getDefaultVisualValue = getDefaultVisualValue;
     this.handleChangeVisualByUser = handleChangeVisualByUser;
     this.setIsDragging = setIsDragging;
-
-
-    // add drag-n-reorder logic to dragend handler
-    this.handleDragEnd = (idSetDropped: ReadonlySet<string>) => {
-      if (this.xKeyDraggedOver !== null) {
-        if (this.isDraggedFor === 'reorder') {
-          console.log('bars dropped for reorder');
-
-          // insert the selected bars after the insert key
-          // insert key == empty string means inserting at beginning 
-          const insertKey = this.xKeyDraggedOver;
-          const selectedIds = this.selector.getSelectedIds();
-          this.orderManager.addReorderedIds(selectedIds);
-
-          const selectedBarData = this.fdataNested.filter(d => selectedIds.has(d.key));
-          let customOrderedNestedData: NestedDataEntry[] = [];
-          if (insertKey === '') {
-            customOrderedNestedData = customOrderedNestedData.concat(selectedBarData);
-          }
-          for (const entry of this.fdataNested) {
-            if (!selectedIds.has(entry.key)) {
-              customOrderedNestedData.push(entry);
-            }
-            if (entry.key === insertKey) {
-              customOrderedNestedData = customOrderedNestedData.concat(selectedBarData);
-            }
-          }
-          // console.log(customOrderedNestedData);
-          this.reorderDataAndPlot(customOrderedNestedData);
-          this.updateRecommendedOrders(
-            this.orderManager.getRecommendedOrders(customOrderedNestedData, this.yName!, 3)
-          );
-
-          // clean-up
-          this.xKeyDraggedOver = null;
-          this.isDraggedFor = null;
-        } else if (this.isDraggedFor === 'stack') {
-          const sourceXKey = this.selector.getSelectedIds().values().next().value;
-          this.handleStackBar(sourceXKey, this.xKeyDraggedOver);
-        }
-      }
-      // clean-up
-      this.chart
-        .selectAll('.bar__drop')
-        .classed('bar__drop--active', false);
-    
-      handleDragEnd(idSetDropped);
-    };
-
+    this.handleDragEndExternal = handleDragEndExternal;
 
     this.xName = null;
     this.zName = null; // important to not left this undefined - see updateVisualSize()
@@ -211,13 +163,7 @@ class BarPlotter {
     this.orderManager = new OrderManager();
   }
 
-  handleDragStart = () => {
-    // Set the bar drop areas interactable
-    this.chart
-      .selectAll(this.selector.getSelectedIds().size === 1 ? 
-        '.bar__drop:not(.selected)' : '.bar__drop--reorder')
-      .classed('bar__drop--active', true);
-  }
+
 
   private getGroupData = () => this.groupData;
 
@@ -321,7 +267,6 @@ class BarPlotter {
     const newW = (w > svgW) ? w : CHARTCONFIG.svgW;
     this.canvas.attr('width', newW);
     this.chartBox.attr('width', newW - l - r);
-    this.selector.setChartBoxNode(this.chartBox.node() as SVGRectElement);
     this.xScale = d3.scaleOrdinal()
       .domain(this.xDomain)
       .range(xRange);
@@ -349,7 +294,7 @@ class BarPlotter {
   };
   
 
-  init = () => {
+  private init = () => {
 
     const {pad: {t, b, l, r}, svgH, svgW} = CHARTCONFIG;
     const w = svgW - l - r;
@@ -490,6 +435,7 @@ class BarPlotter {
     xg.select('.label').text(xName);
     yg.select('.label').text(yName);
 
+    // 'bar-section' class contains 'bar' class (see below) and reorder dropper
     const barSections = this.chart
       .selectAll('.bar-section')
       .data([...this.fdataNested], (d: NestedDataEntry) => d.key);
@@ -518,7 +464,7 @@ class BarPlotter {
         }
       });
 
-
+    // The 'bar' class contains everything that can be dragged around or select-hightlighted
     const newBars = newSections
       .append('g')
       .classed('bar', true)
@@ -665,6 +611,8 @@ class BarPlotter {
     
     // this is used for updating x/size after internal changes (no plotconfig or data change),
     //    such as resizing or ordering
+
+    console.log('Sync visual size');
 
     const { animation } = options;
 
@@ -973,6 +921,62 @@ class BarPlotter {
         }
       ]
     )
+  };
+
+
+  handleDragStart = () => {
+    // Set the bar drop areas interactable
+    this.chart
+      .selectAll(this.selector.getSelectedIds().size === 1 ? 
+        '.bar__drop:not(.selected)' : '.bar__drop--reorder')
+      .classed('bar__drop--active', true);
+  }
+
+  // drag-n-reorder logic to passed in dragend handler (handleDragEndExternal)
+  handleDragEnd = (idSetDropped: ReadonlySet<string>) => {
+    if (this.xKeyDraggedOver !== null) {
+      if (this.isDraggedFor === 'reorder') {
+        console.log('bars dropped for reorder');
+
+        // insert the selected bars after the insert key
+        // insert key == empty string means inserting at beginning 
+        const insertKey = this.xKeyDraggedOver;
+        const selectedIds = this.selector.getSelectedIds();
+        this.orderManager.addReorderedIds(selectedIds);
+
+        const selectedBarData = this.fdataNested.filter(d => selectedIds.has(d.key));
+        let customOrderedNestedData: NestedDataEntry[] = [];
+        if (insertKey === '') {
+          customOrderedNestedData = customOrderedNestedData.concat(selectedBarData);
+        }
+        for (const entry of this.fdataNested) {
+          if (!selectedIds.has(entry.key)) {
+            customOrderedNestedData.push(entry);
+          }
+          if (entry.key === insertKey) {
+            customOrderedNestedData = customOrderedNestedData.concat(selectedBarData);
+          }
+        }
+        // console.log(customOrderedNestedData);
+        this.reorderDataAndPlot(customOrderedNestedData);
+        this.updateRecommendedOrders(
+          this.orderManager.getRecommendedOrders(customOrderedNestedData, this.yName!, 3)
+        );
+
+        // clean-up
+        this.xKeyDraggedOver = null;
+        this.isDraggedFor = null;
+      } else if (this.isDraggedFor === 'stack') {
+        const sourceXKey = this.selector.getSelectedIds().values().next().value;
+        this.handleStackBar(sourceXKey, this.xKeyDraggedOver);
+      }
+    }
+    // clean-up
+    this.chart
+      .selectAll('.bar__drop')
+      .classed('bar__drop--active', false);
+  
+    this.handleDragEndExternal(idSetDropped);
   };
 
 }

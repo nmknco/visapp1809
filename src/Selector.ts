@@ -14,11 +14,11 @@ import { Pos, Rect, SelUtil } from './commons/util';
 
 
 abstract class Selector {
-  private chartBoxNode: SVGRectElement;
+  protected chartBoxNode: SVGRectElement;
 
   // The next two fields are also used as isSelecting check
-  private selNode: SVGRectElement | null; // the <rect> selection window
-  private origin: Pos | null;
+  protected selNode: SVGRectElement | null; // the <rect> selection window
+  protected origin: Pos | null;
 
   protected selectedIds: Set<string>;
   protected pendingIds: Set<string>;
@@ -61,6 +61,8 @@ abstract class Selector {
   
   protected abstract onMouseMove: (currentRect: Rect) => void;
 
+  protected abstract computeCurrentRect: (origin: Pos, e: MouseEvent) => Rect;
+
   private addDragListeners = () => {
     this.chartBoxNode.addEventListener('mousedown', (ev: MouseEvent) => {
       ev.preventDefault();
@@ -76,10 +78,7 @@ abstract class Selector {
 
     document.addEventListener('mousemove', (e) => {
       if (this.selNode && this.origin) {
-        const currentRect = new Rect(
-          this.origin, 
-          SelUtil.getEventPosRelativeToBoxClipped(e, this.chartBoxNode)
-        );
+        const currentRect = this.computeCurrentRect(this.origin, e);
         Rect.updateNodeByRect(this.selNode, currentRect);
 
         this.pendingIds.clear();
@@ -101,6 +100,7 @@ abstract class Selector {
         this.pendingIds.clear();
         this.selNode.outerHTML = '';
         this.selNode = null;
+        this.origin = null;
         this.onSelectionChange();
       }
     });
@@ -151,21 +151,22 @@ abstract class Selector {
 
 
 class DotSelector extends Selector {
+  protected computeCurrentRect = (origin: Pos, e: MouseEvent) => {
+    return new Rect(
+      origin, 
+      SelUtil.getEventPosRelativeToBoxClipped(e, this.chartBoxNode)
+    );
+  }
 
   protected onMouseMove = (currentRect: Rect) => {
-    const { pendingIds } = this;
     d3.select('#plot')
       .selectAll('.dot:not(.hidden)') // prevent selecting filtered-out points
-      .each(function(d: DataEntry) {
-      // Not using arrow func to void `this` binding
-      // d3 convention is that the node itself is `this`
-        if(this) {
-          const el = this as Element;
-          const x = el.getAttribute('data-x');
-          const y = el.getAttribute('data-y');
-          if (x && y && currentRect.containsCoor(+x, +y)) { 
-            pendingIds.add(d.__id_extra__); 
-          }
+      .each((d: DataEntry, i, nodes) => {
+        const el = nodes[i] as Element;
+        const x = el.getAttribute('data-x');
+        const y = el.getAttribute('data-y');
+        if (x && y && currentRect.containsCoor(+x, +y)) { 
+          this.pendingIds.add(d.__id_extra__); 
         }
       });
   }
@@ -173,26 +174,27 @@ class DotSelector extends Selector {
 
 
 class BarSelector extends Selector {
+  protected computeCurrentRect = (origin: Pos, e: MouseEvent) => {
+    const Rect2D = new Rect(
+      origin, 
+      SelUtil.getEventPosRelativeToBoxClipped(e, this.chartBoxNode)
+    );
+    const h = this.chartBoxNode.getAttribute('height');
+    return new Rect(new Pos(Rect2D.l, 0), new Pos(Rect2D.r, +h!));
+  }
 
   protected onMouseMove = (currentRect: Rect) => {
-    const { pendingIds } = this;
     d3.select('#plot')
-      .selectAll('.bar__rect')
-      .each(function(d: NestedDataEntry) {
-        if (this) {
-          const el = this as Element;
-          const x = el.getAttribute('x');
-          const y = el.getAttribute('y');
-          const w = el.getAttribute('width');
-          const h = el.getAttribute('height');
-          if (x && y && w && h) {
-            if (currentRect.containsCoor(+x + +w/2, +y + +h/2)) {
-              pendingIds.add(d.key);
-            }
-          }
+      .selectAll('.bar-section')
+      .each((d: NestedDataEntry, i, nodes) => {
+        const el = nodes[i] as HTMLElement;
+        const cx = el.dataset.cx;
+        if (cx !== undefined && currentRect.containsCoor(+cx, 0)) {
+          this.pendingIds.add(d.key);
         }
       });
   }
 }
+
 
 export { BarSelector, DotSelector };

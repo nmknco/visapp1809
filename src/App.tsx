@@ -42,6 +42,7 @@ import {
   INITIAL_ATTR,
   MAX_BAR_SIZE_RANGE,
   MAX_DOT_SIZE_RANGE,
+  VERSION,
 } from './commons/constants';
 import { ElementNotFoundError } from './commons/errors';
 import {
@@ -145,8 +146,7 @@ class App extends React.PureComponent<AppProps, AppState> {
   private fm: FilterManager;
   private searcher: Searcher;
 
-  private bp: BarPlotter;
-  private bsp: BarStackPlotter;
+  private bp: BarPlotter | BarStackPlotter;
 
   private plt: MainPlotter | BarPlotter | BarStackPlotter;
 
@@ -208,6 +208,7 @@ class App extends React.PureComponent<AppProps, AppState> {
     this.onSelectionChange,
     this.getVisualScaleRange,
     this.getDefaultVisualValue,
+    this.fm.getFilteredIdSet,
   );
 
   private createNewBarPlotter = (): BarPlotter => {
@@ -239,6 +240,9 @@ class App extends React.PureComponent<AppProps, AppState> {
       this.setVisualScales,
       this.getVisualScaleRange,
       this.getDefaultVisualValue,
+      this.updateRecommendedOrder,
+      this.setIsDragging,
+      this.handleDragBarsEnd,
     );
   }
 
@@ -357,12 +361,11 @@ class App extends React.PureComponent<AppProps, AppState> {
     barChartType: ChartType.BAR_CHART | ChartType.BAR_STACK = ChartType.BAR_CHART,
   ) => {
     if (barChartType === ChartType.BAR_STACK) {
-      this.bsp = this.createNewBarStackPlotter();
-      this.plt = this.bsp; 
-    } else {
+      this.bp = this.createNewBarStackPlotter();
+    } else if (barChartType === ChartType.BAR_CHART) {
       this.bp = this.createNewBarPlotter();
-      this.plt = this.bp;
     }
+    this.plt = this.bp;
 
     this.searcher = new Searcher(this.props.data, (id: string) => this.fm.getIsFiltered(id));
     
@@ -656,10 +659,10 @@ class App extends React.PureComponent<AppProps, AppState> {
     }
   };
 
+  private clearRecommendedOrders = () => this.setState(() => ({recommendedOrders: []}));
+
   private handleDismissAllRecommendedOrders: HandleDismissAllRecommendations = () => {
-    this.setState(() => ({
-      recommendedOrders: [],
-    }));
+    this.clearRecommendedOrders();
     this.bp.redrawAll(this.state.plotConfig);
     this.bp.clearSelection();
   };
@@ -730,6 +733,10 @@ class App extends React.PureComponent<AppProps, AppState> {
     // Use this for initializing plot with filters
     const getState = this.fm.getStateGetterOnNoPreview();
     this.hideOrDimPointsByState(getState);
+
+    // Scale change - very fragile
+    // @ts-ignore
+    this.plt.updatePosition(this.state.plotConfig);
   };
 
   private handleFilterListChange: HandleFilterListChange = () => {
@@ -1042,6 +1049,9 @@ class App extends React.PureComponent<AppProps, AppState> {
     this.setState(
       () => ({chartType}),
     );
+    
+    this.clearRecommendedOrders();
+
     if (chartType === ChartType.SCATTER_PLOT) {
       this.initializeMainPlot();
     } else if (chartType === ChartType.BAR_CHART) {
@@ -1051,6 +1061,7 @@ class App extends React.PureComponent<AppProps, AppState> {
       this.initializeBarChart(ChartType.BAR_STACK);
       this.handleSearchInputChange('');
     }
+
     if (this.state.showAffordance[chartType]) {
       this.showOverlayMenu(OverlayMenu.AFFORDANCE);
     }
@@ -1071,15 +1082,22 @@ class App extends React.PureComponent<AppProps, AppState> {
     }
   }
 
+  private alertVersion = () => alert(`Version ${VERSION}`);
+
 
   render() {
     return (
       <div className="app">
         <nav
-          className="navbar navbar-expand-lg navbar-light bg-light"
+          className="navbar navbar-expand-lg navbar-light bg-light px-1"
         >
+
           <div className="collapse navbar-collapse">
             <ul className="navbar-nav">
+              <li
+                className="version-button"
+                onClick={this.alertVersion}
+              />
               <li className="nav-item mx-2">
                 <Dropdown
                   text="Data"
@@ -1117,7 +1135,10 @@ class App extends React.PureComponent<AppProps, AppState> {
               </li> */}
               <li 
                 className="nav-item mx-2 align-items-center d-flex"
-                style={{visibility: this.state.chartType === ChartType.BAR_CHART ? 'visible' : 'hidden'}}
+                style={{
+                  visibility: this.state.chartType === ChartType.SCATTER_PLOT ? 
+                    'hidden' : 'visible'
+                }}
               >
                 <div className="p-1">Sort Bars:</div>
                 <div className="align-items-center" style={{fontSize: 18}}>

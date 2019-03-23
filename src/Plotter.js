@@ -26,6 +26,7 @@ class MainPlotter {
     onSelectionChange,
     getVisualScaleRange,
     getDefaultVisualValue,
+    getFilteredIds,
   ){
     this.data = data;
     this.container = container;
@@ -40,6 +41,7 @@ class MainPlotter {
     this.onSelectionChange = onSelectionChange;
     this.getVisualScaleRange = getVisualScaleRange;
     this.getDefaultVisualValue = getDefaultVisualValue;
+    this.getFilteredIds = getFilteredIds;
 
     this.chartType = 'scatterplot';
     
@@ -71,6 +73,8 @@ class MainPlotter {
   init = () => {
 
     const {pad: {t, r, b, l}, svgH, svgW} = CHARTCONFIG;
+    const w = svgW - l - r;
+    const h = svgH - t - b;
 
     d3.select(this.container).selectAll('svg').remove();
 
@@ -89,8 +93,8 @@ class MainPlotter {
       .attr('id', 'chart-box')
       .attr('x', 0)
       .attr('y', 0)
-      .attr('width', svgW - l - r)
-      .attr('height', svgH - t - b);
+      .attr('width', w)
+      .attr('height', h);
     
     this.canvas = canvas;
     this.chart = chart;
@@ -110,7 +114,7 @@ class MainPlotter {
     this.dragger = new Dragger(this);
 
     chart.append('g')
-      .attr('transform', `translate(0, ${svgH - t - b})`)
+      .attr('transform', `translate(0, ${h})`)
       .classed('x-axis', true)
       .classed('axis-container', true)
       .append('text')
@@ -136,7 +140,12 @@ class MainPlotter {
     console.log('update position called');
 
     const {pad: {t, r, b, l}, svgH, svgW} = CHARTCONFIG;
+    const filteredIds = this.getFilteredIds();
+
     const data = this.data;
+    // keep the original reference if no filter for memoization
+    const filteredData = filteredIds.size ?
+      this.data.filter(d => !filteredIds.has(d.__id_extra__)) : this.data;
 
     const { x, y } = plotConfig;
 
@@ -162,21 +171,27 @@ class MainPlotter {
     //  to be shared with Minimap.tsx
     const x_attr = x.attribute.name;
     const y_attr = y.attribute.name;
-    const xScale = this.scales.x[x_attr] || (
+    // const xScale = this.scales.x[x_attr] || (
+    const xScale = (
       (x.attribute.type === 'number') ?
         d3.scaleLinear()
-          .domain(expandRange(memoizedGetExtent(data, x_attr))) :
+          // .domain(expandRange(memoizedGetExtent(data, x_attr))) :
+          .domain(expandRange(memoizedGetExtent(filteredData, x_attr))) :
         d3.scalePoint()
-          .domain(memoizedGetUniqueValueList(data, x_attr))
+          // .domain(memoizedGetUniqueValueList(data, x_attr))
+          .domain(memoizedGetUniqueValueList(filteredData, x_attr))
           .padding(0.2)
     ).range([0, svgW - l - r]);
 
-    const yScale = this.scales.y[y_attr] || (
+    // const yScale = this.scales.y[y_attr] || (
+    const yScale = (
       (y.attribute.type === 'number') ?
         d3.scaleLinear()
-          .domain(expandRange(memoizedGetExtent(data, y_attr))) :
+          // .domain(expandRange(memoizedGetExtent(data, y_attr))) :
+          .domain(expandRange(memoizedGetExtent(filteredData, y_attr))) :
         d3.scalePoint()
-          .domain(memoizedGetUniqueValueList(data, x_attr))
+          // .domain(memoizedGetUniqueValueList(data, x_attr))
+          .domain(memoizedGetUniqueValueList(filteredData, x_attr))
           .padding(0.2)
     ).range([svgH - t - b, 0]);
 
@@ -261,7 +276,8 @@ class MainPlotter {
     dots.merge(newDots)
       .transition()
       .duration(1000)
-      .attr('transform', d => `translate(${xScale(d[x_attr])}, ${yScale(d[y_attr])})`)
+      // use a default for points that are not in the current filtered (ordinal) scale domain
+      .attr('transform', d => `translate(${xScale(d[x_attr]) || 0}, ${yScale(d[y_attr]) || 0})`)
       // Save position data in attributes for selection funcitons
       .attr('data-x', d => xScale(d[x_attr]))
       .attr('data-y', d => yScale(d[y_attr]));
