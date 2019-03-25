@@ -282,7 +282,11 @@ export type HandleHoverFilter = (
 ) => void;
 
 
-export type HandleFilterListChange = () => void;
+export type HandleFilterListChange = (
+  options?: {
+    showAnimation?: boolean,
+  }
+) => void;
 
 export type HandleAddFilter = (
   filter: Filter,

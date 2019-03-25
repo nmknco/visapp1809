@@ -739,7 +739,7 @@ class App extends React.PureComponent<AppProps, AppState> {
     this.plt.updatePosition(this.state.plotConfig);
   };
 
-  private handleFilterListChange: HandleFilterListChange = () => {
+  private handleFilterListChange: HandleFilterListChange = (options?) => {
     // Update states
     const filteredIds = this.fm.getFilteredIdSet();
     this.setState(() => ({
@@ -755,9 +755,11 @@ class App extends React.PureComponent<AppProps, AppState> {
       // Update search using current keyword
       this.updateSearchResult();
       // Show drag animations
-      DragAnimator.showDragFilteredPointsAnimation(
-        this.fm.getNewFilteredIds()
-      ).then(() => console.log('Points drag animation finished'));
+      if (options && options.showAnimation) {
+        DragAnimator.showDragFilteredPointsAnimation(
+          this.fm.getNewFilteredIds()
+        ).then(() => console.log('Points drag animation finished'));
+      }
     }
     if (this.state.chartType === ChartType.BAR_CHART || this.state.chartType === ChartType.BAR_STACK) {
       // @ts-ignore
@@ -1048,19 +1050,22 @@ class App extends React.PureComponent<AppProps, AppState> {
     console.log('Switching chart to: ' + chartType);
     this.setState(
       () => ({chartType}),
+      () => {
+        if (chartType === ChartType.SCATTER_PLOT) {
+          this.initializeMainPlot();
+          this.handleFilterListChange(); // show effects for existing filters  - this 
+                // depends on charttype swithing finished and thus needs to be in the callback
+        } else if (chartType === ChartType.BAR_CHART) {
+          this.initializeBarChart();
+          this.handleSearchInputChange('');
+        } else if (chartType === ChartType.BAR_STACK) {
+          this.initializeBarChart(ChartType.BAR_STACK);
+          this.handleSearchInputChange('');
+        }
+      }
     );
     
     this.clearRecommendedOrders();
-
-    if (chartType === ChartType.SCATTER_PLOT) {
-      this.initializeMainPlot();
-    } else if (chartType === ChartType.BAR_CHART) {
-      this.initializeBarChart();
-      this.handleSearchInputChange('');
-    } else if (chartType === ChartType.BAR_STACK) {
-      this.initializeBarChart(ChartType.BAR_STACK);
-      this.handleSearchInputChange('');
-    }
 
     if (this.state.showAffordance[chartType]) {
       this.showOverlayMenu(OverlayMenu.AFFORDANCE);

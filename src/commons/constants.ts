@@ -3,7 +3,7 @@ import * as d3 from 'd3';
 import { Attribute } from 'src/Attribute';
 import { PField } from './types';
 
-export const VERSION = '3/23/2019 - v1';
+export const VERSION = '3/24/2019 - v1';
 
 export const MINIMAP_PERROW = 3;
 export const FILTER_PANEL_WIDTH = 300;
