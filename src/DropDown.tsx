@@ -28,7 +28,7 @@ class Dropdown extends React.Component<DropdownProps, DropdownState> {
   render() {
     return (
       <div 
-        className="dropdown--button m-1"
+        className="dropdown--button m-1 p-1"
         onClick={this.show}
         onMouseLeave={this.hide}
       >
@@ -43,7 +43,7 @@ class Dropdown extends React.Component<DropdownProps, DropdownState> {
         >
           {this.props.children}
         </div>
-        <div>{this.props.text}</div>
+        <div className="p-1">{this.props.text}</div>
       </div>
     );
   }

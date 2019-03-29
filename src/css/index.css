@@ -43,8 +43,8 @@ html, body, #root, .app-container {
 }
 
 .app .navbar {
-  height: 3%;
-  min-height: 36px;
+  height: 4%;
+  min-height: 50px;
   min-width: 100%;
 }
 
@@ -117,7 +117,7 @@ html, body, #root, .app-container {
 }
 
 .version-button {
-  width: 20px;
+  width: 15px;
   height: 20px;
 }
 
@@ -126,13 +126,40 @@ html, body, #root, .app-container {
   cursor: pointer;
 }
 
+.app-logo {
+  height: 45px;
+}
+
+.app-name {
+  font-weight: bold;
+  font-size: 24px;
+  cursor: default;
+  padding-bottom: 2px;
+  padding-left: 4px;
+}
+
 /* ---- Left panel ---- */
 
 .search-panel {
   min-height: 10%;
 }
 .attributes-panel {
-  min-height: 90%;
+  min-height: 88%;
+}
+.feedback-link {
+  min-height: 2%;
+  font-size: 14px;
+}
+
+.feedback-link a:link,
+.feedback-link a:visited,
+.feedback-link a:active {
+  color: rgba(0, 0, 0, 0.5);
+}
+
+.feedback-link a:hover {
+  text-decoration: none;
+  color: rgba(0, 0, 0, 0.8);
 }
 
 .attr__tag {

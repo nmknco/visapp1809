@@ -38,6 +38,7 @@ import {
   DEFAULT_DOT_COLOR,
   DEFAULT_DOT_SIZE,
   DEFAULT_DOT_SIZE_RANGE,
+  FEEDBACK_LINK,
   FILTER_PANEL_WIDTH,
   INITIAL_ATTR,
   MAX_BAR_SIZE_RANGE,
@@ -1094,7 +1095,7 @@ class App extends React.PureComponent<AppProps, AppState> {
     return (
       <div className="app">
         <nav
-          className="navbar navbar-expand-lg navbar-light bg-light px-1"
+          className="navbar navbar-expand-lg navbar-light bg-light p-1"
         >
 
           <div className="collapse navbar-collapse">
@@ -1103,7 +1104,14 @@ class App extends React.PureComponent<AppProps, AppState> {
                 className="version-button"
                 onClick={this.alertVersion}
               />
-              <li className="nav-item mx-2">
+              <li className="nav-item mr-2 align-items-center d-flex">
+                <img
+                  className="app-logo mb-1"
+                  src="images/thumbnail_image.png"
+                />
+                <div className="app-name">Liger</div>
+              </li>
+              <li className="nav-item mx-2 p-1">
                 <Dropdown
                   text="Data"
                   width={240}
@@ -1114,7 +1122,7 @@ class App extends React.PureComponent<AppProps, AppState> {
                   />
                 </Dropdown>
               </li>
-              <li className="nav-item mx-2">
+              <li className="nav-item mx-2 p-1">
                 <Dropdown
                   text="Show Me"
                   width={240}
@@ -1178,6 +1186,21 @@ class App extends React.PureComponent<AppProps, AppState> {
               attributes={memoizedGetAttributes(this.props.data)}  
               activeEntry={this.state.activeEntry}
             />
+            <div className="feedback-link p-1">
+              <a
+                href={FEEDBACK_LINK}
+                target="_blank"
+              >
+                Report an issue
+              </a> 
+              &nbsp;&nbsp;&#183;&nbsp;&nbsp;
+              <a
+                href={FEEDBACK_LINK}
+                target="_blank"
+              >
+                Feedback
+              </a> 
+            </div>
           </div>
 
           

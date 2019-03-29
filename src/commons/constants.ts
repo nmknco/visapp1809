@@ -63,3 +63,5 @@ export const INITIAL_ATTR = {
 }
 
 export const ORD_COLORS = d3.schemeCategory10.concat(d3.schemeSet3);
+
+export const FEEDBACK_LINK = 'https://docs.google.com/forms/d/e/1FAIpQLSeePjMochJxKHEy5tlXrq11H4u9q4G4uw8hIGuzqY-cCBdkIA/viewform'
